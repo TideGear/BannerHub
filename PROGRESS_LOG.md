@@ -112,7 +112,7 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 ---
 
 ### [patch] — Option B: Embedded Component Manager in side menu
-**Commit:** `d2f17e9` | **Tag:** v1.0.6 (in progress)
+**Commit:** `d2f17e9` | **Tag:** v1.0.6 (failed — dex index overflow)
 #### What changed
 - Added "Components" item (ID=9) to `HomeLeftMenuDialog` side nav menu
 - Extended packed-switch table in `HomeLeftMenuDialog.o1()` to handle ID 9 → launches `ComponentManagerActivity`
@@ -123,33 +123,127 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
   - Backup uses recursive `copyDir()` — no root required
   - Back press from options list returns to component list
 - `AndroidManifest.xml`: declared `ComponentManagerActivity` with `sensorLandscape` orientation
+#### Build failure
+- Adding ComponentManagerActivity to smali_classes11 pushed the dex string/type index over the 65535 unsigned short limit → `DexIndexOverflowException` during apktool rebuild
 #### Files touched
 - `patches/smali_classes5/com/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog.smali` — MenuItem add + pswitch_9 + table extension
-- `patches/smali_classes11/com/xj/landscape/launcher/ui/menu/ComponentManagerActivity.smali` — new file
+- `patches/smali_classes11/com/xj/landscape/launcher/ui/menu/ComponentManagerActivity.smali` — new file (later moved)
 - `patches/AndroidManifest.xml` — activity declaration
 
 ---
 
-### [fix] — Multiple crash/build fixes (v1.0.7 through v2.0.3-pre)
-**Commits:** several | **Tags:** v1.0.7 → v2.0.3-pre
+### [fix] — Move ComponentManagerActivity to smali_classes16
+**Commit:** (part of v1.0.7 push) | **Tag:** v1.0.7 ✅
 #### What changed
-- **v1.0.7**: Moved ComponentManagerActivity to smali_classes16 (classes11 was near dex index limit)
-- **v1.0.8**: Fixed VerifyError — DIRECTORY_DOWNLOADS static field ref; removed double new-array in copyDir()
-- **v1.0.9**: Fixed ArrayAdapter crash — replaced hardcoded layout ID with `sget Landroid/R$layout;->simple_list_item_1:I`
-- **v1.0.10**: Fixed invoke-virtual 6-arg crash — `ContentResolver.query()` now uses `invoke-virtual/range`
-- **v1.0.11**: Fixed "inject failed" with path-as-error — query `_display_name` instead of `getLastPathSegment()`
-- **v2.0.0**: Stable release with working component list, backup, and raw-file inject
-- **v2.0.1-pre → v2.0.3-pre**: WCP/ZIP extraction pipeline — added WcpExtractor.smali (zstd tar + XZ tar + ZIP), bundled commons-compress + aircompressor + xz JARs via d8 dex injection into APK (baksmali approach abandoned — no executable JAR available); extraction runs but crashes with FATAL EXCEPTION (Error not caught by Exception handler)
+- smali_classes11 was near the 65535 dex index limit; ComponentManagerActivity pushed it over
+- smali_classes16 only has ~100 classes — plenty of headroom
+- Moved `ComponentManagerActivity.smali` to `patches/smali_classes16/` directory
+- **Build succeeded** — Components item visible in side menu, activity launches
+#### Files touched
+- `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/ComponentManagerActivity.smali` — moved from classes11
+
+---
+
+### [fix] — VerifyError crashes on launch
+**Commit:** (part of v1.0.8 push) | **Tag:** v1.0.8 ✅
+#### What changed
+- `backupComponent()` called `invoke-static {}` with no arguments on `getExternalStoragePublicDirectory(String)` — fixed to use `sget-object Landroid/os/Environment;->DIRECTORY_DOWNLOADS:Ljava/lang/String;` then `invoke-static {v}`
+- `copyDir()` had `new-array v8, v8, [B` before v8 was initialized (duplicate line) — removed
+- ART's verifier rejects methods with uninitialized register use → `VerifyError` at class load time, crashing the app before the activity even appears
+#### Files touched
+- `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/ComponentManagerActivity.smali`
+
+---
+
+### [fix] — ArrayAdapter crash on component list display
+**Commit:** (part of v1.0.9 push) | **Tag:** v1.0.9 ✅
+#### What changed
+- Hardcoded layout resource ID `0x01090001` was passed to `ArrayAdapter` constructor — on this Android version it resolved to an `ExpandableListView` layout, not a simple text item → crash
+- Fixed to use `sget Landroid/R$layout;->simple_list_item_1:I` to resolve the ID at runtime from the Android framework
+#### Files touched
+- `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/ComponentManagerActivity.smali`
+
+---
+
+### [fix] — invoke-virtual 6-register overflow
+**Commit:** (part of v1.0.10 push) | **Tag:** v1.0.10 ✅
+#### What changed
+- `ContentResolver.query()` takes 5 parameters (+ instance = 6 registers total) — `invoke-virtual` max is 5 registers; 6+ requires `invoke-virtual/range`
+- Rewrote the `_display_name` query in `getFileName()` to use `invoke-virtual/range {v3 .. v8}` with consecutive registers (moved `p1` ContentResolver into `v4` first)
+- This was needed to read the human-readable filename from a SAF content:// URI
+#### Files touched
+- `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/ComponentManagerActivity.smali`
+
+---
+
+### [fix] — "Inject failed" with path string as error message
+**Commit:** (part of v1.0.11 push) | **Tag:** v1.0.11 ✅
+#### What changed
+- `getLastPathSegment()` on a SAF `content://` document URI returns `primary:Download/file.wcp` (the path segment from the tree URI), not the filename
+- Replaced with `ContentResolver.query()` using `OpenableColumns._DISPLAY_NAME` to get the actual filename
+- Raw file copy injection now correctly names the destination file
+#### Files touched
+- `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/ComponentManagerActivity.smali`
+
+---
+
+### [release] — v2.0.0 stable: working component manager
+**Commit:** (stable tag) | **Tag:** v2.0.0 ✅ **STABLE**
+#### What changed
+- Promoted to stable after verifying: component list displays, backup works, raw file inject works
+- Release description covers all features: "My Games" tab, BCI launcher button, Components side menu (list, backup, inject)
+- All prior pre-release tags left intact
+
+---
+
+### [patch] — WCP/ZIP proper extraction pipeline (attempt 1: baksmali)
+**Commit:** (v2.0.1-pre) | **Tag:** v2.0.1-pre (failed build)
+#### What changed
+- Plan: decompile library JARs to smali with baksmali, merge into patches, rebuild with apktool
+- `baksmali` download via GitHub releases URL returned 404 (no assets on google/smali releases)
+#### Build failure
+- `wget` 404 on baksmali JAR URL
+
+---
+
+### [patch] — WCP/ZIP extraction pipeline (attempt 2: Maven baksmali)
+**Commit:** (v2.0.2-pre) | **Tag:** v2.0.2-pre (failed build)
+#### What changed
+- Tried `org.smali:baksmali:2.5.2` from Maven Central — the Maven artifact is a library-only JAR with no `Main-Class` manifest entry
+- Abandoned baksmali entirely
+- **New approach:** download commons-compress, aircompressor, xz JARs and convert directly to dex via Android SDK `d8` tool, then inject dex files into the rebuilt APK using `zip`
+#### Build failure
+- `java -jar baksmali.jar` → "no main manifest attribute"
+
+---
+
+### [patch] — WCP/ZIP extraction pipeline (attempt 3: d8 dex injection) + WcpExtractor
+**Commit:** (v2.0.3-pre) | **Tag:** v2.0.3-pre ✅ build succeeded, runtime crash
+#### What changed
+- `.github/workflows/build.yml`: added two new steps:
+  1. **"Convert extraction libraries to dex"**: downloads `commons-compress-1.26.2.jar`, `aircompressor-0.27.jar`, `xz-1.9.jar` from Maven Central; converts all three to dex via `d8 --release --min-api 29 --output lib_dex/`
+  2. **"Inject library dex files into APK"**: zips `lib_dex/classes*.dex` into rebuilt APK as `classes18.dex`, `classes19.dex`, etc. (apktool already packed classes1-17)
+- `WcpExtractor.smali` (new): detects file format by magic bytes, routes to extractZip() or extractTar()
+  - ZIP (magic `50 4B 03 04`) → `java.util.zip.ZipInputStream`, flat extraction (basename only)
+  - zstd tar (magic `28 B5 2F FD`) → `io.airlift.compress.zstd.ZstdInputStream` + `TarArchiveInputStream`
+  - XZ tar (magic `FD 37 7A 58`) → `org.tukaani.xz.XZInputStream` + `TarArchiveInputStream`
+  - Reads `profile.json` from tar to detect FEXCore type → `flattenToRoot=true`; all others preserve system32/syswow64 structure
+- `ComponentManagerActivity.injectFile()`: replaced raw file copy with `WcpExtractor.extract(cr, uri, componentDir)`
+#### Runtime crash
+- FATAL EXCEPTION in `WcpExtractor.extract()` not caught by `catch Ljava/lang/Exception;` in `injectFile()` — `Error` subclasses (`NoClassDefFoundError`, `OutOfMemoryError`) are not `Exception` subclasses, they bypass the catch block and crash the app
 
 ---
 
 ### [fix] — Background thread + Throwable catch for WCP extraction
-**Commit:** `7ad71f4` | **Tag:** v2.0.4-pre
+**Commit:** `7ad71f4` | **Tag:** v2.0.4-pre ✅
 #### What changed
-- `injectFile()` now spawns a `java.lang.Thread` for extraction — UI thread is never blocked (fixes long black screen on large WCP files)
-- `ComponentManagerActivity$1.smali` (new): background Runnable — calls `WcpExtractor.extract()`, catches `Throwable` (not just `Exception`), posts result to main thread via `Handler(Looper.getMainLooper())`
-- `ComponentManagerActivity$2.smali` (new): UI Runnable — shows success/failure Toast and refreshes component list on main thread
-- Previously `Error` subclasses (e.g. `NoClassDefFoundError` if library dex missing, `OutOfMemoryError`) bypassed the `Exception` catch entirely and crashed the app
+- `injectFile()` now spawns a `java.lang.Thread` — extraction runs off the main thread (fixes long black screen while processing large WCP files)
+- `ComponentManagerActivity$1.smali` (new): background Runnable
+  - Calls `WcpExtractor.extract()`, catches `Throwable` (catches all Error subclasses, not just Exception)
+  - Posts result to main thread via `Handler(Looper.getMainLooper())`
+- `ComponentManagerActivity$2.smali` (new): UI Runnable
+  - null result → shows "Injected successfully" toast + refreshes list
+  - non-null result → shows "Inject failed: <message>" toast + refreshes list
 #### Files touched
 - `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/ComponentManagerActivity.smali` — injectFile() rewritten
 - `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/ComponentManagerActivity$1.smali` — new
@@ -157,12 +251,12 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
-### [fix] — XZ extraction fix + clear before inject
-**Commit:** `fb5592d` | **Tag:** v2.0.5-pre
+### [fix] — XZ constructor NoSuchMethodError + clear before inject
+**Commit:** `fb5592d` | **Tag:** v2.0.5-pre ✅
 #### What changed
-- WcpExtractor: replaced `org.tukaani.xz.XZInputStream` with `org.apache.commons.compress.compressors.xz.XZCompressorInputStream` — d8 conversion of xz-1.9.jar produced dex where the constructor `<init>(InputStream)V` was not found at runtime (`NoSuchMethodError`). commons-compress wraps tukaani internally and its constructor is found correctly.
-- WcpExtractor: added `clearDir()` static method that recursively deletes all files/subdirs in the component directory before injection. Called at the top of `extract()` so stale files (e.g. from a previous ZIP inject) are removed first.
-- Both ZIP and WCP (zstd + XZ) paths now start with a clean slate.
+- **XZ fix:** `org.tukaani.xz.XZInputStream` constructor `<init>(Ljava/io/InputStream;)V` was not found at runtime after d8 conversion of xz-1.9.jar (`NoSuchMethodError: No direct method <init>(InputStream)V in class Lorg/tukaani/xz/XZInputStream`). Root cause: d8 processes the xz JAR in a way that makes the constructor unreachable under ART's direct-method lookup. Fix: replaced with `org.apache.commons.compress.compressors.xz.XZCompressorInputStream` (from commons-compress, which wraps tukaani internally and has a working constructor in the d8-compiled dex)
+- **Clear before inject:** added `clearDir(File)` static method to WcpExtractor — recursively deletes all files and subdirs inside destDir before extraction. Called at start of `extract()`. Fixes stale files being left from previous inject (e.g. old system32/ contents when replacing a WCP component)
+- ZIP injection confirmed working. WCP (XZ) confirmed error is now surfaced as a toast (Throwable catch from v2.0.4-pre). ZstdInputStream (aircompressor) not yet confirmed — needs test with DXVK/VKD3D WCP.
 #### Files touched
 - `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/WcpExtractor.smali`
 
@@ -170,6 +264,7 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ## Planned Work
 
-- [ ] Confirm v2.0.5-pre WCP (XZ + zstd) extraction works end-to-end
+- [ ] Confirm v2.0.5-pre: WCP (XZ FEX + zstd DXVK/VKD3D) extraction works end-to-end
+- [ ] If zstd (ZstdInputStream from aircompressor) also fails, investigate switching to an alternate pure-Java zstd implementation or bundling zstd-jni
 - [ ] Once both ZIP and WCP confirmed working, cut stable v2.1.0 release
 - [ ] Explore contributing functional patches to `playday3008/gamehub-patches` PR #13
