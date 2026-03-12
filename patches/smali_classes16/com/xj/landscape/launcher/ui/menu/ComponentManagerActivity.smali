@@ -281,103 +281,45 @@
 .end method
 
 .method public injectFile(Landroid/net/Uri;)V
-    .locals 9
+    .locals 4
 
     # v0 = component dir
     iget-object v0, p0, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->components:[Ljava/io/File;
     iget v1, p0, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->selectedIndex:I
     aget-object v0, v0, v1
 
-    # v3 = ContentResolver
+    # v1 = ContentResolver
     invoke-virtual {p0}, Landroid/app/Activity;->getContentResolver()Landroid/content/ContentResolver;
-    move-result-object v3
-
-    # Query _display_name — need invoke-virtual/range with consecutive regs v3..v8
-    # v3=resolver, v4=uri, v5=projection, v6=null selection, v7=null selectionArgs, v8=null sortOrder
-    move-object v4, p1
-    const/4 v5, 0x1
-    new-array v5, v5, [Ljava/lang/String;
-    const-string v6, "_display_name"
-    const/4 v7, 0x0
-    aput-object v6, v5, v7
-    const/4 v6, 0x0
-    const/4 v7, 0x0
-    const/4 v8, 0x0
-    invoke-virtual/range {v3 .. v8}, Landroid/content/ContentResolver;->query(Landroid/net/Uri;[Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;)Landroid/database/Cursor;
-    move-result-object v4
-
-    # v1 = filename (default)
-    const-string v1, "injected_file"
-
-    if-eqz v4, :no_cursor
-    invoke-interface {v4}, Landroid/database/Cursor;->moveToFirst()Z
-    move-result v5
-    if-eqz v5, :close_cursor
-    const/4 v5, 0x0
-    invoke-interface {v4, v5}, Landroid/database/Cursor;->getString(I)Ljava/lang/String;
     move-result-object v1
-    :close_cursor
-    invoke-interface {v4}, Landroid/database/Cursor;->close()V
-    :no_cursor
-
-    # v2 = destination file
-    new-instance v2, Ljava/io/File;
-    invoke-direct {v2, v0, v1}, Ljava/io/File;-><init>(Ljava/io/File;Ljava/lang/String;)V
 
     :try_inject_start
-    invoke-virtual {v3, p1}, Landroid/content/ContentResolver;->openInputStream(Landroid/net/Uri;)Ljava/io/InputStream;
-    move-result-object v4
-
-    new-instance v5, Ljava/io/FileOutputStream;
-    invoke-direct {v5, v2}, Ljava/io/FileOutputStream;-><init>(Ljava/io/File;)V
-
-    const/16 v6, 0x2000
-    new-array v6, v6, [B
-
-    :inject_read_loop
-    invoke-virtual {v4, v6}, Ljava/io/InputStream;->read([B)I
-    move-result v7
-    if-lez v7, :inject_read_done
-    const/4 v8, 0x0
-    invoke-virtual {v5, v6, v8, v7}, Ljava/io/OutputStream;->write([BII)V
-    goto :inject_read_loop
-
-    :inject_read_done
-    invoke-virtual {v4}, Ljava/io/InputStream;->close()V
-    invoke-virtual {v5}, Ljava/io/OutputStream;->close()V
+    invoke-static {v1, p1, v0}, Lcom/xj/landscape/launcher/ui/menu/WcpExtractor;->extract(Landroid/content/ContentResolver;Landroid/net/Uri;Ljava/io/File;)V
     :try_inject_end
     .catch Ljava/lang/Exception; {:try_inject_start .. :try_inject_end} :inject_catch
 
-    # Success toast
-    new-instance v4, Ljava/lang/StringBuilder;
-    invoke-direct {v4}, Ljava/lang/StringBuilder;-><init>()V
-    const-string v5, "Injected: "
-    invoke-virtual {v4, v5}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-    invoke-virtual {v4, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-    invoke-virtual {v4}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
-    move-result-object v4
-    const/4 v5, 0x1
-    invoke-static {p0, v4, v5}, Landroid/widget/Toast;->makeText(Landroid/content/Context;Ljava/lang/CharSequence;I)Landroid/widget/Toast;
-    move-result-object v4
-    invoke-virtual {v4}, Landroid/widget/Toast;->show()V
+    const-string v2, "Injected successfully"
+    const/4 v3, 0x1
+    invoke-static {p0, v2, v3}, Landroid/widget/Toast;->makeText(Landroid/content/Context;Ljava/lang/CharSequence;I)Landroid/widget/Toast;
+    move-result-object v2
+    invoke-virtual {v2}, Landroid/widget/Toast;->show()V
     invoke-virtual {p0}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->showComponents()V
     return-void
 
     :inject_catch
-    move-exception v4
-    invoke-virtual {v4}, Ljava/lang/Exception;->getMessage()Ljava/lang/String;
-    move-result-object v4
-    new-instance v5, Ljava/lang/StringBuilder;
-    invoke-direct {v5}, Ljava/lang/StringBuilder;-><init>()V
-    const-string v6, "Inject failed: "
-    invoke-virtual {v5, v6}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-    invoke-virtual {v5, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-    invoke-virtual {v5}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
-    move-result-object v4
-    const/4 v5, 0x1
-    invoke-static {p0, v4, v5}, Landroid/widget/Toast;->makeText(Landroid/content/Context;Ljava/lang/CharSequence;I)Landroid/widget/Toast;
-    move-result-object v4
-    invoke-virtual {v4}, Landroid/widget/Toast;->show()V
+    move-exception v2
+    invoke-virtual {v2}, Ljava/lang/Exception;->getMessage()Ljava/lang/String;
+    move-result-object v2
+    new-instance v3, Ljava/lang/StringBuilder;
+    invoke-direct {v3}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v0, "Inject failed: "
+    invoke-virtual {v3, v0}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v3, v2}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v3}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v2
+    const/4 v3, 0x1
+    invoke-static {p0, v2, v3}, Landroid/widget/Toast;->makeText(Landroid/content/Context;Ljava/lang/CharSequence;I)Landroid/widget/Toast;
+    move-result-object v2
+    invoke-virtual {v2}, Landroid/widget/Toast;->show()V
     invoke-virtual {p0}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->showComponents()V
     return-void
 .end method
