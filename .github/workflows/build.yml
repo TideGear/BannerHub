@@ -67,13 +67,14 @@ jobs:
           ${ANDROID_SDK_ROOT}/build-tools/$(ls ${ANDROID_SDK_ROOT}/build-tools | tail -1)/zipalign \
             -v 4 rebuilt-unsigned.apk rebuilt-aligned.apk
 
-          # Sign with committed keystore
+          # Sign with AOSP testkey (v1, v2, v3)
           ${ANDROID_SDK_ROOT}/build-tools/$(ls ${ANDROID_SDK_ROOT}/build-tools | tail -1)/apksigner \
             sign \
-            --ks keystore.jks \
-            --ks-key-alias bannerhub \
-            --ks-pass pass:bannerhub123 \
-            --key-pass pass:bannerhub123 \
+            --key testkey.pk8 \
+            --cert testkey.x509.pem \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
             --out Gamehub-rebuilt.apk \
             rebuilt-aligned.apk
 
