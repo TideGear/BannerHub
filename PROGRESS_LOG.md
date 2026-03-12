@@ -6,8 +6,17 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ## Session 3 — 2026-03-12
 
+### [revert] — Reverted to v2.1.1; removed v2.1.2 release and tag
+**Commit:** `6b9195d` | **Tag:** v2.1.1 (current stable)
+#### What changed
+- v2.1.2 patch (inject label display) reverted — hard reset to `6b9195d`
+- v2.1.2 GitHub release deleted, remote and local tag removed
+- Repo back to v2.1.1 as latest
+
+---
+
 ### [patch] — Add "Banners Component Injector" title header to all Component Manager menus
-**Commit:** (pending) | **Tag:** none
+**Commit:** `6b9195d` | **Tag:** v2.1.1 ✅
 #### What changed
 - Users were having trouble tapping top list items in the Component Manager — the list started at the very top of the screen
 - Wrapped the raw `ListView` content view in a vertical `LinearLayout`
