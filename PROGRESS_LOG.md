@@ -4,6 +4,22 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## Session 3 — 2026-03-12
+
+### [patch] — Add "Banners Component Injector" title header to all Component Manager menus
+**Commit:** (pending) | **Tag:** none
+#### What changed
+- Users were having trouble tapping top list items in the Component Manager — the list started at the very top of the screen
+- Wrapped the raw `ListView` content view in a vertical `LinearLayout`
+- Added a `TextView` at the top: text "Banners Component Injector", 20sp, centered, 48px padding all sides
+- `ListView` given `LinearLayout.LayoutParams(MATCH_PARENT, 0dp, weight=1)` so it fills remaining space
+- Title persists across both the components list view and the options menu (Inject / Backup / Back) — no changes needed to `showComponents()` or `showOptions()`
+- `onCreate` `.locals` bumped from 2 to 6 for the new registers
+#### Files touched
+- `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/ComponentManagerActivity.smali`
+
+---
+
 ## Session 2 — 2026-03-12
 
 ### [stable] — v2.1.0 — Stable release: WCP extraction fully working (2026-03-12)

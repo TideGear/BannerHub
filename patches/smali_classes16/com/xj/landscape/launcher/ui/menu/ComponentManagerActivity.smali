@@ -14,12 +14,46 @@
 .end method
 
 .method protected onCreate(Landroid/os/Bundle;)V
-    .locals 2
+    .locals 6
+
     invoke-super {p0, p1}, Landroidx/appcompat/app/AppCompatActivity;->onCreate(Landroid/os/Bundle;)V
-    new-instance v0, Landroid/widget/ListView;
-    invoke-direct {v0, p0}, Landroid/widget/ListView;-><init>(Landroid/content/Context;)V
-    iput-object v0, p0, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->listView:Landroid/widget/ListView;
+
+    # Create vertical LinearLayout container
+    new-instance v0, Landroid/widget/LinearLayout;
+    invoke-direct {v0, p0}, Landroid/widget/LinearLayout;-><init>(Landroid/content/Context;)V
+    const/4 v1, 0x1
+    invoke-virtual {v0, v1}, Landroid/widget/LinearLayout;->setOrientation(I)V
+
+    # Create title TextView
+    new-instance v1, Landroid/widget/TextView;
+    invoke-direct {v1, p0}, Landroid/widget/TextView;-><init>(Landroid/content/Context;)V
+    const-string v2, "Banners Component Injector"
+    invoke-virtual {v1, v2}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    const/4 v2, 0x2
+    const/high16 v3, 0x41A00000
+    invoke-virtual {v1, v2, v3}, Landroid/widget/TextView;->setTextSize(IF)V
+    const/16 v2, 0x11
+    invoke-virtual {v1, v2}, Landroid/widget/TextView;->setGravity(I)V
+    const/16 v2, 0x30
+    invoke-virtual {v1, v2, v2, v2, v2}, Landroid/widget/TextView;->setPadding(IIII)V
+    invoke-virtual {v0, v1}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
+
+    # Create ListView with MATCH_PARENT width, 0 height, weight 1
+    new-instance v1, Landroid/widget/ListView;
+    invoke-direct {v1, p0}, Landroid/widget/ListView;-><init>(Landroid/content/Context;)V
+    iput-object v1, p0, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->listView:Landroid/widget/ListView;
+    new-instance v2, Landroid/widget/LinearLayout$LayoutParams;
+    const/4 v3, -0x1
+    const/4 v4, 0x0
+    const v5, 0x3f800000
+    invoke-direct {v2, v3, v4, v5}, Landroid/widget/LinearLayout$LayoutParams;-><init>(IIF)V
+    invoke-virtual {v1, v2}, Landroid/view/View;->setLayoutParams(Landroid/view/ViewGroup$LayoutParams;)V
+    invoke-virtual {v0, v1}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
+
+    # Set content view
     invoke-virtual {p0, v0}, Landroidx/appcompat/app/AppCompatActivity;->setContentView(Landroid/view/View;)V
+
+    # Wire up click listener and load components
     iget-object v0, p0, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->listView:Landroid/widget/ListView;
     invoke-virtual {v0, p0}, Landroid/widget/AbsListView;->setOnItemClickListener(Landroid/widget/AdapterView$OnItemClickListener;)V
     const-string v0, "Component Manager"
