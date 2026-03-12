@@ -4,6 +4,19 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## Session 2 — 2026-03-12
+
+### [stable] — v2.1.0 — Stable release: WCP extraction fully working (2026-03-12)
+**Commit:** `de48d63` (README) | **Tag:** `v2.1.0`
+#### What changed
+- Promoted v2.0.6-pre fixes to stable
+- All three injection paths now work: ZIP (Turnip/adrenotools), zstd WCP (DXVK/VKD3D/Box64/FEXCore), XZ WCP (FEXCore nightlies)
+- README rewritten to accurately describe all features, installation, and architecture
+#### Files touched
+- `README.md`
+
+---
+
 ## Session 1 — 2026-03-12
 
 ### [init] — Initial repo setup
