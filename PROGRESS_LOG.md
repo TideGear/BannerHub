@@ -4,6 +4,21 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## ci — add quick build workflow for pre/beta tags (2026-03-14)
+**Commit:** `4e0e510` | **Tag:** none
+
+### What changed
+- Added `.github/workflows/build-quick.yml`: triggers on `v*-pre*` and `v*-beta*` tags;
+  builds only the Normal (gamehub.lite) APK — 1 build instead of 5.
+- Updated `build.yml` to exclude `v*-pre*` and `v*-beta*` tags so both workflows
+  don't run simultaneously on pre/beta pushes. Stable `v*` tags still build all 5 APKs.
+
+### Files touched
+- `.github/workflows/build-quick.yml` (new)
+- `.github/workflows/build.yml` (tag filter updated)
+
+---
+
 ## v2.2.4-pre — feat: skip Steam login screen when offline at cold start (2026-03-14)
 **Commit:** `b16848f` | **Tag:** `v2.2.4-pre`
 
