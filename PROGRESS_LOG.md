@@ -4,6 +4,22 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## v2.2.4 — stable release (2026-03-15)
+**Commit:** `1968948` | **Tag:** `v2.2.4`
+
+### What changed
+- Promoted v2.2.4-pre to stable.
+- Added 6th APK variant: `Bannerhub-5.3.5-Revanced-alt-AnTuTu.apk` (`com.antutu.benchmark.full`)
+- Release description covers new since v2.2.3 + full feature set + installation table (6 APKs).
+- README updated: alt-AnTuTu row added to install table, Offline Steam Launch section added.
+
+### Files touched
+- `.github/workflows/build.yml`
+- `README.md`
+- `PROGRESS_LOG.md`
+
+---
+
 ## ci — add quick build workflow for pre/beta tags (2026-03-14)
 **Commit:** `4e0e510` | **Tag:** none
 

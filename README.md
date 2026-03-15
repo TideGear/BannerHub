@@ -34,6 +34,9 @@ Accessible via **Settings → Controls tab** in the in-game sidebar overlay. Tog
 
 *\*These two gestures can be customized in the RTS Gesture Settings menu.*
 
+### Offline Steam Launch
+When autoLogin fails and no network connection is available at cold start, the Steam login screen is skipped and the game launch pipeline proceeds using cached config. If network is available and autoLogin fails, the login screen is shown as normal.
+
 ### UI Tweaks
 - "My" tab renamed to "My Games"
 
@@ -54,6 +57,7 @@ Download the APK matching your target package from the [latest stable release](h
 | `Bannerhub-5.3.5-Revanced-Normal.apk` | `gamehub.lite` | GameHub Revanced |
 | `Bannerhub-5.3.5-Revanced-PuBG.apk` | `com.tencent.ig` | GameHub Revanced PuBG |
 | `Bannerhub-5.3.5-Revanced-AnTuTu.apk` | `com.antutu.ABenchMark` | GameHub Revanced AnTuTu |
+| `Bannerhub-5.3.5-Revanced-alt-AnTuTu.apk` | `com.antutu.benchmark.full` | GameHub Revanced AnTuTu |
 | `Bannerhub-5.3.5-Revanced-Ludashi.apk` | `com.ludashi.aibench` | GameHub Revanced Ludashi |
 | `Bannerhub-5.3.5-Revanced-Genshin.apk` | `com.mihoyo.genshinimpact` | GameHub Revanced Genshin |
 
