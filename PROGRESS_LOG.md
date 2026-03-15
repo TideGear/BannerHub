@@ -4,6 +4,19 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [pre] — v2.2.11-pre — Default EmuReady API toggle to off (2026-03-15)
+**Commit:** `bc457d8`  |  **Tag:** v2.2.11-pre  |  **CI run:** `67140309487` (3m42s ✓)
+
+### What changed
+- `GameHubPrefs.isExternalAPI()` called `getBoolean("use_external_api", true)` — default was `true`
+- Changed default to `false` (`0x1` → `0x0`) so the EmuReady API toggle is off on fresh installs
+- Users who already have a saved value in SharedPrefs are unaffected
+
+### Files touched
+- `patches/smali_classes6/app/revanced/extension/gamehub/prefs/GameHubPrefs.smali` (new)
+
+---
+
 ## [pre] — v2.2.10-pre — Fix Close button unreachable behind nav bar (2026-03-15)
 **Commit:** `626c9d0`  |  **Tag:** v2.2.10-pre  |  **CI run:** `23115230824` (3m45s ✓)
 
