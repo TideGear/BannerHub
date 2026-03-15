@@ -115,8 +115,8 @@ jobs:
           PKG="${{ matrix.package }}"
           LABEL="${{ matrix.label }}"
           if [ "$PKG" != "gamehub.lite" ]; then
-            sed -i "s/package=\"gamehub.lite\"/package=\"$PKG\"/g" apktool_out/AndroidManifest.xml
-            sed -i "s/android:authorities=\"gamehub.lite/android:authorities=\"$PKG/g" apktool_out/AndroidManifest.xml
+            # Replace all occurrences of gamehub.lite in the manifest (package, sharedUserId, authorities, permissions, etc.)
+            sed -i "s/gamehub\.lite/$PKG/g" apktool_out/AndroidManifest.xml
           fi
           sed -i "s/android:label=\"GameHub Revanced\"/android:label=\"$LABEL\"/" apktool_out/AndroidManifest.xml
 
