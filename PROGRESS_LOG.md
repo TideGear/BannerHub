@@ -22,7 +22,7 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 ---
 
 ## [beta] — v2.3.1-beta1 — In-app component downloader (2026-03-15)
-**Commit:** `1cdc468`  |  **Tag:** v2.3.1-beta1  |  **CI run:** `23120730562` (Normal APK only)
+**Commit:** `1cdc468`  |  **Tag:** v2.3.1-beta1 (retagged at `ad7616c`)  |  **CI run:** `23121281510` (Normal APK, package=`banner.hub`)
 
 ### What changed
 - "↓ Download from Nightlies" entry added to Component Manager type-selection menu (Add New Component flow)
