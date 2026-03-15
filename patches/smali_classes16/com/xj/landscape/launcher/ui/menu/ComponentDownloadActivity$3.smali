@@ -64,26 +64,18 @@
     invoke-virtual {v4}, Ljava/io/InputStream;->close()V
     invoke-virtual {v5}, Ljava/io/FileOutputStream;->close()V
 
-    # inject: Uri.fromFile + detectType + injectComponent
+    # prepare Uri + type, then post $5 to UI thread — injectComponent calls Toast internally
+    # so it must run on the UI thread (background thread has no Looper)
     invoke-static {v2}, Landroid/net/Uri;->fromFile(Ljava/io/File;)Landroid/net/Uri;
     move-result-object v8
 
     invoke-static {v1}, Lcom/xj/landscape/launcher/ui/menu/ComponentDownloadActivity;->detectType(Ljava/lang/String;)I
     move-result v7
 
-    invoke-static {v0, v8, v7}, Lcom/xj/landscape/launcher/ui/menu/ComponentInjectorHelper;->injectComponent(Landroid/content/Context;Landroid/net/Uri;I)V
-
-    # post success message via $4
-    new-instance v3, Ljava/lang/StringBuilder;
-    invoke-direct {v3}, Ljava/lang/StringBuilder;-><init>()V
-    const-string v4, "Injected: "
-    invoke-virtual {v3, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-    invoke-virtual {v3, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-    invoke-virtual {v3}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
-    move-result-object v3
-    new-instance v4, Lcom/xj/landscape/launcher/ui/menu/ComponentDownloadActivity$4;
-    invoke-direct {v4, v0, v3}, Lcom/xj/landscape/launcher/ui/menu/ComponentDownloadActivity$4;-><init>(Lcom/xj/landscape/launcher/ui/menu/ComponentDownloadActivity;Ljava/lang/String;)V
-    invoke-virtual {v0, v4}, Lcom/xj/landscape/launcher/ui/menu/ComponentDownloadActivity;->runOnUiThread(Ljava/lang/Runnable;)V
+    iget-object v1, v0, Lcom/xj/landscape/launcher/ui/menu/ComponentDownloadActivity;->mDownloadFilename:Ljava/lang/String;
+    new-instance v3, Lcom/xj/landscape/launcher/ui/menu/ComponentDownloadActivity$5;
+    invoke-direct {v3, v0, v8, v7, v1}, Lcom/xj/landscape/launcher/ui/menu/ComponentDownloadActivity$5;-><init>(Lcom/xj/landscape/launcher/ui/menu/ComponentDownloadActivity;Landroid/net/Uri;ILjava/lang/String;)V
+    invoke-virtual {v0, v3}, Lcom/xj/landscape/launcher/ui/menu/ComponentDownloadActivity;->runOnUiThread(Ljava/lang/Runnable;)V
 
     :try_end
     return-void
