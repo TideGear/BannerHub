@@ -467,7 +467,7 @@
     new-instance v0, LComponentRepo;
     move-object/from16 v1, p1          # name
     move-object/from16 v2, p2          # version
-    sget-object v3, LState;->INSTALLED:LState;
+    sget-object v3, LState;->Extracted:LState;
     move-object v4, v8                 # EnvLayerEntity
     const/4 v5, 0x0                    # isDep = false
     const/4 v6, 0x0                    # isBase = false
@@ -556,8 +556,14 @@
     move-result-object v1
 
     if-nez v1, :have_profile
-    const-string v8, "No profile.json found in WCP"
-    goto :toast_and_return
+    # profile.json missing or unreadable — fall back to filename
+    invoke-static {p0, p1}, Lcom/xj/landscape/launcher/ui/menu/ComponentInjectorHelper;->getDisplayName(Landroid/content/Context;Landroid/net/Uri;)Ljava/lang/String;
+    move-result-object v3
+    invoke-static {v3}, Lcom/xj/landscape/launcher/ui/menu/ComponentInjectorHelper;->stripExt(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v3
+    move-object v4, v3
+    const-string v5, ""
+    goto :have_name
 
     :have_profile
     new-instance v2, Lorg/json/JSONObject;
@@ -639,5 +645,107 @@
     invoke-static {p0, v8, v1}, Landroid/widget/Toast;->makeText(Landroid/content/Context;Ljava/lang/CharSequence;I)Landroid/widget/Toast;
     move-result-object v1
     invoke-virtual {v1}, Landroid/widget/Toast;->show()V
+    return-void
+.end method
+
+
+# ─────────────────────────────────────────────────────
+#  appendLocalComponents(List<DialogSettingListItemEntity>, int contentType)
+#  Appends locally installed EmuComponents matching contentType to the list.
+#  contentType=32 (TRANSLATOR) also includes BOX64(94) and FEXCORE(95).
+#  Called from GameSettingViewModel$fetchList$1 before callback invocation.
+# ─────────────────────────────────────────────────────
+.method public static appendLocalComponents(Ljava/util/List;I)V
+    .locals 9
+    # p0 = List  p1 = contentType
+    # v0 = EmuComponents  v1 = Collection  v2 = Iterator
+    # v3 = ComponentRepo  v4 = EnvLayerEntity  v5 = type int
+    # v6 = DialogSettingListItemEntity  v7 = String temp  v8 = bool/int temp
+
+    :try_start
+    invoke-static {}, Lcom/xj/winemu/EmuComponents;->e()Lcom/xj/winemu/EmuComponents;
+    move-result-object v0
+    if-eqz v0, :done
+
+    iget-object v1, v0, Lcom/xj/winemu/EmuComponents;->a:Ljava/util/HashMap;
+    if-eqz v1, :done
+
+    invoke-virtual {v1}, Ljava/util/HashMap;->values()Ljava/util/Collection;
+    move-result-object v1
+
+    invoke-interface {v1}, Ljava/util/Collection;->iterator()Ljava/util/Iterator;
+    move-result-object v2
+
+    :iter_loop
+    invoke-interface {v2}, Ljava/util/Iterator;->hasNext()Z
+    move-result v8
+    if-eqz v8, :done
+
+    invoke-interface {v2}, Ljava/util/Iterator;->next()Ljava/lang/Object;
+    move-result-object v3
+    check-cast v3, LComponentRepo;
+
+    invoke-virtual {v3}, LComponentRepo;->getEntry()Lcom/xj/winemu/api/bean/EnvLayerEntity;
+    move-result-object v4
+    if-eqz v4, :iter_loop
+
+    invoke-virtual {v4}, Lcom/xj/winemu/api/bean/EnvLayerEntity;->getType()I
+    move-result v5
+
+    # Direct type match
+    if-eq v5, p1, :type_match
+
+    # Special: TRANSLATOR(0x20=32) also matches BOX64(0x5e=94) and FEXCORE(0x5f=95)
+    const/16 v8, 0x20
+    if-ne p1, v8, :iter_loop
+    const/16 v8, 0x5e
+    if-eq v5, v8, :type_match
+    const/16 v8, 0x5f
+    if-ne v5, v8, :iter_loop
+
+    :type_match
+    new-instance v6, Lcom/xj/winemu/bean/DialogSettingListItemEntity;
+    invoke-direct {v6}, Lcom/xj/winemu/bean/DialogSettingListItemEntity;-><init>()V
+
+    # setTitle(name)
+    invoke-virtual {v3}, LComponentRepo;->getName()Ljava/lang/String;
+    move-result-object v7
+    invoke-virtual {v6, v7}, Lcom/xj/winemu/bean/DialogSettingListItemEntity;->setTitle(Ljava/lang/String;)V
+
+    # setDisplayName(entity.displayName or name fallback)
+    invoke-virtual {v4}, Lcom/xj/winemu/api/bean/EnvLayerEntity;->getDisplayName()Ljava/lang/String;
+    move-result-object v7
+    if-eqz v7, :use_name_disp
+    invoke-virtual {v7}, Ljava/lang/String;->isEmpty()Z
+    move-result v8
+    if-nez v8, :use_name_disp
+    invoke-virtual {v6, v7}, Lcom/xj/winemu/bean/DialogSettingListItemEntity;->setDisplayName(Ljava/lang/String;)V
+    goto :after_disp
+    :use_name_disp
+    invoke-virtual {v3}, LComponentRepo;->getName()Ljava/lang/String;
+    move-result-object v7
+    invoke-virtual {v6, v7}, Lcom/xj/winemu/bean/DialogSettingListItemEntity;->setDisplayName(Ljava/lang/String;)V
+    :after_disp
+
+    # setType(p1)
+    invoke-virtual {v6, p1}, Lcom/xj/winemu/bean/DialogSettingListItemEntity;->setType(I)V
+
+    # setEnvLayerEntity(v4)
+    invoke-virtual {v6, v4}, Lcom/xj/winemu/bean/DialogSettingListItemEntity;->setEnvLayerEntity(Lcom/xj/winemu/api/bean/EnvLayerEntity;)V
+
+    # setDownloaded(true)
+    const/4 v8, 0x1
+    invoke-virtual {v6, v8}, Lcom/xj/winemu/bean/DialogSettingListItemEntity;->setDownloaded(Z)V
+
+    invoke-interface {p0, v6}, Ljava/util/List;->add(Ljava/lang/Object;)Z
+    goto :iter_loop
+
+    :done
+    return-void
+
+    :try_end
+    .catch Ljava/lang/Exception; {:try_start .. :try_end} :catch_al
+    :catch_al
+    move-exception v0
     return-void
 .end method
