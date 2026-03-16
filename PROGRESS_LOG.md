@@ -4,6 +4,18 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [beta] — v2.3.1-beta6 — Add StevenMXZ repo (2026-03-16)
+**Commit:** `1f4a628`  |  **Tag:** v2.3.1-beta6  |  **CI run:** `23123530054` (✓, Normal APK, package=`banner.hub`)
+
+### What changed
+- StevenMXZ added as second repo (contents.json — same flat array format as Arihany pack.json)
+- Repo list: Arihany WCPHub / StevenMXZ / ← Back
+
+### Files touched
+- `patches/smali_classes16/.../ComponentDownloadActivity.smali` — showRepos() 2→3 items, sw0_1 added, sw0_data extended
+
+---
+
 ## [beta] — v2.3.1-beta5 — Remove Nightlies repo, Arihany only (2026-03-16)
 **Commit:** `b0cf210`  |  **Tag:** v2.3.1-beta5  |  **CI run:** `23123388373` (✓, Normal APK, package=`banner.hub`)
 
