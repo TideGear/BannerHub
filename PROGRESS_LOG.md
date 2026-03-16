@@ -16,6 +16,15 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [pre] — v2.3.1-pre — Promote to pre-release (2026-03-16)
+**Commit:** `3afd2c2`  |  **Tag:** v2.3.1-pre  |  **CI run:** `23124431878` (✓, Normal APK, package=`banner.hub`)
+
+### What changed
+- beta5 deleted and retagged as v2.3.1-pre
+- Release description lists all changes since v2.3.0 stable
+
+---
+
 ## [beta] — v2.3.1-beta5 — Remove Nightlies repo, Arihany only (2026-03-16)
 **Commit:** `b0cf210`  |  **Tag:** v2.3.1-beta5  |  **CI run:** `23123388373` (✓, Normal APK, package=`banner.hub`)
 
