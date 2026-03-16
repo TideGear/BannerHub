@@ -1252,6 +1252,9 @@ New `ComponentDownloadActivity` (3-mode ListView): repo list → category → as
 `ComponentInjectorHelper.injectComponent()` calls `Toast.makeText()` internally, which requires the main (Looper) thread. A naive background thread call crashes with "Can't create handler inside thread that has not called Looper.prepare()". Fix: `$5` InjectRunnable posts the inject call via `runOnUiThread()`.
 
 ### Files touched
+- `[MOD]` `patches/smali_classes16/.../ComponentManagerActivity.smali`
+  - `showTypeSelection()` — added "↓ Download from Online Repos" at index 0 of type array (array size 6→7); all other types shifted up by 1
+  - `onItemClick()` mode=2 — added `if-nez p3, :not_download` branch: position 0 starts ComponentDownloadActivity, positions 1–5 feed `sw2_data` (subtract 1 to re-index)
 - `[NEW]` `patches/smali_classes16/.../ComponentDownloadActivity.smali`
 - `[NEW]` `patches/smali_classes16/.../ComponentDownloadActivity$1.smali` through `$9.smali` (9 inner classes)
 
