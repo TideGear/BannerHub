@@ -27,6 +27,20 @@ Implemented in-app component downloader. Full journey: initial fetch (Nightlies 
 
 ---
 
+## [feat] — v2.3.1-pre11 — Rename MTR Drivers; add Whitebelyash GPU Drivers (2026-03-16)
+**Commit:** `42b2435`  |  **Tag:** v2.3.1-pre11
+
+### What changed
+- Renamed "MTR Drivers" → "MTR GPU Drivers" (label + status text)
+- Added "Whitebelyash GPU Drivers" (sw0_4) → `white_drivers.json` flat array via `$9`
+- `showRepos()`: 5→6 items; Back at index 5
+- `sw0_data`: extended to 5 entries
+
+### Files touched
+- `patches/smali_classes16/.../ComponentDownloadActivity.smali`
+
+---
+
 ## [feat] — v2.3.1-pre10 — Add MTR Drivers repo (2026-03-16)
 **Commit:** `d2c4ec2`  |  **Tag:** v2.3.1-pre10
 
