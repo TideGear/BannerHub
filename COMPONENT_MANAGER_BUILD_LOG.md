@@ -1294,3 +1294,229 @@ In `getDisplayName()`: after the try block, at `:ret`, check if `v7.isEmpty()` a
 | const/4 max v15 | v16+ destinations need `const/16` or `sget-object` |
 | EnvLayerEntity 18-param ctor | Needs `invoke-direct/range {v0..v19}` — 20 consecutive regs |
 | firebase raws rule | Never include `firebase_common_keep`/`firebase_crashlytics_keep` in public.xml |
+| .locals max for inner classes | `.locals 15` maximum when p0 is used in 4-bit-range instructions (p0=v15); `.locals 16` makes p0=v16, out of range |
+| Toast requires main thread | `ComponentInjectorHelper.injectComponent()` calls Toast internally — must be called on UI thread via `runOnUiThread()` |
+
+---
+
+# Appendix D — Injection Point Diffs (Reproduction Guide)
+
+This appendix documents every location in **original GameHub smali** that must be modified to reproduce the Component Manager + Component Downloader patches. All new class files go in `smali_classes16/` — only the diffs below touch original GameHub files.
+
+---
+
+## D.1 — Side menu "Components" entry
+
+**File:** `smali_classes5/com/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog.smali`
+
+This file has two injection sites: the menu item builder method and the click handler.
+
+### Site 1 — Menu item builder (adds "Components" as the last item before `return-void`)
+
+Find the method that builds the side menu item list. It ends with a `return-void` preceded by `invoke-interface {p0, v4}, java/util/List;->add`. Append the following block **before** the `return-void`:
+
+```smali
+    # INJECTION: add "Components" menu item (ID=9)
+    new-instance v4, Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog$MenuItem;
+    sget v6, Lcom/xj/landscape/launcher/R$drawable;->menu_setting_normal:I
+    const-string v7, "Components"
+    const/16 v10, 0x18
+    const/4 v11, 0x0
+    const/16 v5, 0x9
+    const/4 v8, 0x0
+    const/4 v9, 0x0
+    invoke-direct/range {v4 .. v11}, Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog$MenuItem;-><init>(IILjava/lang/String;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+    invoke-interface {p0, v4}, Ljava/util/List;->add(Ljava/lang/Object;)Z
+    # END INJECTION
+```
+
+The `MenuItem` constructor signature is `<init>(I I Ljava/lang/String; Ljava/lang/String; Z I Lkotlin/jvm/internal/DefaultConstructorMarker;)V`. Parameters: `id=9`, `iconRes=menu_setting_normal`, `name="Components"`, `rightContent=""` (v8=null), `mask=0x18`, `DefaultConstructorMarker=null`.
+
+### Site 2 — Click handler packed-switch (adds `:pswitch_9` case + extends switch table)
+
+Find the `invoke` method that handles menu item clicks via packed-switch. Add the new handler block and extend the switch table:
+
+**Before** (switch table ends at position 8, i.e. 9 entries `pswitch_8` through `pswitch_0`):
+```smali
+    :pswitch_data_0
+    .packed-switch 0x0
+        :pswitch_8
+        :pswitch_7
+        :pswitch_6
+        :pswitch_5
+        :pswitch_4
+        :pswitch_3
+        :pswitch_2
+        :pswitch_1
+        :pswitch_0
+    .end packed-switch
+```
+
+**After** (add `:pswitch_9` as 10th entry):
+```smali
+    :pswitch_data_0
+    .packed-switch 0x0
+        :pswitch_8
+        :pswitch_7
+        :pswitch_6
+        :pswitch_5
+        :pswitch_4
+        :pswitch_3
+        :pswitch_2
+        :pswitch_1
+        :pswitch_0
+        :pswitch_9
+    .end packed-switch
+```
+
+Add the handler block **before** the switch table (anywhere before `:pswitch_data_0`):
+```smali
+    # INJECTION: Components menu item handler
+    :pswitch_9
+    new-instance p0, Landroid/content/Intent;
+    const-class p1, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;
+    invoke-direct {p0, p2, p1}, Landroid/content/Intent;-><init>(Landroid/content/Context;Ljava/lang/Class;)V
+    invoke-virtual {p2, p0}, Landroid/content/Context;->startActivity(Landroid/content/Intent;)V
+    goto :goto_1
+    # END INJECTION
+```
+
+Where `p2` is the `Context` parameter of the lambda (the activity context passed into the click handler).
+
+---
+
+## D.2 — Append local components to GameHub's component lists
+
+**File:** `smali_classes3/com/xj/winemu/settings/GameSettingViewModel$fetchList$1.smali`
+
+This is the coroutine continuation that receives the remote component list from the server and calls back into the UI. We append locally injected components to the list before the callback fires.
+
+**Before** (lines ~2942-2954, original):
+```smali
+    iget-object v0, v5, Lcom/xj/winemu/settings/GameSettingViewModel$fetchList$1;->$result:Lcom/xj/common/data/model/CommResultEntity;
+    invoke-virtual {v0, v7}, Lcom/xj/common/data/model/CommResultEntity;->setData(Ljava/lang/Object;)V
+
+    # (callback invoked immediately after)
+    iget-object v0, v5, Lcom/xj/winemu/settings/GameSettingViewModel$fetchList$1;->$callback:Lkotlin/jvm/functions/Function1;
+    iget-object v1, v5, Lcom/xj/winemu/settings/GameSettingViewModel$fetchList$1;->$result:Lcom/xj/common/data/model/CommResultEntity;
+    invoke-interface {v0, v1}, Lkotlin/jvm/functions/Function1;->invoke(Ljava/lang/Object;)Ljava/lang/Object;
+```
+
+**After** (insert 2 lines between `setData` and the callback):
+```smali
+    iget-object v0, v5, Lcom/xj/winemu/settings/GameSettingViewModel$fetchList$1;->$result:Lcom/xj/common/data/model/CommResultEntity;
+    invoke-virtual {v0, v7}, Lcom/xj/common/data/model/CommResultEntity;->setData(Ljava/lang/Object;)V
+
+    # INJECTION: append locally installed components to list before callback
+    iget v0, v5, Lcom/xj/winemu/settings/GameSettingViewModel$fetchList$1;->$contentType:I
+    invoke-static {v7, v0}, Lcom/xj/landscape/launcher/ui/menu/ComponentInjectorHelper;->appendLocalComponents(Ljava/util/List;I)V
+    # END INJECTION
+
+    iget-object v0, v5, Lcom/xj/winemu/settings/GameSettingViewModel$fetchList$1;->$callback:Lkotlin/jvm/functions/Function1;
+    iget-object v1, v5, Lcom/xj/winemu/settings/GameSettingViewModel$fetchList$1;->$result:Lcom/xj/common/data/model/CommResultEntity;
+    invoke-interface {v0, v1}, Lkotlin/jvm/functions/Function1;->invoke(Ljava/lang/Object;)Ljava/lang/Object;
+```
+
+`v7` is the `List<DialogSettingListItemEntity>` populated by the server response. `$contentType` is the component type int (DXVK=12, VKD3D=13, Box64=94, FEXCore=95, GPU=10). This injection must occur at **every** `setData(v7)` site in this file that is followed by a `$callback` invocation — there may be multiple branches (success path and each error/empty path); check all of them.
+
+---
+
+## D.3 — ComponentDownloadActivity launch from ComponentManagerActivity
+
+**File:** `smali_classes16/com/xj/landscape/launcher/ui/menu/ComponentManagerActivity.smali` (our own file — not original GameHub)
+
+In `onItemClick()`, the mode=2 (type-selection) handler: position 0 is "↓ Download from Online Repos". When `p3 == 0`, start `ComponentDownloadActivity`:
+
+```smali
+    # mode=2 type selection
+    :not1
+    const/4 v1, 0x2
+    if-ne v0, v1, :default_back
+    # position 0 = Download from Online Repos
+    if-nez p3, :not_download
+    const-class v0, Lcom/xj/landscape/launcher/ui/menu/ComponentDownloadActivity;
+    new-instance v1, Landroid/content/Intent;
+    invoke-direct {v1, p0, v0}, Landroid/content/Intent;-><init>(Landroid/content/Context;Ljava/lang/Class;)V
+    invoke-virtual {p0, v1}, Landroid/app/Activity;->startActivity(Landroid/content/Intent;)V
+    return-void
+    :not_download
+    add-int/lit8 v1, p3, -0x1      # shift index down by 1 (skip slot 0) for sw2
+    packed-switch v1, :sw2_data
+    invoke-virtual {p0}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->showComponents()V
+    return-void
+```
+
+In `showTypeSelection()`, "↓ Download from Online Repos" is at index 0 of the array, before DXVK/VKD3D/Box64/FEXCore/GPU Driver/Back. The `sw2_data` packed-switch handles positions 1–5 (subtract 1 first) for the five inject-type handlers.
+
+---
+
+## D.4 — New files required (smali_classes16)
+
+All of the following must be created from scratch in `smali_classes16/com/xj/landscape/launcher/ui/menu/`. They contain no original GameHub code — copy directly from the repo's `patches/smali_classes16/` directory:
+
+| File | Purpose |
+|------|---------|
+| `ComponentManagerActivity.smali` | Main component manager ListView activity (3 modes) |
+| `ComponentManagerActivity$1.smali` | Background inject Runnable (WCP/ZIP extraction off main thread) |
+| `ComponentManagerActivity$2.smali` | UI result Runnable (toast + list refresh) |
+| `ComponentInjectorHelper.smali` | Static helper: getFirstByte, getDisplayName, stripExt, makeComponentDir, openTar, readWcpProfile, extractWcp, extractZip, registerComponent, injectComponent, appendLocalComponents |
+| `ComponentDownloadActivity.smali` | 3-mode download activity (repo→category→asset) |
+| `ComponentDownloadActivity$1.smali` | GitHub Releases API fetch Runnable |
+| `ComponentDownloadActivity$2.smali` | ShowCategories UI Runnable |
+| `ComponentDownloadActivity$3.smali` | Download Runnable (stream to cacheDir) |
+| `ComponentDownloadActivity$4.smali` | Complete Runnable (Toast + finish) |
+| `ComponentDownloadActivity$5.smali` | Inject Runnable (UI thread, Looper fix) |
+| `ComponentDownloadActivity$6.smali` | PackJsonFetchRunnable (flat JSON array: type/verName/remoteUrl) |
+| `ComponentDownloadActivity$7.smali` | KimchiDriversRunnable (JSONObject root → releases[]) |
+| `ComponentDownloadActivity$8.smali` | SingleReleaseRunnable (GitHub releases/tags API) |
+| `ComponentDownloadActivity$9.smali` | GpuDriversFetchRunnable (flat JSON array, Wine/Proton skip) |
+
+---
+
+## D.5 — AndroidManifest.xml additions
+
+Add `ComponentManagerActivity` and `ComponentDownloadActivity` to the manifest so Android registers them:
+
+```xml
+<activity android:name="com.xj.landscape.launcher.ui.menu.ComponentManagerActivity"
+    android:exported="false" />
+<activity android:name="com.xj.landscape.launcher.ui.menu.ComponentDownloadActivity"
+    android:exported="false" />
+```
+
+Insert inside the existing `<application>` block alongside the other activity declarations.
+
+---
+
+## D.6 — Resource additions
+
+### `res/values/ids.xml` — add the ListView ID used by ComponentManagerActivity:
+```xml
+<item name="component_list_view" type="id" />
+```
+
+### `res/values/public.xml` — add the corresponding public ID entry. Use a free ID in the `0x7f09xxxx` range that does not conflict with existing entries. Check the highest existing `0x7f09` entry and increment. **Do not include** `firebase_common_keep` or `firebase_crashlytics_keep` — these break aapt2.
+
+### No layout XML files needed — ComponentManagerActivity and ComponentDownloadActivity build their UI entirely in code (programmatic LinearLayout + ListView).
+
+---
+
+## D.7 — Build process
+
+```bash
+# 1. Decompile base APK
+apktool d GameHub-5.3.5-ReVanced.apk -o apktool_out --no-src
+
+# 2. Apply all patches from patches/ directory
+cp -r patches/smali_classes16 apktool_out/
+cp patches/AndroidManifest.xml apktool_out/
+# merge res/ additions into apktool_out/res/
+
+# 3. Rebuild
+apktool b apktool_out -o unsigned.apk
+
+# 4. Sign (v1/v2/v3)
+apksigner sign --key testkey.pk8 --cert testkey.x509.pem \
+    --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true \
+    --out signed.apk unsigned.apk
+```
