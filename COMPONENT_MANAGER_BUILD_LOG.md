@@ -1460,6 +1460,7 @@ All of the following must be created from scratch in `smali_classes16/com/xj/lan
 | `ComponentManagerActivity$1.smali` | Background inject Runnable (WCP/ZIP extraction off main thread) |
 | `ComponentManagerActivity$2.smali` | UI result Runnable (toast + list refresh) |
 | `ComponentInjectorHelper.smali` | Static helper: getFirstByte, getDisplayName, stripExt, makeComponentDir, openTar, readWcpProfile, extractWcp, extractZip, registerComponent, injectComponent, appendLocalComponents |
+| `WcpExtractor.smali` | WCP/ZIP extraction helper used by ComponentManagerActivity$1 (background injection from local file picker) |
 | `ComponentDownloadActivity.smali` | 3-mode download activity (repo→category→asset) |
 | `ComponentDownloadActivity$1.smali` | GitHub Releases API fetch Runnable |
 | `ComponentDownloadActivity$2.smali` | ShowCategories UI Runnable |
