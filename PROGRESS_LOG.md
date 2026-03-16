@@ -4,6 +4,18 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [beta] — v2.3.1-beta3 — Add Arihany WCPHub repo (2026-03-16)
+**Commit:** `8b9e920`  |  **Tag:** v2.3.1-beta3  |  **CI run:** `23122849126` (✓ 3m35s, Normal APK, package=`banner.hub`)
+
+### What changed
+- Arihany WCPHub added as second repo option in Download from Online Repos screen (`https://api.github.com/repos/Arihany/WinlatorWCPHub/releases`)
+- Repo array size 2→3; `sw0_1` switch case added; `sw0_data` packed-switch extended to 2 entries
+
+### Files touched
+- `patches/smali_classes16/.../ComponentDownloadActivity.smali` — showRepos() + onItemClick sw0_1 + sw0_data
+
+---
+
 ## [beta] — v2.3.1-beta2 — Case-insensitive detectType (2026-03-16)
 **Commit:** `e2887e1`  |  **Tag:** v2.3.1-beta2  |  **CI run:** `23122723773` (✓ 3m54s, Normal APK, package=`banner.hub`)
 
