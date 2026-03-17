@@ -11,9 +11,6 @@
     name = null
 .end annotation
 
-# Positive button ("Apply") — computes bitmask, saves via SPUtils, fires callback.
-# Entity constructed via full Kotlin defaults ctor (bitmask 0x3ffffa = provide id+isSelected only).
-# Cannot use iput on private fields across dex boundaries (IllegalAccessError on ART 14).
 .field final synthetic a:[Z
 .field final synthetic b:Lcom/blankj/utilcode/util/SPUtils;
 .field final synthetic c:Ljava/lang/String;
@@ -29,11 +26,14 @@
     return-void
 .end method
 
-# onClick(DialogInterface dialog, int which)
 .method public onClick(Landroid/content/DialogInterface;I)V
     .locals 33
 
-    iget-object v0, p0, Lcom/xj/winemu/settings/CpuMultiSelectHelper$2;->a:[Z
+    # With .locals 33, p0 = v33 (out of 4-bit range for iget-object).
+    # Copy 'this' into v3 (local, always accessible) via /from16 at the start.
+    move-object/from16 v3, p0
+
+    iget-object v0, v3, Lcom/xj/winemu/settings/CpuMultiSelectHelper$2;->a:[Z
     const/4 v1, 0x0    # newMask = 0
 
     # Core 0 (mask = 1)
@@ -101,12 +101,12 @@
     :cond_s7
 
     # Save: sputils.m(key, newMask)
-    iget-object v0, p0, Lcom/xj/winemu/settings/CpuMultiSelectHelper$2;->b:Lcom/blankj/utilcode/util/SPUtils;
-    iget-object v2, p0, Lcom/xj/winemu/settings/CpuMultiSelectHelper$2;->c:Ljava/lang/String;
+    iget-object v0, v3, Lcom/xj/winemu/settings/CpuMultiSelectHelper$2;->b:Lcom/blankj/utilcode/util/SPUtils;
+    iget-object v2, v3, Lcom/xj/winemu/settings/CpuMultiSelectHelper$2;->c:Ljava/lang/String;
     invoke-virtual {v0, v2, v1}, Lcom/blankj/utilcode/util/SPUtils;->m(Ljava/lang/String;I)V
 
-    # Fire UI refresh via full Kotlin defaults constructor — avoids iput on private fields
-    iget-object v0, p0, Lcom/xj/winemu/settings/CpuMultiSelectHelper$2;->d:Lkotlin/jvm/functions/Function1;
+    # Fire UI refresh via full Kotlin defaults constructor
+    iget-object v0, v3, Lcom/xj/winemu/settings/CpuMultiSelectHelper$2;->d:Lkotlin/jvm/functions/Function1;
     if-eqz v0, :cond_nocb
 
     new-instance v7, Lcom/xj/winemu/bean/DialogSettingListItemEntity;
@@ -132,8 +132,8 @@
     const/16 v28, 0x0
     const/16 v29, 0x0
     const/16 v30, 0x0
-    const v31, 0x3ffffa  # defaults: bit0=0 (id provided), bit2=0 (isSelected provided), rest default
-    const/16 v32, 0x0    # DefaultConstructorMarker = null
+    const v31, 0x3ffffa
+    const/16 v32, 0x0
     invoke-direct/range {v7 .. v32}, Lcom/xj/winemu/bean/DialogSettingListItemEntity;-><init>(IIZLjava/lang/String;Ljava/lang/String;IILjava/lang/String;ILjava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;IILcom/xj/winemu/api/bean/EnvLayerEntity;ZILjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 
     invoke-interface {v0, v7}, Lkotlin/jvm/functions/Function1;->invoke(Ljava/lang/Object;)Ljava/lang/Object;
