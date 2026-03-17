@@ -1370,6 +1370,49 @@ Base APK asset was re-uploaded on 2026-03-17; needed a way to verify integrity v
 
 ---
 
+## Entry 037 — Multi-select CPU core dialog (2026-03-17)
+**Date:** 2026-03-17  |  **Commit:** pending  |  **Tag:** v2.4.2-beta1  |  **CI:** pending
+
+### Files created / moved / deleted
+- `patches/smali_classes16/com/xj/winemu/settings/CpuMultiSelectHelper.smali` [NEW] — static `show()`: reads current mask, builds CharSequence[8] labels + boolean[8] checked, creates $1/$2/$3 listeners, shows `AlertDialog.setMultiChoiceItems()`
+- `patches/smali_classes16/com/xj/winemu/settings/CpuMultiSelectHelper$1.smali` [NEW] — `OnMultiChoiceClickListener`: updates `checked[which] = isChecked`
+- `patches/smali_classes16/com/xj/winemu/settings/CpuMultiSelectHelper$2.smali` [NEW] — PositiveButton "Apply": loops checked[], computes OR bitmask, calls `SPUtils.m(key, mask)`, fires callback
+- `patches/smali_classes16/com/xj/winemu/settings/CpuMultiSelectHelper$3.smali` [NEW] — NegativeButton "No Limit": saves 0 to SPUtils, fires callback
+- `patches/smali_classes2/com/xj/winemu/settings/SelectAndSingleInputDialog$Companion.smali` [NEW PATCH] — intercepts `d()` for `CONTENT_TYPE_CORE_LIMIT`: calls `CpuMultiSelectHelper.show()` and returns early; all other types fall through to original logic
+- `patches/smali_classes4/com/xj/winemu/settings/PcGameSettingOperations.smali` [MOD] — `D(I)`: replaced `cond_bh_dfb` "No Limit" fallback with dynamic StringBuilder label (e.g. "Core 4 + Core 7 (Prime)" for mask=0x90)
+
+### Methods added / changed
+- **`CpuMultiSelectHelper.show(Context, String, int, Function1)V`** — `.locals 12`. Gets helper singleton → ops → SPUtils → key via `PcGameSettingDataHelper.A()` → current mask via `PcGameSettingOperations.C()`. Builds `CharSequence[8]` labels and `boolean[8]` checked array with `and-int/2addr` per-bit checks. Instantiates $1/$2/$3. Creates `AlertDialog.Builder` with `setMultiChoiceItems`, "Apply", "No Limit", "Cancel" buttons.
+- **`SelectAndSingleInputDialog$Companion.d()V`** — Added 10-line intercept block before original `b()` call: `getCONTENT_TYPE_CORE_LIMIT()`, `if-ne p3, v0 → :cond_bh_not_cpu`, `View.getContext()`, `CpuMultiSelectHelper.show()`, `return-void`. Non-CPU types continue unchanged.
+- **`PcGameSettingOperations.D(I)Ljava/lang/String;`** — `cond_bh_dfb` fallback replaced with `StringBuilder` loop checking 8 bits of mask, appending " + " separators and core names. Returns dynamic label for any custom combination.
+
+### Root-cause / rationale
+`SelectAndSingleInputDialog` is single-select only (radio buttons via `OptionsPopup`). To support arbitrary core combinations, we intercept before the popup is created and replace with `AlertDialog.setMultiChoiceItems()` which natively supports checkboxes. The shared `boolean[]` array is passed to both the `OnMultiChoiceClickListener` ($1) and the "Apply" button ($2), ensuring checkbox state is captured correctly.
+
+---
+
+## Entry 036 — CPU core selector: bitmask-based specific core selection (2026-03-17)
+**Date:** 2026-03-17  |  **Commit:** `eb55f63`  |  **Tag:** v2.4.1-beta1  |  **CI:** pending
+
+### Files created / moved / deleted
+- `patches/smali_classes6/com/winemu/core/controller/EnvironmentController.smali` [NEW] — full copy with patched `d()` method
+- `patches/smali_classes4/com/xj/winemu/settings/PcGameSettingOperations.smali` [MOD] — `A()` and `D(I)` replaced
+
+### Methods added / changed
+**`EnvironmentController.d()`** — removed the `(1 << count) - 1` bit-shift formula and the CpuInfoCollector guard (which rejected valid bitmasks ≥ deviceCoreCount). Now: single `Config.w()` call → `if-lez v0, :cond_1` (0 = no limit / skip) → set `WINEMU_CPU_AFFINITY = v0` directly. `libvfs.so` reads this env var and calls `sched_setaffinity()` with the bitmask.
+
+**`PcGameSettingOperations.A()`** — replaced the dynamic loop ("1 core, 2 cores…") with a fixed 11-entry list: No Limit (0), Cores 4–7 Performance (0xF0=240), Cores 0–3 Efficiency (0x0F=15), Core 0 (1), Core 1 (2), Core 2 (4), Core 3 (8), Core 4 (16), Core 5 (32), Core 6 (64), Core 7/Prime (128). All constant constructor fields pre-initialized once. isSelected uses `if-ne v0, v8` (both int registers) to compare stored bitmask against each entry's id.
+
+**`PcGameSettingOperations.D(I)`** — replaced "N cores" format string with bitmask-to-label if-eq chain matching same 11 values. Falls back to "No Limit" for unrecognized stored values.
+
+### Root cause / rationale
+Original formula `(1 << count) - 1` always mapped to the lowest N consecutive cores (e.g. "4 cores" = cores 0–3). Research confirmed the full pipeline: stored count → EnvironmentController formula → WINEMU_CPU_AFFINITY env var → libvfs.so → sched_setaffinity(). By patching the formula to use raw bitmask, each option id IS the affinity mask: bitmask 0xF0 pins to cores 4–7, 0x80 pins to core 7 (Prime), etc. This allows targeting specific SoC clusters (big/efficiency/prime cores).
+
+### CI result
+Pending — v2.4.1-beta1 tag triggers build-quick.yml (Normal APK only)
+
+---
+
 ## Entry 035 — Fix VRAM display string and isSelected checkmark for 6/8/12/16 GB (2026-03-17)
 **Date:** 2026-03-17  |  **Commit:** `86207ca`  |  **Tag:** v2.3.10-pre  |  **CI:** pending
 

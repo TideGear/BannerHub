@@ -4,6 +4,27 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [beta] — v2.4.2-beta1 — Multi-select CPU core dialog (2026-03-17)
+**Commit:** pending  |  **Tag:** v2.4.2-beta1
+**What changed:** Replaced single-select CPU core preset list with a multi-select checkbox dialog (`AlertDialog.setMultiChoiceItems()`). Intercept added to `SelectAndSingleInputDialog$Companion.d()` for `CONTENT_TYPE_CORE_LIMIT` — calls `CpuMultiSelectHelper.show()` instead of OptionsPopup. Helper reads current mask, pre-checks boxes accordingly, shows 8 individual core checkboxes (Core 0-7). "Apply" saves OR-combined bitmask; "No Limit" saves 0. `D(I)` updated to dynamically build label (e.g. "Core 4 + Core 7 (Prime)") for custom combinations.
+**Files touched:** `patches/smali_classes16/.../CpuMultiSelectHelper{,$1,$2,$3}.smali` [NEW], `patches/smali_classes2/.../SelectAndSingleInputDialog$Companion.smali` [NEW PATCH], `patches/smali_classes4/.../PcGameSettingOperations.smali`
+
+---
+
+## [beta] — v2.4.1-beta2 — CPU core selector: fix const/4 range error for Core 3 (2026-03-17)
+**Commit:** `c657566`  |  **Tag:** v2.4.1-beta2
+**What changed:** Fixed smali assembler error — `const/4` only holds -8 to 7; value 8 (Core 3 id) requires `const/16`. Two occurrences fixed: in A() (Core 3 entry, v8) and in D(I) (Core 3 match, v0). CI now passes.
+**Files touched:** `patches/smali_classes4/.../PcGameSettingOperations.smali`
+
+---
+
+## [beta] — v2.4.1-beta1 — CPU core selector: bitmask-based specific core selection (2026-03-17)
+**Commit:** `eb55f63`  |  **Tag:** v2.4.1-beta1
+**What changed:** Replaced count-based CPU core limit with bitmask-based specific core selection. EnvironmentController.d() patched to pass stored value directly as WINEMU_CPU_AFFINITY (bypasses (1<<count)-1 formula). A() replaced with 11-entry fixed list: No Limit, Cores 4-7 (Performance), Cores 0-3 (Efficiency), Core 0–Core 7 (Prime). D(I) returns correct display label per bitmask value.
+**Files touched:** `patches/smali_classes4/.../PcGameSettingOperations.smali`, `patches/smali_classes6/.../EnvironmentController.smali` [NEW]
+
+---
+
 ## [stable] — v2.4.0 — In-app downloader, VRAM unlock, offline PC settings (2026-03-17)
 **Commit:** `9fa49f1`  |  **Tag:** v2.4.0
 **What changed:** Stable release packaging all pre-releases since v2.3.5. Features: in-app component downloader (The412Banner Nightlies + Arihany WCPHub), VRAM limit unlock (6/8/12/16 GB) with correct display and checkmark, offline PC game settings fix. README rewritten to reflect full feature set.

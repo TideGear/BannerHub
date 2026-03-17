@@ -1890,7 +1890,118 @@
     return-object p0
 
     :cond_bh_dfb
-    const-string p0, "No Limit"
+    # Custom combination — build "Core X + Core Y" label dynamically
+    new-instance v0, Ljava/lang/StringBuilder;
+    invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
+
+    # Core 0 (mask=1)
+    const/4 v1, 0x1
+    and-int/2addr v1, p0
+    if-eqz v1, :cond_bh_nb0
+    const-string v1, "Core 0"
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    :cond_bh_nb0
+
+    # Core 1 (mask=2)
+    const/4 v1, 0x2
+    and-int/2addr v1, p0
+    if-eqz v1, :cond_bh_nb1
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->length()I
+    move-result v2
+    if-eqz v2, :cond_bh_nb1_np
+    const-string v1, " + "
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    :cond_bh_nb1_np
+    const-string v1, "Core 1"
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    :cond_bh_nb1
+
+    # Core 2 (mask=4)
+    const/4 v1, 0x4
+    and-int/2addr v1, p0
+    if-eqz v1, :cond_bh_nb2
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->length()I
+    move-result v2
+    if-eqz v2, :cond_bh_nb2_np
+    const-string v1, " + "
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    :cond_bh_nb2_np
+    const-string v1, "Core 2"
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    :cond_bh_nb2
+
+    # Core 3 (mask=8)
+    const/16 v1, 0x8
+    and-int/2addr v1, p0
+    if-eqz v1, :cond_bh_nb3
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->length()I
+    move-result v2
+    if-eqz v2, :cond_bh_nb3_np
+    const-string v1, " + "
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    :cond_bh_nb3_np
+    const-string v1, "Core 3"
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    :cond_bh_nb3
+
+    # Core 4 (mask=16=0x10)
+    const/16 v1, 0x10
+    and-int/2addr v1, p0
+    if-eqz v1, :cond_bh_nb4
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->length()I
+    move-result v2
+    if-eqz v2, :cond_bh_nb4_np
+    const-string v1, " + "
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    :cond_bh_nb4_np
+    const-string v1, "Core 4"
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    :cond_bh_nb4
+
+    # Core 5 (mask=32=0x20)
+    const/16 v1, 0x20
+    and-int/2addr v1, p0
+    if-eqz v1, :cond_bh_nb5
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->length()I
+    move-result v2
+    if-eqz v2, :cond_bh_nb5_np
+    const-string v1, " + "
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    :cond_bh_nb5_np
+    const-string v1, "Core 5"
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    :cond_bh_nb5
+
+    # Core 6 (mask=64=0x40)
+    const/16 v1, 0x40
+    and-int/2addr v1, p0
+    if-eqz v1, :cond_bh_nb6
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->length()I
+    move-result v2
+    if-eqz v2, :cond_bh_nb6_np
+    const-string v1, " + "
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    :cond_bh_nb6_np
+    const-string v1, "Core 6"
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    :cond_bh_nb6
+
+    # Core 7 (mask=128=0x80)
+    const/16 v1, 0x80
+    and-int/2addr v1, p0
+    if-eqz v1, :cond_bh_nb7
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->length()I
+    move-result v2
+    if-eqz v2, :cond_bh_nb7_np
+    const-string v1, " + "
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    :cond_bh_nb7_np
+    const-string v1, "Core 7 (Prime)"
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    :cond_bh_nb7
+
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object p0
     return-object p0
 .end method
 
