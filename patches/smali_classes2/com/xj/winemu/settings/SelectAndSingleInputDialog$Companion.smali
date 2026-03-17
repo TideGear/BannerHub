@@ -744,9 +744,7 @@
     invoke-virtual {v0}, Lcom/xj/winemu/bean/PcSettingItemEntity$Companion;->getCONTENT_TYPE_CORE_LIMIT()I
     move-result v0
     if-ne p3, v0, :cond_bh_not_cpu
-    invoke-virtual {p1}, Landroid/view/View;->getContext()Landroid/content/Context;
-    move-result-object v0
-    invoke-static {v0, p2, p3, p4}, Lcom/xj/winemu/settings/CpuMultiSelectHelper;->show(Landroid/content/Context;Ljava/lang/String;ILkotlin/jvm/functions/Function1;)V
+    invoke-static {p1, p2, p3, p4}, Lcom/xj/winemu/settings/CpuMultiSelectHelper;->show(Landroid/view/View;Ljava/lang/String;ILkotlin/jvm/functions/Function1;)V
     return-void
     :cond_bh_not_cpu
 
