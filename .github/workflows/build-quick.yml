@@ -33,43 +33,80 @@ jobs:
           echo "$HOME/bin" >> $GITHUB_PATH
           java -jar $HOME/bin/apktool.jar --version
 
-      - name: Decompile APK
+      - name: Install smali
+        run: |
+          sudo apt-get install -y smali 2>/dev/null || true
+          if ! command -v smali &>/dev/null; then
+            SMALI_VER=2.5.2
+            wget -q "https://github.com/JesusFreke/smali/releases/download/v${SMALI_VER}/smali-${SMALI_VER}.jar" -O $HOME/bin/smali.jar
+            printf '#!/bin/sh\nexec java -jar %s/smali.jar "$@"\n' "$HOME/bin" > $HOME/bin/smali
+            chmod +x $HOME/bin/smali
+          fi
+          smali --version || java -jar $HOME/bin/smali.jar --version
+
+      - name: Compile patch smali and patch dex files
+        run: |
+          APK_BASE=$(ls base/*.apk | head -1)
+          mkdir -p orig_dex
+          cd orig_dex && unzip -o "../$APK_BASE" "*.dex" && cd ..
+
+          mkdir -p patched_dex
+          for dex_num in 4 6 7 9 11 12 14 15; do
+            SMALI_DIR="patches/smali_classes${dex_num}"
+            if [ ! -d "$SMALI_DIR" ]; then continue; fi
+            ORIG_DEX="orig_dex/classes${dex_num}.dex"
+            smali assemble "$SMALI_DIR" -o "mini_${dex_num}.dex"
+            python3 .github/scripts/patch_dex.py "$ORIG_DEX" "mini_${dex_num}.dex" "patched_dex/classes${dex_num}.dex"
+          done
+
+          if [ -d "patches/smali_classes16" ]; then
+            smali assemble patches/smali_classes16 -o patched_dex/classes16.dex
+          fi
+
+          echo "Patched dex files:"
+          ls -lh patched_dex/
+
+      - name: Decompile APK (resources only)
         run: |
           APK=$(ls base/*.apk | head -1)
-          echo "Decompiling: $APK"
-          java -jar $HOME/bin/apktool.jar d "$APK" -o apktool_out -f
+          java -jar $HOME/bin/apktool.jar d "$APK" -o apktool_out -f --no-src
 
       - name: Remove uncompilable apktool artifacts
         run: |
           rm -f apktool_out/res/values/raws.xml
           sed -i '/firebase_common_keep\|firebase_crashlytics_keep/d' apktool_out/res/values/public.xml
 
-      - name: Apply patches
+      - name: Apply resource patches
         run: |
-          if [ -d "patches" ] && [ "$(ls -A patches)" ]; then
-            echo "Applying patches..."
-            cp -r patches/. apktool_out/
-            echo "Patches applied."
-          else
-            echo "No patches to apply."
+          if [ -d "patches/res" ]; then
+            cp -r patches/res/. apktool_out/res/
+          fi
+          if [ -f "patches/AndroidManifest.xml" ]; then
+            cp patches/AndroidManifest.xml apktool_out/AndroidManifest.xml
           fi
 
       - name: Patch package name for pre/beta (isolate from stable installs)
         run: |
           sed -i "s/gamehub\.lite/banner.hub/g" apktool_out/AndroidManifest.xml
 
-      - name: Rebuild and Sign (Normal variant only)
+      - name: Rebuild APK (resources only)
         run: |
-          echo "Building Normal variant (banner.hub — pre/beta isolated package)..."
+          java -jar $HOME/bin/apktool.jar b apktool_out -o rebuilt-resources.apk
 
-          # Rebuild
-          java -jar $HOME/bin/apktool.jar b apktool_out -o rebuilt-unsigned.apk
+      - name: Replace dex files in APK
+        run: |
+          cp rebuilt-resources.apk rebuilt-with-dex.apk
+          for dex_file in patched_dex/*.dex; do
+            DEX_NAME=$(basename "$dex_file")
+            cp "$dex_file" "$DEX_NAME"
+            zip -j rebuilt-with-dex.apk "$DEX_NAME"
+          done
 
-          # Align
-          ${ANDROID_SDK_ROOT}/build-tools/$(ls ${ANDROID_SDK_ROOT}/build-tools | tail -1)/zipalign -f -v 4 rebuilt-unsigned.apk rebuilt-aligned.apk
-
-          # Sign
-          ${ANDROID_SDK_ROOT}/build-tools/$(ls ${ANDROID_SDK_ROOT}/build-tools | tail -1)/apksigner sign \
+      - name: Zipalign and Sign
+        run: |
+          BUILD_TOOLS=$(ls ${ANDROID_SDK_ROOT}/build-tools | tail -1)
+          ${ANDROID_SDK_ROOT}/build-tools/${BUILD_TOOLS}/zipalign -f -v 4 rebuilt-with-dex.apk rebuilt-aligned.apk
+          ${ANDROID_SDK_ROOT}/build-tools/${BUILD_TOOLS}/apksigner sign \
             --key testkey.pk8 \
             --cert testkey.x509.pem \
             --v1-signing-enabled true \
@@ -77,7 +114,6 @@ jobs:
             --v3-signing-enabled true \
             --out "Bannerhub-5.3.5-Revanced-Normal.apk" \
             rebuilt-aligned.apk
-
           echo "Done: Bannerhub-5.3.5-Revanced-Normal.apk ($(du -sh Bannerhub-5.3.5-Revanced-Normal.apk | cut -f1))"
 
       - name: Get tag name

@@ -23,42 +23,56 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install apktool
+      - name: Install smali
         run: |
-          APKTOOL_VER=2.9.3
-          mkdir -p $HOME/bin
-          wget -q "https://github.com/iBotPeaches/Apktool/releases/download/v${APKTOOL_VER}/apktool_${APKTOOL_VER}.jar" -O $HOME/bin/apktool.jar
-          wget -q "https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool" -O $HOME/bin/apktool
-          chmod +x $HOME/bin/apktool
-          echo "$HOME/bin" >> $GITHUB_PATH
-          java -jar $HOME/bin/apktool.jar --version
+          sudo apt-get install -y smali 2>/dev/null || true
+          if ! command -v smali &>/dev/null; then
+            SMALI_VER=2.5.2
+            mkdir -p $HOME/bin
+            wget -q "https://github.com/JesusFreke/smali/releases/download/v${SMALI_VER}/smali-${SMALI_VER}.jar" -O $HOME/bin/smali.jar
+            printf '#!/bin/sh\nexec java -jar %s/smali.jar "$@"\n' "$HOME/bin" > $HOME/bin/smali
+            chmod +x $HOME/bin/smali
+            echo "$HOME/bin" >> $GITHUB_PATH
+          fi
+          smali --version || java -jar $HOME/bin/smali.jar --version
 
-      - name: Decompile APK
+      - name: Compile patch smali and patch dex files
         run: |
-          APK=$(ls base/*.apk | head -1)
-          echo "Decompiling: $APK"
-          java -jar $HOME/bin/apktool.jar d "$APK" -o apktool_out_base -f
+          APK_BASE=$(ls base/*.apk | head -1)
+          echo "Extracting dex from: $APK_BASE"
+          mkdir -p orig_dex
+          cd orig_dex && unzip -o "../$APK_BASE" "*.dex" && cd ..
+          ls orig_dex/
 
-      - name: Remove uncompilable apktool artifacts
-        run: |
-          rm -f apktool_out_base/res/values/raws.xml
-          sed -i '/firebase_common_keep\|firebase_crashlytics_keep/d' apktool_out_base/res/values/public.xml
+          # Patch dex files with replacement classes
+          mkdir -p patched_dex
+          for dex_num in 4 6 7 9 11 12 14 15; do
+            SMALI_DIR="patches/smali_classes${dex_num}"
+            if [ ! -d "$SMALI_DIR" ]; then
+              echo "No patch dir for classes${dex_num}, skipping"
+              continue
+            fi
+            ORIG_DEX="orig_dex/classes${dex_num}.dex"
+            echo "Compiling $SMALI_DIR -> mini_${dex_num}.dex..."
+            smali assemble "$SMALI_DIR" -o "mini_${dex_num}.dex"
+            echo "Patching classes${dex_num}.dex..."
+            python3 .github/scripts/patch_dex.py "$ORIG_DEX" "mini_${dex_num}.dex" "patched_dex/classes${dex_num}.dex"
+          done
 
-      - name: Apply patches
-        run: |
-          if [ -d "patches" ] && [ "$(ls -A patches)" ]; then
-            echo "Applying patches..."
-            cp -r patches/. apktool_out_base/
-            echo "Patches applied."
-          else
-            echo "No patches to apply."
+          # Compile classes16 (all-new classes, just add to APK)
+          if [ -d "patches/smali_classes16" ]; then
+            echo "Compiling smali_classes16 -> classes16.dex..."
+            smali assemble patches/smali_classes16 -o patched_dex/classes16.dex
           fi
 
-      - name: Upload patched source
+          echo "Patched dex files:"
+          ls -lh patched_dex/
+
+      - name: Upload patched dex
         uses: actions/upload-artifact@v4
         with:
-          name: apktool_out_base
-          path: apktool_out_base/
+          name: patched-dex
+          path: patched_dex/
           retention-days: 1
 
   build:
@@ -107,30 +121,68 @@ jobs:
           chmod +x $HOME/bin/apktool
           echo "$HOME/bin" >> $GITHUB_PATH
 
-      - name: Download patched source
+      - name: Download original APK
+        run: |
+          gh release download base-apk --pattern "*.apk" -D base/ -R ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download patched dex
         uses: actions/download-artifact@v4
         with:
-          name: apktool_out_base
-          path: apktool_out
+          name: patched-dex
+          path: patched_dex/
+
+      - name: Decompile APK (resources only)
+        run: |
+          APK=$(ls base/*.apk | head -1)
+          echo "Decompiling: $APK"
+          java -jar $HOME/bin/apktool.jar d "$APK" -o apktool_out -f --no-src
+
+      - name: Remove uncompilable apktool artifacts
+        run: |
+          rm -f apktool_out/res/values/raws.xml
+          sed -i '/firebase_common_keep\|firebase_crashlytics_keep/d' apktool_out/res/values/public.xml
+
+      - name: Apply resource patches
+        run: |
+          if [ -d "patches/res" ]; then
+            cp -r patches/res/. apktool_out/res/
+            echo "Resource patches applied."
+          fi
+          if [ -f "patches/AndroidManifest.xml" ]; then
+            cp patches/AndroidManifest.xml apktool_out/AndroidManifest.xml
+            echo "AndroidManifest.xml patched."
+          fi
 
       - name: Patch package name and label
         run: |
           PKG="${{ matrix.package }}"
           LABEL="${{ matrix.label }}"
           if [ "$PKG" != "gamehub.lite" ]; then
-            # Replace all occurrences of gamehub.lite in the manifest (package, sharedUserId, authorities, permissions, etc.)
             sed -i "s/gamehub\.lite/$PKG/g" apktool_out/AndroidManifest.xml
           fi
           sed -i "s/android:label=\"GameHub Revanced\"/android:label=\"$LABEL\"/" apktool_out/AndroidManifest.xml
 
-      - name: Rebuild APK
+      - name: Rebuild APK (resources only)
         run: |
-          java -jar $HOME/bin/apktool.jar b apktool_out -o rebuilt-unsigned.apk
+          java -jar $HOME/bin/apktool.jar b apktool_out -o rebuilt-resources.apk
+
+      - name: Replace dex files in APK
+        run: |
+          cp rebuilt-resources.apk rebuilt-with-dex.apk
+          ls patched_dex/
+          for dex_file in patched_dex/*.dex; do
+            DEX_NAME=$(basename "$dex_file")
+            echo "Replacing/adding $DEX_NAME in APK..."
+            cp "$dex_file" "$DEX_NAME"
+            zip -j rebuilt-with-dex.apk "$DEX_NAME"
+          done
 
       - name: Zipalign
         run: |
           BUILD_TOOLS=$(ls ${ANDROID_SDK_ROOT}/build-tools | tail -1)
-          ${ANDROID_SDK_ROOT}/build-tools/${BUILD_TOOLS}/zipalign -f -v 4 rebuilt-unsigned.apk rebuilt-aligned.apk
+          ${ANDROID_SDK_ROOT}/build-tools/${BUILD_TOOLS}/zipalign -f -v 4 rebuilt-with-dex.apk rebuilt-aligned.apk
 
       - name: Sign
         run: |
