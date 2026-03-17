@@ -4,6 +4,13 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [stable] — v2.4.0 — In-app downloader, VRAM unlock, offline PC settings (2026-03-17)
+**Commit:** `9fa49f1`  |  **Tag:** v2.4.0
+**What changed:** Stable release packaging all pre-releases since v2.3.5. Features: in-app component downloader (The412Banner Nightlies + Arihany WCPHub), VRAM limit unlock (6/8/12/16 GB) with correct display and checkmark, offline PC game settings fix. README rewritten to reflect full feature set.
+**Files touched:** README.md (rewrite)
+
+---
+
 ## [fix] — v2.3.10-pre — Fix VRAM display string and isSelected checkmark (2026-03-17)
 **Commit:** `86207ca`  |  **Tag:** v2.3.10-pre
 **What changed:** Selecting 6/8/12/16 GB VRAM appeared to revert to "Unlimited" due to two display bugs. (1) `F0()` had no if-eq branches for values > 4096, returning the "No Limit" string — fixed by adding cases for 0x1800/0x2000/0x3000/0x4000. (2) `l0()` always set `isSelected=false` for the new entries — fixed by calling `G0()` once into v3 (int) and comparing v3 against each MB value via v4. The value was already being saved correctly to MMKV; these were purely display bugs.
