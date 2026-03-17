@@ -1007,9 +1007,18 @@
 
     check-cast v0, Ljava/util/List;
 
+    :try_start_ps6
     invoke-static/range {p1 .. p1}, Lkotlin/ResultKt;->b(Ljava/lang/Object;)V
+    :try_end_ps6
+    .catch Ljava/lang/Exception; {:try_start_ps6 .. :try_end_ps6} :catch_ps6
 
     move-object/from16 v4, p1
+
+    goto/16 :goto_8
+
+    :catch_ps6
+    move-exception v8
+    const-string v4, "{}"
 
     goto/16 :goto_8
 
@@ -1033,9 +1042,19 @@
 
     check-cast v0, Ljava/util/List;
 
+    :try_start_ps8
     invoke-static/range {p1 .. p1}, Lkotlin/ResultKt;->b(Ljava/lang/Object;)V
+    :try_end_ps8
+    .catch Ljava/lang/Exception; {:try_start_ps8 .. :try_end_ps8} :catch_ps8
 
     move-object/from16 v4, p1
+
+    goto :goto_0
+
+    :catch_ps8
+    move-exception v8
+    new-instance v4, Ljava/util/ArrayList;
+    invoke-direct {v4}, Ljava/util/ArrayList;-><init>()V
 
     goto :goto_0
 
