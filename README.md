@@ -1,6 +1,6 @@
 # BannerHub
 
-**GameHub 5.3.5 ReVanced** — enhanced with a full Component Manager, in-app component downloader, RTS touch controls, VRAM unlock, Steam offline launch, and more. Built with apktool — no root required.
+**GameHub 5.3.5 ReVanced** — enhanced with a full Component Manager, in-app component downloader, RTS touch controls, VRAM unlock, per-game CPU core affinity, Steam offline launch, and more. Built with apktool — no root required.
 
 ## Video — Installation & Feature Showcase
 
@@ -54,6 +54,17 @@ PC game settings → **VRAM Limit** now includes 6 GB, 8 GB, 12 GB, and 16 GB op
 
 ### PC Game Settings: Offline Mode
 Opening PC game settings while offline no longer blocks the menus. Previously a `NoCacheException` from the remote API made all settings non-interactive. Both the container list and component list now fall back to empty data so the UI remains fully usable without a network connection.
+
+### Per-Game CPU Core Affinity
+PC game settings → **Core Count** now opens a multi-select dialog to choose exactly which CPU cores a game may use.
+
+- 8 cores listed individually: Core 0–3 (Efficiency), Core 4–6 (Performance), Core 7 (Prime)
+- **Apply** saves the selected core bitmask for that game
+- **No Limit** clears the affinity mask (unrestricted)
+- **Cancel** discards changes with no save
+- Selecting all 8 cores and tapping Apply is treated as No Limit
+- Tapping Apply with nothing selected shows a warning toast and does not save
+- The settings row label refreshes immediately after any change
 
 ### Offline Steam Launch
 When autoLogin fails and no network is available at cold start, the Steam login screen is skipped and the game launch pipeline proceeds using cached config. When network is available and autoLogin fails, the login screen is shown as normal.

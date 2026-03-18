@@ -1128,6 +1128,19 @@ ART 14 blocks cross-dex private field access. `DialogSettingListItemEntity` is i
 
 ---
 
+### [stable] — v2.4.3 — Per-game CPU core affinity + VRAM unlock + offline fixes (2026-03-17)
+**Commit:** `77d3a9a`  |  **Tag:** v2.4.3  |  **CI:** ✅ build.yml — 8 APKs
+#### What's new since v2.4.0
+- Per-game CPU Core Affinity multi-select dialog (setMultiChoiceItems, Html small labels, half-width, 90% height)
+  - Apply saves bitmask; No Limit saves 0; Cancel discards
+  - All cores checked = No Limit; no cores = Toast warning
+  - Immediate UI refresh via Kotlin defaults constructor
+- VRAM unlock: 6/8/12/16 GB options with display text + checkmark fix
+- Offline PC game settings: catches NoCacheException, loads from cache
+#### All beta tags deleted after stable build (v2.4.2-beta1 through beta12)
+
+---
+
 ## Planned Work
 
 - [ ] Confirm v2.0.6-pre: ZIP (flat) works, WCP zstd (DXVK/VKD3D) works, WCP XZ (FEX) works
