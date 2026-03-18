@@ -1,13 +1,10 @@
 .class public final Lcom/xj/winemu/settings/CpuMultiSelectHelper;
 .super Ljava/lang/Object;
 
-# BannerHub: multi-select CPU core dialog — 4×2 grid layout.
-# p0 = View (anchor — getContext() for dialog; must be non-null)
-# p1 = String gameId
-# p2 = int contentType (CONTENT_TYPE_CORE_LIMIT)
-# p3 = Function1 callback
+# BannerHub: multi-select CPU core dialog — 4×2 grid, divider, WRAP_CONTENT height.
+# p0 = View (anchor), p1 = String gameId, p2 = int contentType, p3 = Function1 callback
 #
-# Grid layout (4 rows × 2 columns):
+# Layout (4 rows × 2 cols, vertical divider between cols):
 #   Core 0 (Eff)  | Core 4 (Perf)
 #   Core 1 (Eff)  | Core 5 (Perf)
 #   Core 2 (Eff)  | Core 6 (Perf)
@@ -16,13 +13,13 @@
 # Register map:
 #  v0  = Context
 #  v1  = TableLayout
-#  v2  = boolean[8] checked (shared with $4 listeners and $2 Apply)
-#  v3  = SPUtils → temp string
+#  v2  = boolean[8] checked
+#  v3  = SPUtils → temp
 #  v4  = key String → temp
-#  v5  = currentMask → TableRow → $2 (Apply)
-#  v6  = left CheckBox → $3 (No Limit)
-#  v7  = right CheckBox / $4 listener
-#  v8  = temp bool / text / AlertDialog.Builder / Window
+#  v5  = currentMask → TableRow → $2
+#  v6  = left CheckBox → height const (-1) → $3
+#  v7  = $4 listener / divider View
+#  v8  = temp (text / color / width / Builder / Window)
 
 .method public static show(Landroid/view/View;Ljava/lang/String;ILkotlin/jvm/functions/Function1;)V
     .locals 9
@@ -48,7 +45,7 @@
     invoke-static {v1, p2, v5, v4, v5}, Lcom/xj/winemu/settings/PcGameSettingDataHelper;->A(Lcom/xj/winemu/settings/PcGameSettingDataHelper;ILjava/lang/String;ILjava/lang/Object;)Ljava/lang/String;
     move-result-object v4
 
-    # --- Current mask via C(ops, 0, 1, null) ---
+    # --- Current mask ---
     const/4 v5, 0x0
     const/4 v1, 0x1
     invoke-static {v2, v5, v1, v5}, Lcom/xj/winemu/settings/PcGameSettingOperations;->C(Lcom/xj/winemu/settings/PcGameSettingOperations;IILjava/lang/Object;)I
@@ -58,7 +55,6 @@
     const/16 v2, 0x8
     new-array v2, v2, [Z
 
-    # Core 0 (mask = 1)
     const/4 v6, 0x0
     const/4 v7, 0x1
     and-int/2addr v7, v5
@@ -70,7 +66,6 @@
     :goto_c0
     aput-boolean v7, v2, v6
 
-    # Core 1 (mask = 2)
     const/4 v6, 0x1
     const/4 v7, 0x2
     and-int/2addr v7, v5
@@ -82,7 +77,6 @@
     :goto_c1
     aput-boolean v7, v2, v6
 
-    # Core 2 (mask = 4)
     const/4 v6, 0x2
     const/4 v7, 0x4
     and-int/2addr v7, v5
@@ -94,7 +88,6 @@
     :goto_c2
     aput-boolean v7, v2, v6
 
-    # Core 3 (mask = 8)
     const/4 v6, 0x3
     const/16 v7, 0x8
     and-int/2addr v7, v5
@@ -106,7 +99,6 @@
     :goto_c3
     aput-boolean v7, v2, v6
 
-    # Core 4 (mask = 16 = 0x10)
     const/4 v6, 0x4
     const/16 v7, 0x10
     and-int/2addr v7, v5
@@ -118,7 +110,6 @@
     :goto_c4
     aput-boolean v7, v2, v6
 
-    # Core 5 (mask = 32 = 0x20)
     const/4 v6, 0x5
     const/16 v7, 0x20
     and-int/2addr v7, v5
@@ -130,7 +121,6 @@
     :goto_c5
     aput-boolean v7, v2, v6
 
-    # Core 6 (mask = 64 = 0x40)
     const/4 v6, 0x6
     const/16 v7, 0x40
     and-int/2addr v7, v5
@@ -142,7 +132,6 @@
     :goto_c6
     aput-boolean v7, v2, v6
 
-    # Core 7 (mask = 128 = 0x80)
     const/4 v6, 0x7
     const/16 v7, 0x80
     and-int/2addr v7, v5
@@ -153,22 +142,20 @@
     const/4 v7, 0x0
     :goto_c7
     aput-boolean v7, v2, v6
-    # v2 = checked, v5/v6/v7 free
 
-    # --- Build 4×2 CheckBox grid ---
-    # Columns: left=Cores 0-3 (Efficiency), right=Cores 4-7 (Perf/Prime)
+    # --- Build 4×2 grid ---
     new-instance v1, Landroid/widget/TableLayout;
     invoke-direct {v1, v0}, Landroid/widget/TableLayout;-><init>(Landroid/content/Context;)V
     const/4 v8, 0x1
     invoke-virtual {v1, v8}, Landroid/widget/TableLayout;->setStretchAllColumns(Z)V
 
-    # ---- Row 0: Core 0 | Core 4 ----
+    # ---- Row 0: Core 0 (Eff) | divider | Core 4 (Perf) ----
     new-instance v5, Landroid/widget/TableRow;
     invoke-direct {v5, v0}, Landroid/widget/TableRow;-><init>(Landroid/content/Context;)V
 
     new-instance v6, Landroid/widget/CheckBox;
     invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
-    const-string v8, "Core 0\n(Eff)"
+    const-string v8, "Core 0 (Eff)"
     invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
     const/4 v8, 0x0
     aget-boolean v8, v2, v8
@@ -179,9 +166,17 @@
     invoke-virtual {v6, v7}, Landroid/widget/CompoundButton;->setOnCheckedChangeListener(Landroid/widget/CompoundButton$OnCheckedChangeListener;)V
     invoke-virtual {v5, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
 
+    new-instance v7, Landroid/view/View;
+    invoke-direct {v7, v0}, Landroid/view/View;-><init>(Landroid/content/Context;)V
+    const v8, 0xFF808080
+    invoke-virtual {v7, v8}, Landroid/view/View;->setBackgroundColor(I)V
+    const/16 v8, 0x2
+    const/4 v6, -0x1
+    invoke-virtual {v5, v7, v8, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;II)V
+
     new-instance v6, Landroid/widget/CheckBox;
     invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
-    const-string v8, "Core 4\n(Perf)"
+    const-string v8, "Core 4 (Perf)"
     invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
     const/4 v8, 0x4
     aget-boolean v8, v2, v8
@@ -194,13 +189,13 @@
 
     invoke-virtual {v1, v5}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
 
-    # ---- Row 1: Core 1 | Core 5 ----
+    # ---- Row 1: Core 1 (Eff) | divider | Core 5 (Perf) ----
     new-instance v5, Landroid/widget/TableRow;
     invoke-direct {v5, v0}, Landroid/widget/TableRow;-><init>(Landroid/content/Context;)V
 
     new-instance v6, Landroid/widget/CheckBox;
     invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
-    const-string v8, "Core 1\n(Eff)"
+    const-string v8, "Core 1 (Eff)"
     invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
     const/4 v8, 0x1
     aget-boolean v8, v2, v8
@@ -211,9 +206,17 @@
     invoke-virtual {v6, v7}, Landroid/widget/CompoundButton;->setOnCheckedChangeListener(Landroid/widget/CompoundButton$OnCheckedChangeListener;)V
     invoke-virtual {v5, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
 
+    new-instance v7, Landroid/view/View;
+    invoke-direct {v7, v0}, Landroid/view/View;-><init>(Landroid/content/Context;)V
+    const v8, 0xFF808080
+    invoke-virtual {v7, v8}, Landroid/view/View;->setBackgroundColor(I)V
+    const/16 v8, 0x2
+    const/4 v6, -0x1
+    invoke-virtual {v5, v7, v8, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;II)V
+
     new-instance v6, Landroid/widget/CheckBox;
     invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
-    const-string v8, "Core 5\n(Perf)"
+    const-string v8, "Core 5 (Perf)"
     invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
     const/4 v8, 0x5
     aget-boolean v8, v2, v8
@@ -226,13 +229,13 @@
 
     invoke-virtual {v1, v5}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
 
-    # ---- Row 2: Core 2 | Core 6 ----
+    # ---- Row 2: Core 2 (Eff) | divider | Core 6 (Perf) ----
     new-instance v5, Landroid/widget/TableRow;
     invoke-direct {v5, v0}, Landroid/widget/TableRow;-><init>(Landroid/content/Context;)V
 
     new-instance v6, Landroid/widget/CheckBox;
     invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
-    const-string v8, "Core 2\n(Eff)"
+    const-string v8, "Core 2 (Eff)"
     invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
     const/4 v8, 0x2
     aget-boolean v8, v2, v8
@@ -243,9 +246,17 @@
     invoke-virtual {v6, v7}, Landroid/widget/CompoundButton;->setOnCheckedChangeListener(Landroid/widget/CompoundButton$OnCheckedChangeListener;)V
     invoke-virtual {v5, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
 
+    new-instance v7, Landroid/view/View;
+    invoke-direct {v7, v0}, Landroid/view/View;-><init>(Landroid/content/Context;)V
+    const v8, 0xFF808080
+    invoke-virtual {v7, v8}, Landroid/view/View;->setBackgroundColor(I)V
+    const/16 v8, 0x2
+    const/4 v6, -0x1
+    invoke-virtual {v5, v7, v8, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;II)V
+
     new-instance v6, Landroid/widget/CheckBox;
     invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
-    const-string v8, "Core 6\n(Perf)"
+    const-string v8, "Core 6 (Perf)"
     invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
     const/4 v8, 0x6
     aget-boolean v8, v2, v8
@@ -258,13 +269,13 @@
 
     invoke-virtual {v1, v5}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
 
-    # ---- Row 3: Core 3 | Core 7 ----
+    # ---- Row 3: Core 3 (Eff) | divider | Core 7 (Prime) ----
     new-instance v5, Landroid/widget/TableRow;
     invoke-direct {v5, v0}, Landroid/widget/TableRow;-><init>(Landroid/content/Context;)V
 
     new-instance v6, Landroid/widget/CheckBox;
     invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
-    const-string v8, "Core 3\n(Eff)"
+    const-string v8, "Core 3 (Eff)"
     invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
     const/4 v8, 0x3
     aget-boolean v8, v2, v8
@@ -275,9 +286,17 @@
     invoke-virtual {v6, v7}, Landroid/widget/CompoundButton;->setOnCheckedChangeListener(Landroid/widget/CompoundButton$OnCheckedChangeListener;)V
     invoke-virtual {v5, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
 
+    new-instance v7, Landroid/view/View;
+    invoke-direct {v7, v0}, Landroid/view/View;-><init>(Landroid/content/Context;)V
+    const v8, 0xFF808080
+    invoke-virtual {v7, v8}, Landroid/view/View;->setBackgroundColor(I)V
+    const/16 v8, 0x2
+    const/4 v6, -0x1
+    invoke-virtual {v5, v7, v8, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;II)V
+
     new-instance v6, Landroid/widget/CheckBox;
     invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
-    const-string v8, "Core 7\n(Prime)"
+    const-string v8, "Core 7 (Prime)"
     invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
     const/4 v8, 0x7
     aget-boolean v8, v2, v8
@@ -291,14 +310,13 @@
     invoke-virtual {v1, v5}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
     # v1 = TableLayout, v5/v6/v7 free
 
-    # --- $2: PositiveButton(checked[], SPUtils, key, callback) ---
+    # --- $2: PositiveButton ---
     new-instance v5, Lcom/xj/winemu/settings/CpuMultiSelectHelper$2;
     invoke-direct {v5, v2, v3, v4, p3}, Lcom/xj/winemu/settings/CpuMultiSelectHelper$2;-><init>([ZLcom/blankj/utilcode/util/SPUtils;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 
-    # --- $3: NegativeButton(SPUtils, key, callback) ---
+    # --- $3: NegativeButton ---
     new-instance v6, Lcom/xj/winemu/settings/CpuMultiSelectHelper$3;
     invoke-direct {v6, v3, v4, p3}, Lcom/xj/winemu/settings/CpuMultiSelectHelper$3;-><init>(Lcom/blankj/utilcode/util/SPUtils;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
-    # v3 and v4 now free
 
     # --- AlertDialog.Builder ---
     new-instance v8, Landroid/app/AlertDialog$Builder;
@@ -323,7 +341,7 @@
     invoke-virtual {v8}, Landroid/app/AlertDialog$Builder;->show()Landroid/app/AlertDialog;
     move-result-object v8
 
-    # --- Limit to half-width, 90% height ---
+    # --- half-width, WRAP_CONTENT height (snaps to content, no empty space) ---
     invoke-virtual {v8}, Landroid/app/AlertDialog;->getWindow()Landroid/view/Window;
     move-result-object v8
     if-eqz v8, :cond_bh_nosize
@@ -336,10 +354,7 @@
     move-result-object v3
     iget v4, v3, Landroid/util/DisplayMetrics;->widthPixels:I
     div-int/lit8 v4, v4, 0x2     # width = widthPixels / 2
-
-    iget v3, v3, Landroid/util/DisplayMetrics;->heightPixels:I
-    mul-int/lit16 v3, v3, 0x9
-    div-int/lit16 v3, v3, 0xa    # height = 90% = 9/10
+    const/4 v3, -0x2              # height = WRAP_CONTENT = -2
 
     invoke-virtual {v8, v4, v3}, Landroid/view/Window;->setLayout(II)V
 
