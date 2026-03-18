@@ -16281,6 +16281,7 @@
     <public type="id" name="rts_action_option_2_text" id="0x7f0a0f0c" />
     <public type="id" name="rts_action_option_2_check" id="0x7f0a0f0d" />
     <public type="id" name="switch_sustained_perf" id="0x7f0a0f0e" />
+    <public type="id" name="switch_max_adreno_clocks" id="0x7f0a0f0f" />
     <public type="integer" name="abc_config_activityDefaultDur" id="0x7f0b0000" />
     <public type="integer" name="abc_config_activityShortDur" id="0x7f0b0001" />
     <public type="integer" name="app_bar_elevation_anim_duration" id="0x7f0b0002" />

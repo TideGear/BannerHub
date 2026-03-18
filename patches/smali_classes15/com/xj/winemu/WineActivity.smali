@@ -5672,6 +5672,60 @@
 .end method
 # --- end BannerHub toggleSustainedPerf ---
 
+# --- BannerHub: toggle Max Adreno Clocks at runtime (root) ---
+.method public static toggleMaxAdreno(Z)V
+    .locals 4
+
+    sget-object v0, Lcom/xj/winemu/WineActivity;->t1:Lcom/xj/winemu/WineActivity;
+    if-eqz v0, :cond_adreno_end
+
+    # Save pref
+    const-string v1, "bh_prefs"
+    const/4 v2, 0x0
+    invoke-virtual {v0, v1, v2}, Landroid/app/Activity;->getSharedPreferences(Ljava/lang/String;I)Landroid/content/SharedPreferences;
+    move-result-object v1
+    invoke-interface {v1}, Landroid/content/SharedPreferences;->edit()Landroid/content/SharedPreferences$Editor;
+    move-result-object v1
+    const-string v2, "max_adreno_clocks"
+    invoke-interface {v1, v2, p0}, Landroid/content/SharedPreferences$Editor;->putBoolean(Ljava/lang/String;Z)Landroid/content/SharedPreferences$Editor;
+    invoke-interface {v1}, Landroid/content/SharedPreferences$Editor;->apply()V
+
+    # Execute root command
+    if-eqz p0, :cond_adreno_disable
+
+    # Enable: set min_freq = max_freq (lock to max clock)
+    const/4 v1, 0x2
+    new-array v1, v1, [Ljava/lang/String;
+    const/4 v2, 0x0
+    const-string v3, "su"
+    aput-object v3, v1, v2
+    const/4 v2, 0x1
+    const-string v3, "MAX=$(cat /sys/class/kgsl/kgsl-3d0/devfreq/max_freq); echo $MAX > /sys/class/kgsl/kgsl-3d0/devfreq/min_freq"
+    aput-object v3, v1, v2
+    invoke-static {}, Ljava/lang/Runtime;->getRuntime()Ljava/lang/Runtime;
+    move-result-object v2
+    invoke-virtual {v2, v1}, Ljava/lang/Runtime;->exec([Ljava/lang/String;)Ljava/lang/Process;
+    goto :cond_adreno_end
+
+    :cond_adreno_disable
+    # Disable: reset min_freq to 0
+    const/4 v1, 0x2
+    new-array v1, v1, [Ljava/lang/String;
+    const/4 v2, 0x0
+    const-string v3, "su"
+    aput-object v3, v1, v2
+    const/4 v2, 0x1
+    const-string v3, "echo 0 > /sys/class/kgsl/kgsl-3d0/devfreq/min_freq"
+    aput-object v3, v1, v2
+    invoke-static {}, Ljava/lang/Runtime;->getRuntime()Ljava/lang/Runtime;
+    move-result-object v2
+    invoke-virtual {v2, v1}, Ljava/lang/Runtime;->exec([Ljava/lang/String;)Ljava/lang/Process;
+
+    :cond_adreno_end
+    return-void
+.end method
+# --- end BannerHub toggleMaxAdreno ---
+
 .method public final l2(Ljava/lang/String;)V
     .locals 1
 
@@ -6082,6 +6136,30 @@
     invoke-virtual {v2, v3}, Landroid/view/Window;->setSustainedPerformanceMode(Z)V
     :cond_bh_spm_skip
     # --- end BannerHub Sustained Performance Mode ---
+
+    # --- BannerHub: re-apply Max Adreno Clocks on launch ---
+    const-string v2, "bh_prefs"
+    const/4 v3, 0x0
+    invoke-virtual {v1, v2, v3}, Landroid/app/Activity;->getSharedPreferences(Ljava/lang/String;I)Landroid/content/SharedPreferences;
+    move-result-object v2
+    const-string v3, "max_adreno_clocks"
+    const/4 v4, 0x0
+    invoke-interface {v2, v3, v4}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
+    move-result v2
+    if-eqz v2, :cond_bh_adreno_skip
+    const/4 v2, 0x2
+    new-array v2, v2, [Ljava/lang/String;
+    const/4 v3, 0x0
+    const-string v4, "su"
+    aput-object v4, v2, v3
+    const/4 v3, 0x1
+    const-string v4, "MAX=$(cat /sys/class/kgsl/kgsl-3d0/devfreq/max_freq); echo $MAX > /sys/class/kgsl/kgsl-3d0/devfreq/min_freq"
+    aput-object v4, v2, v3
+    invoke-static {}, Ljava/lang/Runtime;->getRuntime()Ljava/lang/Runtime;
+    move-result-object v3
+    invoke-virtual {v3, v2}, Ljava/lang/Runtime;->exec([Ljava/lang/String;)Ljava/lang/Process;
+    :cond_bh_adreno_skip
+    # --- end BannerHub Max Adreno on launch ---
     .line 6
     .line 7
     .line 8
