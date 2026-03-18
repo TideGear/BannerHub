@@ -1,22 +1,22 @@
 .class public final Lcom/xj/winemu/settings/CpuMultiSelectHelper;
 .super Ljava/lang/Object;
 
-# BannerHub: multi-select CPU core dialog.
+# BannerHub: multi-select CPU core dialog — 2×4 grid layout.
 # p0 = View (anchor — getContext() for dialog; must be non-null)
 # p1 = String gameId
 # p2 = int contentType (CONTENT_TYPE_CORE_LIMIT)
-# p3 = Function1 callback (NOT invoked — avoids j3 NPE; SPUtils saves directly)
+# p3 = Function1 callback
 #
 # Register map:
-#  v0  = Context (p0.getContext())
-#  v1  = helper singleton → CharSequence[8] labels
-#  v2  = ops → boolean[8] checked
-#  v3  = SPUtils → temp string/metrics
-#  v4  = key String → null/WRAP_CONTENT
-#  v5  = currentMask (int) → $1 listener
-#  v6  = temp index/Html flags=0 → $2 listener
-#  v7  = temp Html string → $3 listener
-#  v8  = Html flags(0) → AlertDialog.Builder → AlertDialog → Window
+#  v0  = Context
+#  v1  = TableLayout (2×4 grid)
+#  v2  = boolean[8] checked (shared with $4 listeners and $2 Apply)
+#  v3  = SPUtils → temp string
+#  v4  = key String → temp (null for NeutralButton)
+#  v5  = currentMask → TableRow → $2 (Apply)
+#  v6  = CheckBox (per-core loop) → $3 (No Limit)
+#  v7  = $4 listener (per-core loop)
+#  v8  = temp bool / text / AlertDialog.Builder / Window
 
 .method public static show(Landroid/view/View;Ljava/lang/String;ILkotlin/jvm/functions/Function1;)V
     .locals 9
@@ -47,61 +47,7 @@
     const/4 v1, 0x1
     invoke-static {v2, v5, v1, v5}, Lcom/xj/winemu/settings/PcGameSettingOperations;->C(Lcom/xj/winemu/settings/PcGameSettingOperations;IILjava/lang/Object;)I
     move-result v5
-    # v1 (1) and v2 (ops) now free
-
-    # --- Build CharSequence[8] labels with Html.fromHtml for smaller text ---
-    const/16 v1, 0x8
-    new-array v1, v1, [Ljava/lang/CharSequence;
-    const/4 v8, 0x0    # Html.FROM_HTML_MODE_LEGACY = 0 (flags)
-
-    const/4 v6, 0x0
-    const-string v7, "<small>Core 0 (Efficiency)</small>"
-    invoke-static {v7, v8}, Landroid/text/Html;->fromHtml(Ljava/lang/String;I)Landroid/text/Spanned;
-    move-result-object v7
-    aput-object v7, v1, v6
-
-    const/4 v6, 0x1
-    const-string v7, "<small>Core 1 (Efficiency)</small>"
-    invoke-static {v7, v8}, Landroid/text/Html;->fromHtml(Ljava/lang/String;I)Landroid/text/Spanned;
-    move-result-object v7
-    aput-object v7, v1, v6
-
-    const/4 v6, 0x2
-    const-string v7, "<small>Core 2 (Efficiency)</small>"
-    invoke-static {v7, v8}, Landroid/text/Html;->fromHtml(Ljava/lang/String;I)Landroid/text/Spanned;
-    move-result-object v7
-    aput-object v7, v1, v6
-
-    const/4 v6, 0x3
-    const-string v7, "<small>Core 3 (Efficiency)</small>"
-    invoke-static {v7, v8}, Landroid/text/Html;->fromHtml(Ljava/lang/String;I)Landroid/text/Spanned;
-    move-result-object v7
-    aput-object v7, v1, v6
-
-    const/4 v6, 0x4
-    const-string v7, "<small>Core 4 (Performance)</small>"
-    invoke-static {v7, v8}, Landroid/text/Html;->fromHtml(Ljava/lang/String;I)Landroid/text/Spanned;
-    move-result-object v7
-    aput-object v7, v1, v6
-
-    const/4 v6, 0x5
-    const-string v7, "<small>Core 5 (Performance)</small>"
-    invoke-static {v7, v8}, Landroid/text/Html;->fromHtml(Ljava/lang/String;I)Landroid/text/Spanned;
-    move-result-object v7
-    aput-object v7, v1, v6
-
-    const/4 v6, 0x6
-    const-string v7, "<small>Core 6 (Performance)</small>"
-    invoke-static {v7, v8}, Landroid/text/Html;->fromHtml(Ljava/lang/String;I)Landroid/text/Spanned;
-    move-result-object v7
-    aput-object v7, v1, v6
-
-    const/4 v6, 0x7
-    const-string v7, "<small>Core 7 (Prime)</small>"
-    invoke-static {v7, v8}, Landroid/text/Html;->fromHtml(Ljava/lang/String;I)Landroid/text/Spanned;
-    move-result-object v7
-    aput-object v7, v1, v6
-    # v1 = labels, v6/v7/v8 free
+    # v1 and v2 (ops) now free
 
     # --- Build boolean[8] checked ---
     const/16 v2, 0x8
@@ -204,17 +150,144 @@
     aput-boolean v7, v2, v6
     # v2 = checked, v5/v6/v7 free
 
-    # --- $1: OnMultiChoiceClickListener(checked[]) ---
-    new-instance v5, Lcom/xj/winemu/settings/CpuMultiSelectHelper$1;
-    invoke-direct {v5, v2}, Lcom/xj/winemu/settings/CpuMultiSelectHelper$1;-><init>([Z)V
+    # --- Build 2×4 CheckBox grid ---
+    new-instance v1, Landroid/widget/TableLayout;
+    invoke-direct {v1, v0}, Landroid/widget/TableLayout;-><init>(Landroid/content/Context;)V
+    const/4 v8, 0x1
+    invoke-virtual {v1, v8}, Landroid/widget/TableLayout;->setStretchAllColumns(Z)V
 
-    # --- $2: PositiveButton(checked[], SPUtils, key, callback) — 5 regs, no /range needed ---
-    new-instance v6, Lcom/xj/winemu/settings/CpuMultiSelectHelper$2;
-    invoke-direct {v6, v2, v3, v4, p3}, Lcom/xj/winemu/settings/CpuMultiSelectHelper$2;-><init>([ZLcom/blankj/utilcode/util/SPUtils;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+    # ---- Row 0: Cores 0–3 (Efficiency) ----
+    new-instance v5, Landroid/widget/TableRow;
+    invoke-direct {v5, v0}, Landroid/widget/TableRow;-><init>(Landroid/content/Context;)V
 
-    # --- $3: NegativeButton(SPUtils, key, callback) — 4 regs, no /range needed ---
-    new-instance v7, Lcom/xj/winemu/settings/CpuMultiSelectHelper$3;
-    invoke-direct {v7, v3, v4, p3}, Lcom/xj/winemu/settings/CpuMultiSelectHelper$3;-><init>(Lcom/blankj/utilcode/util/SPUtils;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+    # Core 0
+    new-instance v6, Landroid/widget/CheckBox;
+    invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
+    const-string v8, "Core 0\n(Eff)"
+    invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    const/4 v8, 0x0
+    aget-boolean v8, v2, v8
+    invoke-virtual {v6, v8}, Landroid/widget/CompoundButton;->setChecked(Z)V
+    new-instance v7, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;
+    const/4 v8, 0x0
+    invoke-direct {v7, v2, v8}, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;-><init>([ZI)V
+    invoke-virtual {v6, v7}, Landroid/widget/CompoundButton;->setOnCheckedChangeListener(Landroid/widget/CompoundButton$OnCheckedChangeListener;)V
+    invoke-virtual {v5, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
+
+    # Core 1
+    new-instance v6, Landroid/widget/CheckBox;
+    invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
+    const-string v8, "Core 1\n(Eff)"
+    invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    const/4 v8, 0x1
+    aget-boolean v8, v2, v8
+    invoke-virtual {v6, v8}, Landroid/widget/CompoundButton;->setChecked(Z)V
+    new-instance v7, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;
+    const/4 v8, 0x1
+    invoke-direct {v7, v2, v8}, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;-><init>([ZI)V
+    invoke-virtual {v6, v7}, Landroid/widget/CompoundButton;->setOnCheckedChangeListener(Landroid/widget/CompoundButton$OnCheckedChangeListener;)V
+    invoke-virtual {v5, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
+
+    # Core 2
+    new-instance v6, Landroid/widget/CheckBox;
+    invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
+    const-string v8, "Core 2\n(Eff)"
+    invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    const/4 v8, 0x2
+    aget-boolean v8, v2, v8
+    invoke-virtual {v6, v8}, Landroid/widget/CompoundButton;->setChecked(Z)V
+    new-instance v7, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;
+    const/4 v8, 0x2
+    invoke-direct {v7, v2, v8}, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;-><init>([ZI)V
+    invoke-virtual {v6, v7}, Landroid/widget/CompoundButton;->setOnCheckedChangeListener(Landroid/widget/CompoundButton$OnCheckedChangeListener;)V
+    invoke-virtual {v5, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
+
+    # Core 3
+    new-instance v6, Landroid/widget/CheckBox;
+    invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
+    const-string v8, "Core 3\n(Eff)"
+    invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    const/4 v8, 0x3
+    aget-boolean v8, v2, v8
+    invoke-virtual {v6, v8}, Landroid/widget/CompoundButton;->setChecked(Z)V
+    new-instance v7, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;
+    const/4 v8, 0x3
+    invoke-direct {v7, v2, v8}, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;-><init>([ZI)V
+    invoke-virtual {v6, v7}, Landroid/widget/CompoundButton;->setOnCheckedChangeListener(Landroid/widget/CompoundButton$OnCheckedChangeListener;)V
+    invoke-virtual {v5, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
+
+    invoke-virtual {v1, v5}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
+
+    # ---- Row 1: Cores 4–7 (Performance / Prime) ----
+    new-instance v5, Landroid/widget/TableRow;
+    invoke-direct {v5, v0}, Landroid/widget/TableRow;-><init>(Landroid/content/Context;)V
+
+    # Core 4
+    new-instance v6, Landroid/widget/CheckBox;
+    invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
+    const-string v8, "Core 4\n(Perf)"
+    invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    const/4 v8, 0x4
+    aget-boolean v8, v2, v8
+    invoke-virtual {v6, v8}, Landroid/widget/CompoundButton;->setChecked(Z)V
+    new-instance v7, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;
+    const/4 v8, 0x4
+    invoke-direct {v7, v2, v8}, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;-><init>([ZI)V
+    invoke-virtual {v6, v7}, Landroid/widget/CompoundButton;->setOnCheckedChangeListener(Landroid/widget/CompoundButton$OnCheckedChangeListener;)V
+    invoke-virtual {v5, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
+
+    # Core 5
+    new-instance v6, Landroid/widget/CheckBox;
+    invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
+    const-string v8, "Core 5\n(Perf)"
+    invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    const/4 v8, 0x5
+    aget-boolean v8, v2, v8
+    invoke-virtual {v6, v8}, Landroid/widget/CompoundButton;->setChecked(Z)V
+    new-instance v7, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;
+    const/4 v8, 0x5
+    invoke-direct {v7, v2, v8}, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;-><init>([ZI)V
+    invoke-virtual {v6, v7}, Landroid/widget/CompoundButton;->setOnCheckedChangeListener(Landroid/widget/CompoundButton$OnCheckedChangeListener;)V
+    invoke-virtual {v5, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
+
+    # Core 6
+    new-instance v6, Landroid/widget/CheckBox;
+    invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
+    const-string v8, "Core 6\n(Perf)"
+    invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    const/4 v8, 0x6
+    aget-boolean v8, v2, v8
+    invoke-virtual {v6, v8}, Landroid/widget/CompoundButton;->setChecked(Z)V
+    new-instance v7, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;
+    const/4 v8, 0x6
+    invoke-direct {v7, v2, v8}, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;-><init>([ZI)V
+    invoke-virtual {v6, v7}, Landroid/widget/CompoundButton;->setOnCheckedChangeListener(Landroid/widget/CompoundButton$OnCheckedChangeListener;)V
+    invoke-virtual {v5, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
+
+    # Core 7
+    new-instance v6, Landroid/widget/CheckBox;
+    invoke-direct {v6, v0}, Landroid/widget/CheckBox;-><init>(Landroid/content/Context;)V
+    const-string v8, "Core 7\n(Prime)"
+    invoke-virtual {v6, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    const/4 v8, 0x7
+    aget-boolean v8, v2, v8
+    invoke-virtual {v6, v8}, Landroid/widget/CompoundButton;->setChecked(Z)V
+    new-instance v7, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;
+    const/4 v8, 0x7
+    invoke-direct {v7, v2, v8}, Lcom/xj/winemu/settings/CpuMultiSelectHelper$4;-><init>([ZI)V
+    invoke-virtual {v6, v7}, Landroid/widget/CompoundButton;->setOnCheckedChangeListener(Landroid/widget/CompoundButton$OnCheckedChangeListener;)V
+    invoke-virtual {v5, v6}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
+
+    invoke-virtual {v1, v5}, Landroid/view/ViewGroup;->addView(Landroid/view/View;)V
+    # v1 = TableLayout, v5/v6/v7 free
+
+    # --- $2: PositiveButton(checked[], SPUtils, key, callback) ---
+    new-instance v5, Lcom/xj/winemu/settings/CpuMultiSelectHelper$2;
+    invoke-direct {v5, v2, v3, v4, p3}, Lcom/xj/winemu/settings/CpuMultiSelectHelper$2;-><init>([ZLcom/blankj/utilcode/util/SPUtils;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+
+    # --- $3: NegativeButton(SPUtils, key, callback) ---
+    new-instance v6, Lcom/xj/winemu/settings/CpuMultiSelectHelper$3;
+    invoke-direct {v6, v3, v4, p3}, Lcom/xj/winemu/settings/CpuMultiSelectHelper$3;-><init>(Lcom/blankj/utilcode/util/SPUtils;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
     # v3 and v4 now free
 
     # --- AlertDialog.Builder ---
@@ -224,13 +297,13 @@
     const-string v3, "CPU Core Limit"
     invoke-virtual {v8, v3}, Landroid/app/AlertDialog$Builder;->setTitle(Ljava/lang/CharSequence;)Landroid/app/AlertDialog$Builder;
 
-    invoke-virtual {v8, v1, v2, v5}, Landroid/app/AlertDialog$Builder;->setMultiChoiceItems([Ljava/lang/CharSequence;[ZLandroid/content/DialogInterface$OnMultiChoiceClickListener;)Landroid/app/AlertDialog$Builder;
+    invoke-virtual {v8, v1}, Landroid/app/AlertDialog$Builder;->setView(Landroid/view/View;)Landroid/app/AlertDialog$Builder;
 
     const-string v3, "Apply"
-    invoke-virtual {v8, v3, v6}, Landroid/app/AlertDialog$Builder;->setPositiveButton(Ljava/lang/CharSequence;Landroid/content/DialogInterface$OnClickListener;)Landroid/app/AlertDialog$Builder;
+    invoke-virtual {v8, v3, v5}, Landroid/app/AlertDialog$Builder;->setPositiveButton(Ljava/lang/CharSequence;Landroid/content/DialogInterface$OnClickListener;)Landroid/app/AlertDialog$Builder;
 
     const-string v3, "No Limit"
-    invoke-virtual {v8, v3, v7}, Landroid/app/AlertDialog$Builder;->setNegativeButton(Ljava/lang/CharSequence;Landroid/content/DialogInterface$OnClickListener;)Landroid/app/AlertDialog$Builder;
+    invoke-virtual {v8, v3, v6}, Landroid/app/AlertDialog$Builder;->setNegativeButton(Ljava/lang/CharSequence;Landroid/content/DialogInterface$OnClickListener;)Landroid/app/AlertDialog$Builder;
 
     const-string v3, "Cancel"
     const/4 v4, 0x0
@@ -240,7 +313,7 @@
     invoke-virtual {v8}, Landroid/app/AlertDialog$Builder;->show()Landroid/app/AlertDialog;
     move-result-object v8
 
-    # --- Limit height to 80% of screen ---
+    # --- Limit to half-width, 90% height ---
     invoke-virtual {v8}, Landroid/app/AlertDialog;->getWindow()Landroid/view/Window;
     move-result-object v8
     if-eqz v8, :cond_bh_nosize
