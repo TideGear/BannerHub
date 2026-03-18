@@ -4,6 +4,15 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [pre] — v2.4.8-pre — Fix: su -c flag missing — root toggles had no effect (2026-03-18)
+**Commit:** `0016e60`  |  **Tag:** v2.4.8-pre
+**What changed:** Both Sustained Performance and Max Adreno Clocks toggles silently did nothing. Root cause: all su commands used a 2-element array `["su", "command"]` which passes the shell script as a username to su rather than as a shell command to execute. Fixed to 3-element `["su", "-c", "command"]`. Also replaced `Window.setSustainedPerformanceMode()` (silently a no-op on most Android devices — requires OEM enablement) with a CPU governor approach: sets all CPU cores to `performance` governor on enable, `schedutil` on disable. Max Adreno enable command simplified from `MAX=$(cat ...)` variable expansion to `cat max_freq > min_freq` (direct redirection, no variable needed). All four locations patched: `toggleSustainedPerf()`, `toggleMaxAdreno()`, and both re-apply blocks in `o2()` (onCreate).
+**Root cause analysis:** `Runtime.exec(String[])` takes program + args; `["su", "cmd"]` = `su "cmd"` (username lookup, fails silently). Must be `["su", "-c", "cmd"]`. `setSustainedPerformanceMode` additionally requires OEM HAL support and is a no-op on most devices.
+**Files touched:** `patches/smali_classes15/com/xj/winemu/WineActivity.smali` [MOD]
+**CI result:** ✅ build-quick.yml run 23268380757 — Normal APK built successfully
+
+---
+
 ## [pre] — v2.4.7-pre — Fix: restore R$id.smali (iv_bci_launcher) (2026-03-18)
 **Commit:** `cbf3efa`  |  **Tag:** v2.4.7-pre
 **What changed:** App crashed on launch with `java.lang.NoSuchFieldError: No field iv_bci_launcher of type I in class Lcom/xj/landscape/launcher/R$id`. Caused by `rm -rf patches/smali_classes9/` (intended to remove failed SidebarPerformanceFragment patch) which also deleted `R$id.smali` — the patch that adds `iv_bci_launcher` to the R$id class, required by BciLauncherClickListener and LandscapeLauncherMainActivity. Restored from git history (commit `4fbf4d9`).
