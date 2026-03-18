@@ -816,12 +816,12 @@
 .end method
 
 
-# ── removeAllComponents(): delete all component dirs + unregister ──
+# ── removeAllComponents(): delete BannerHub-injected component dirs only ──
 .method public removeAllComponents()V
-    .locals 7
+    .locals 8
     # p0=this
     # v0=EmuComponents  v1=HashMap(or null)  v2=components[]
-    # v3=length  v4=index  v5=dir  v6=name
+    # v3=length  v4=index  v5=dir  v6=name/marker  v7=marker File or bool
 
     invoke-static {}, Lcom/xj/winemu/EmuComponents;->e()Lcom/xj/winemu/EmuComponents;
     move-result-object v0
@@ -837,17 +837,28 @@
     :remove_loop
     if-ge v4, v3, :remove_done
     aget-object v5, v2, v4
+
+    # Only remove dirs stamped with .bh_injected (BannerHub-injected, not app-API)
+    new-instance v7, Ljava/io/File;
+    const-string v6, ".bh_injected"
+    invoke-direct {v7, v5, v6}, Ljava/io/File;-><init>(Ljava/io/File;Ljava/lang/String;)V
+    invoke-virtual {v7}, Ljava/io/File;->exists()Z
+    move-result v7
+    if-eqz v7, :skip_remove
+
     invoke-virtual {v5}, Ljava/io/File;->getName()Ljava/lang/String;
     move-result-object v6
     if-eqz v1, :skip_unreg
     invoke-virtual {v1, v6}, Ljava/util/HashMap;->remove(Ljava/lang/Object;)Ljava/lang/Object;
     :skip_unreg
     invoke-static {v5}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->deleteDir(Ljava/io/File;)V
+
+    :skip_remove
     add-int/lit8 v4, v4, 0x1
     goto :remove_loop
 
     :remove_done
-    const-string v5, "All components removed"
+    const-string v5, "BannerHub components removed"
     const/4 v6, 0x0
     invoke-static {p0, v5, v6}, Landroid/widget/Toast;->makeText(Landroid/content/Context;Ljava/lang/CharSequence;I)Landroid/widget/Toast;
     move-result-object v5

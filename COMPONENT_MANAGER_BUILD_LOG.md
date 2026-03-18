@@ -1969,3 +1969,16 @@ Pending
 - Dup prevention: getComponentName() peeks at first byte to detect ZIP vs WCP, reads name from meta.json driverVersion (ZIP) or profile.json versionName (WCP), falls back to display name minus extension; if filesDir/usr/home/components/<name>/ exists → AlertDialog "Already Installed — Replace / Cancel"
 
 **CI:** pending
+
+---
+
+### Entry 052 — Remove All: skip app-API components via .bh_injected marker (2026-03-18)
+
+**Files changed:**
+- `ComponentInjectorHelper.smali` — At `:show_success` in `injectComponent()`, writes a zero-byte `.bh_injected` marker file into the component dir (best-effort inner try/catch, failure silently ignored). v6 holds the dir at that point in both ZIP and WCP paths.
+- `ComponentManagerActivity.smali` — `removeAllComponents()` now checks for `.bh_injected` in each dir before removing it; dirs without the marker (app-API-installed components) are skipped. Bumped .locals 7→8. Toast changed to "BannerHub components removed".
+
+**Root cause / design:**
+- App-installed components and BannerHub-injected components share the same `components/` folder. Need to distinguish them. Marker file approach: stamp every BannerHub-injected dir at injection time; Remove All only deletes stamped dirs.
+
+**CI:** pending

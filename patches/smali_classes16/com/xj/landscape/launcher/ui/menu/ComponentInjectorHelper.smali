@@ -702,6 +702,16 @@
     invoke-static {p0, v3, v4, v5, p2}, Lcom/xj/landscape/launcher/ui/menu/ComponentInjectorHelper;->registerComponent(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V
 
     :show_success
+    # Stamp component dir with .bh_injected so Remove All skips app-API components
+    new-instance v1, Ljava/io/File;
+    const-string v8, ".bh_injected"
+    invoke-direct {v1, v6, v8}, Ljava/io/File;-><init>(Ljava/io/File;Ljava/lang/String;)V
+    :marker_try
+    invoke-virtual {v1}, Ljava/io/File;->createNewFile()Z
+    :marker_end
+    .catch Ljava/lang/Exception; {:marker_try .. :marker_end} :marker_skip
+    :marker_skip
+
     # build "Added to GameHub: <name>"
     new-instance v1, Ljava/lang/StringBuilder;
     invoke-direct {v1}, Ljava/lang/StringBuilder;-><init>()V
