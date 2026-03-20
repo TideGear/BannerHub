@@ -1236,3 +1236,17 @@ ART 14 blocks cross-dex private field access. `DialogSettingListItemEntity` is i
 - Moved Sustained Performance + added Max Adreno Clocks to Performance sidebar tab
 - Max Adreno Clocks: root-only, locks kgsl-3d0 min_freq = max_freq; persists across launches
 - Used BhPerfSetupDelegate (smali_classes16 view) to avoid classes9 dex limit
+
+### [fix] — v2.5.4-pre — VerifyError crash + perf toggles activate after root grant (2026-03-20)
+**Commit:** `5182488` | **Tag:** v2.5.4-pre | **CI:** ✅ run 23342648406 — PASSED
+#### What changed
+- **`BhRootGrantHelper$2$1$1.smali`**: `iput` → `iput-boolean` for boolean field `b:Z` in constructor.
+  ART's verifier rejected the class at load time — VerifyError crashed the app on the grant thread.
+- **`BhPerfSetupDelegate.smali`**: Added `onVisibilityChanged(View, int)`. Fires every time the
+  Performance sidebar tab becomes visible. Re-reads `root_granted` from bh_prefs and either:
+  - Grants: restores alpha to 1.0f, wires SustainedPerfSwitchClickListener + MaxAdrenoClickListener
+  - Denied: greys out at 0.5f, no listeners set
+  Previously `onAttachedToWindow()` ran only once — root granted later never updated the UI.
+#### Files touched
+- `patches/smali_classes16/com/xj/winemu/sidebar/BhRootGrantHelper$2$1$1.smali`
+- `patches/smali_classes16/com/xj/winemu/sidebar/BhPerfSetupDelegate.smali`

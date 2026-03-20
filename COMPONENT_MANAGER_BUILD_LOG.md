@@ -2058,3 +2058,29 @@ Previously, `BhPerfSetupDelegate.isRootAvailable()` ran `su -c id` synchronously
 
 ### CI result
 Pending — run 23338789938
+
+## Entry 054 — v2.5.4-pre: VerifyError crash fix + perf toggles activate after root grant (2026-03-20)
+
+### Files changed
+- `patches/smali_classes16/com/xj/winemu/sidebar/BhRootGrantHelper$2$1$1.smali`
+- `patches/smali_classes16/com/xj/winemu/sidebar/BhPerfSetupDelegate.smali`
+
+### Methods changed
+- `BhRootGrantHelper$2$1$1.<init>(Context, boolean)` — iput → iput-boolean for field b:Z
+- `BhPerfSetupDelegate.onVisibilityChanged(View, int)` — new method added
+
+### Root-cause analysis
+**Bug 1 (crash):** ART's verifier rejected `BhRootGrantHelper$2$1$1` at class load time because
+the constructor used `iput` (integer put) to write to field `b:Z` (boolean). ART requires
+`iput-boolean` for Z-typed fields. This caused a VerifyError on the root grant worker thread,
+crashing the app immediately after the grant dialog was confirmed.
+
+**Bug 2 (perf not activating):** `BhPerfSetupDelegate.onAttachedToWindow()` runs exactly once
+when the view is first added to the window. If root was not granted at that moment, the toggles
+were greyed out and no click listeners were set. Granting root later updated `bh_prefs/root_granted`
+but `onAttachedToWindow` never re-ran — UI stayed grey forever. Fix: added `onVisibilityChanged()`
+which fires every time the Performance sidebar tab becomes visible. It re-reads `root_granted`,
+restores alpha to 1.0f and wires listeners if granted, or greys out if not.
+
+### CI result
+✅ run 23342648406 — PASSED
