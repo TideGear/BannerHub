@@ -32,8 +32,8 @@ Inside the Component Manager type-selection menu, tap **↓ Download from Online
 
 | Source | What it provides |
 |---|---|
-| **Arihany WCPHub** | Curated WCP pack — DXVK, VKD3D, Box64, FEXCore, GPU Drivers |
-| **The412Banner Nightlies** | Nightly builds — DXVK, VKD3D-Proton, Box64, FEXCore, GPU Drivers |
+| [**Arihany WCPHub**](https://github.com/Arihany/WinlatorWCPHub) | Curated WCP pack — DXVK, VKD3D, Box64, FEXCore, GPU Drivers |
+| [**The412Banner Nightlies**](https://github.com/The412Banner/Nightlies) | Nightly builds — DXVK, VKD3D-Proton, Box64, FEXCore, GPU Drivers |
 | **Kimchi GPU Drivers** | GPU Drivers only |
 | **StevenMXZ GPU Drivers** | GPU Drivers only |
 | **MTR GPU Drivers** | GPU Drivers only (MaxesTechReview) |
@@ -127,6 +127,7 @@ The **Normal APK** uses package `banner.hub` — it installs alongside the origi
 
 - **RTS Touch Controls** — [@Nightwalker743](https://github.com/Nightwalker743)
 - **GameHub ReVanced patches** — [@playday3008](https://github.com/playday3008/gamehub-patches)
+- **Component sources** — [Arihany WCPHub](https://github.com/Arihany/WinlatorWCPHub), [The412Banner Nightlies](https://github.com/The412Banner/Nightlies), Kimchi, StevenMXZ, MaxesTechReview, Whitebelyash *(links TBD)*
 
 ---
 
