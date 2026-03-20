@@ -2204,8 +2204,16 @@ Old UI was a plain ListView with no search, no visual distinction between compon
 ### Files modified [MOD]
 - `patches/smali_classes16/.../ComponentManagerActivity.smali` — complete rewrite; new fields: recyclerView, adapter, emptyState, countBadge; new methods: dp(I)I, buildUI(), buildHeader(), buildSearchBar(), buildContent(), buildEmptyState(), buildBottomBar(), makeBtn(String,int), showComponents(), updateEmptyState(), onSearchChanged(), showOptionsDialog(I), showTypeDialog(), removeFiltered(I), backupFiltered(I), getFileName(Uri); bug fixed: spurious makeBtn() call without args removed from buildBottomBar()
 
-### CI result
-→ ✅ run 23365002056 (v2.6.5-pre, after 3 fix commits) — PASSED — Normal APK built (3m28s)
+### CI result (v2.6.6-pre)
+→ ✅ run 23365366484 — PASSED — Normal APK built (3m34s)
+
+### Runtime VerifyError fixes (v2.6.6-pre)
+After CI passed, user reported app crashed on Component Manager open. Logcat showed VerifyError:
+1. private helper methods called via invoke-virtual → ART verifier rejects; fixed: changed buildUI/Header/SearchBar/Content/EmptyState/BottomBar/makeBtn from private to public
+2. getFileName(Uri): v1 overwritten with String[] before Uri range call; fixed: move-object v1, p1 (Uri) before new-array v2 (projection)
+
+### CI result (v2.6.5-pre smali fixes)
+→ ✅ run 23365002056 — PASSED — Normal APK built (3m28s)
 
 ### Smali errors encountered and fixed
 1. `BhComponentAdapter.smali`: `.locals 15` in `onCreateViewHolder` → p1=v16, p2=v17 out of range. Fixed: `.locals 13` + full register remap using stable refs v7-v11, temp v12, final move-object to v0..v6 for range call.
