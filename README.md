@@ -1,6 +1,6 @@
 # BannerHub
 
-**GameHub 5.3.5 ReVanced** — enhanced with a full Component Manager, in-app component downloader, in-game Performance toggles, RTS touch controls, VRAM unlock, per-game CPU core affinity, Steam offline launch, and more. Built with apktool — no root required for most features.
+**GameHub 5.3.5 ReVanced** — enhanced with a full Component Manager, in-app component downloader with download progress, in-game Performance toggles, RTS touch controls, VRAM unlock, per-game CPU core affinity, root access management, Steam offline launch, and more. Built with apktool — no root required for most features.
 
 ## Video — Installation & Feature Showcase
 
@@ -39,6 +39,7 @@ Inside the Component Manager type-selection menu, tap **↓ Download from Online
 | **MTR GPU Drivers** | GPU Drivers only (MaxesTechReview) |
 | **Whitebelyash GPU Drivers** | GPU Drivers only |
 - Tap any asset to download it to cache and inject it as a new component automatically
+- **Download progress screen** — while fetching repo metadata or downloading a file, an indeterminate spinner is shown with "Downloading: `<filename>`" status text (same as BannerHub Lite)
 
 ### BCI Launcher Button
 Tap the icon in GameHub's top-right toolbar to open **BannersComponentInjector** (`com.banner.inject`) directly from inside GameHub. Shows a toast if it is not installed.
@@ -92,6 +93,10 @@ When autoLogin fails and no network is available at cold start, the Steam login 
 - CPU Usage display toggle
 - Performance Metrics toggle
 - Sustained Performance Mode toggle
+- **Grant Root Access** — tapping this button shows a 5-point warning dialog; on confirmation it runs `su -c id` on a background thread and stores the result in `bh_prefs`. Performance toggles read this preference on sidebar open — no more unsolicited root popup every time the Performance tab is opened.
+
+### Component Descriptions in Game Settings Picker
+When selecting a component (DXVK / VKD3D / Box64 / FEXCore / GPU Driver) in per-game settings, locally installed components now show their description text below the name. The description comes from `profile.json`'s `"description"` field (WCP) or `meta.json`'s `"description"` field (ZIP / adrenotools), stored at inject time.
 
 ### UI Tweaks
 - "My" tab renamed to **"My Games"**
