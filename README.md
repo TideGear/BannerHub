@@ -144,3 +144,6 @@ No external library injection — the Component Manager uses GameHub's own bundl
 ## Signing
 
 Signed with AOSP testkey (`testkey.pk8` / `testkey.x509.pem`), v1 + v2 + v3 signatures.
+
+---
+<sub>☕ [Support on Ko-fi](https://ko-fi.com/the412banner)</sub>
