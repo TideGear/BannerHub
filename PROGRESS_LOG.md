@@ -1273,3 +1273,10 @@ ART 14 blocks cross-dex private field access. `DialogSettingListItemEntity` is i
 #### Files touched
 - `patches/smali_classes16/com/xj/winemu/sidebar/BhRootGrantHelper$2$1$1.smali`
 - `patches/smali_classes16/com/xj/winemu/sidebar/BhPerfSetupDelegate.smali`
+
+### [fix] — v2.6.1-pre — Fix perf toggles not persisting visual state (2026-03-20)
+**Commit:** `4fd439d` | **Tag:** v2.6.1-pre | **CI:** pending
+- Performance toggles (Sustained Perf, Max Adreno Clocks) showed as OFF when Performance sidebar was reopened, even though the system effects were actually applied
+- Root cause: WineActivity.toggleSustainedPerf/toggleMaxAdreno only saved bh_prefs when WineActivity.t1 was non-null; t1 is set in i2(Z)V which isn't guaranteed to have run when the toggle fires
+- Fix: moved pref saving into SustainedPerfSwitchClickListener and MaxAdrenoClickListener — both have a View with context, so getSharedPreferences always works
+- WineActivity.toggleSustainedPerf now only calls setSustainedPerformanceMode (still needs Window from t1); toggleMaxAdreno goes straight to su root command

@@ -2139,3 +2139,36 @@ Stable release of the v2.5.2-pre → v2.5.6-pre line. 8 APKs built successfully.
 
 ### CI result
 ✅ run 23347015897 — PASSED (8 APKs)
+
+---
+
+## Entry 59 — v2.6.1-pre — Fix perf toggles not persisting visual state (2026-03-20)
+
+### Summary
+Performance toggles (Sustained Perf, Max Adreno Clocks) appeared OFF when the Performance sidebar was reopened after being turned on.
+
+### Root-cause analysis
+`WineActivity.toggleSustainedPerf(Z)` and `toggleMaxAdreno(Z)` only saved the bh_prefs boolean when `WineActivity.t1` was non-null. `t1` is a static field set in `i2(Z)V` (the "game ready" callback) and cleared in `onDestroy`. When the user taps the toggle, `t1` may not yet be set — in that case the root su command still fires (toggle WORKS) but the pref is never written. On next `onVisibilityChanged(VISIBLE)`, `getBoolean("sustained_perf", false)` returns `false` and `setSwitch(false)` is called → toggles appear unchecked.
+
+### Fix
+Moved pref saving from `WineActivity` into the click listeners:
+- `SustainedPerfSwitchClickListener.invoke()`: calls `v0.getContext().getSharedPreferences("bh_prefs", 0).edit().putBoolean("sustained_perf", v1).apply()` before `toggleSustainedPerf`
+- `MaxAdrenoClickListener.invoke()`: same pattern, key `"max_adreno_clocks"`
+Click listeners always have a `SidebarSwitchItemView` reference (`field a`) which always has a Context — no `t1` dependency.
+
+`WineActivity.toggleSustainedPerf`: kept `setSustainedPerformanceMode` call (needs Window, still gated on t1), removed pref save.
+`WineActivity.toggleMaxAdreno`: removed pref save entirely (max adreno is root-only, no window API needed).
+
+### Files modified
+- `patches/smali_classes16/com/xj/winemu/sidebar/SustainedPerfSwitchClickListener.smali`
+  - `.locals 2` → `.locals 5` (need v2=context, v3=pref key, v4=mode)
+  - Added: getContext → getSharedPreferences → edit → putBoolean("sustained_perf") → apply
+- `patches/smali_classes16/com/xj/winemu/sidebar/MaxAdrenoClickListener.smali`
+  - `.locals 3` → `.locals 5`
+  - Added: getContext → getSharedPreferences → edit → putBoolean("max_adreno_clocks") → apply
+- `patches/smali_classes15/com/xj/winemu/WineActivity.smali`
+  - `toggleSustainedPerf`: removed 8-line pref-save block (getSharedPreferences + edit + putBoolean + apply)
+  - `toggleMaxAdreno`: removed 10-line pref-save block + t1 null check
+
+### CI result
+pending (tag v2.6.1-pre pushed)
