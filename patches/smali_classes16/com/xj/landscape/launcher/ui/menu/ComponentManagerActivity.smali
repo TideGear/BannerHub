@@ -49,7 +49,7 @@
 
 # ── buildUI: assemble the whole screen programmatically ───────────────────────
 .method public buildUI()V
-    .locals 5
+    .locals 6
 
     # Root: vertical LinearLayout, dark navy bg, fitsSystemWindows
     new-instance v0, Landroid/widget/LinearLayout;
