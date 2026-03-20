@@ -48,7 +48,7 @@
 .end method
 
 # ── buildUI: assemble the whole screen programmatically ───────────────────────
-.method private buildUI()V
+.method public buildUI()V
     .locals 5
 
     # Root: vertical LinearLayout, dark navy bg, fitsSystemWindows
@@ -94,7 +94,7 @@
 .end method
 
 # ── buildHeader ───────────────────────────────────────────────────────────────
-.method private buildHeader()Landroid/widget/LinearLayout;
+.method public buildHeader()Landroid/widget/LinearLayout;
     .locals 10
 
     const/16 v8, 0xc    # 12dp
@@ -184,7 +184,7 @@
 .end method
 
 # ── buildSearchBar ────────────────────────────────────────────────────────────
-.method private buildSearchBar()Landroid/widget/EditText;
+.method public buildSearchBar()Landroid/widget/EditText;
     .locals 5
 
     new-instance v0, Landroid/widget/EditText;
@@ -224,7 +224,7 @@
 .end method
 
 # ── buildContent: FrameLayout with RecyclerView + empty state ─────────────────
-.method private buildContent()Landroid/widget/FrameLayout;
+.method public buildContent()Landroid/widget/FrameLayout;
     .locals 8
 
     new-instance v0, Landroid/widget/FrameLayout;
@@ -277,7 +277,7 @@
 .end method
 
 # ── buildEmptyState ───────────────────────────────────────────────────────────
-.method private buildEmptyState()Landroid/view/View;
+.method public buildEmptyState()Landroid/view/View;
     .locals 5
 
     new-instance v0, Landroid/widget/LinearLayout;
@@ -339,7 +339,7 @@
 .end method
 
 # ── buildBottomBar ────────────────────────────────────────────────────────────
-.method private buildBottomBar()Landroid/widget/LinearLayout;
+.method public buildBottomBar()Landroid/widget/LinearLayout;
     .locals 10
 
     const/16 v8, 0x8
@@ -397,7 +397,7 @@
 .end method
 
 # ── makeBtn(String label, int color) → TextView styled as button ──────────────
-.method private makeBtn(Ljava/lang/String;I)Landroid/widget/TextView;
+.method public makeBtn(Ljava/lang/String;I)Landroid/widget/TextView;
     .locals 5
 
     new-instance v0, Landroid/widget/TextView;
@@ -677,16 +677,19 @@
 # ── getFileName(Uri): resolve display name from ContentResolver ────────────────
 .method public getFileName(Landroid/net/Uri;)Ljava/lang/String;
     .locals 6
+    # p0=v6(Activity this), p1=v7(Uri)
     invoke-virtual {p0}, Landroid/app/Activity;->getContentResolver()Landroid/content/ContentResolver;
-    move-result-object v0
-    const/4 v1, 0x1
-    new-array v1, v1, [Ljava/lang/String;
-    const-string v2, "_display_name"
-    const/4 v3, 0x0
-    aput-object v2, v1, v3
-    const/4 v2, 0x0
+    move-result-object v0    # v0 = ContentResolver
+    move-object v1, p1       # v1 = Uri (MUST come before overwriting v1 with array)
+    const/4 v3, 0x1
+    new-array v2, v3, [Ljava/lang/String;  # v2 = String[1] (projection)
+    const-string v3, "_display_name"
     const/4 v4, 0x0
-    const/4 v5, 0x0
+    aput-object v3, v2, v4   # projection[0] = "_display_name"
+    const/4 v3, 0x0          # null selection
+    const/4 v4, 0x0          # null selectionArgs
+    const/4 v5, 0x0          # null sortOrder
+    # v0=ContentResolver, v1=Uri, v2=projection, v3=null, v4=null, v5=null
     invoke-virtual/range {v0 .. v5}, Landroid/content/ContentResolver;->query(Landroid/net/Uri;[Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;)Landroid/database/Cursor;
     move-result-object v0
     if-eqz v0, :no_cursor
