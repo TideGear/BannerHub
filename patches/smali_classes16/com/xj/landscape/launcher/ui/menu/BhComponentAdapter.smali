@@ -247,152 +247,174 @@
 
 # ── onCreateViewHolder: build card view programmatically ──────────────────────
 .method public onCreateViewHolder(Landroid/view/ViewGroup;I)Landroidx/recyclerview/widget/RecyclerView$ViewHolder;
-    .locals 15
+    .locals 13
+    # p0=v13(adapter/this)  p1=v14(parent ViewGroup)  p2=v15(viewType int)
+    # All params v13-v15 are in range. Locals: v0-v12.
+    #
+    # Stable refs kept alive until ViewHolder constructor:
+    #   v7 = card LinearLayout (itemView)
+    #   v8 = accentStrip View
+    #   v9 = nameText TextView
+    #   v10 = typeBadge TextView
+    #   v11 = badgeBg GradientDrawable
+    # Temps: v0=ctx, v1=activity, v2=temp, v3=4dp, v4=8dp, v5=12dp, v6=36dp, v12=temp GD/LP
 
+    # v0 = context (from parent ViewGroup)
     invoke-virtual {p1}, Landroid/view/View;->getContext()Landroid/content/Context;
-    move-result-object v0   # ctx
+    move-result-object v0
 
+    # v1 = activity (for dp() calls)
     iget-object v1, p0, Lcom/xj/landscape/launcher/ui/menu/BhComponentAdapter;->activity:Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;
 
-    # dp helper via activity.dp(N)
-    # v2 = 4dp, v3 = 8dp, v4 = 12dp, v5 = 36dp
+    # Compute dp values
+    const/4 v2, 0x4
+    invoke-virtual {v1, v2}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->dp(I)I
+    move-result v3    # v3 = 4dp px
 
-    const/4 v14, 0x4
-    invoke-virtual {v1, v14}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->dp(I)I
-    move-result v2    # 4dp px
+    const/16 v2, 0x8
+    invoke-virtual {v1, v2}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->dp(I)I
+    move-result v4    # v4 = 8dp px
 
-    const/4 v14, 0x8
-    invoke-virtual {v1, v14}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->dp(I)I
-    move-result v3    # 8dp px
+    const/16 v2, 0xc
+    invoke-virtual {v1, v2}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->dp(I)I
+    move-result v5    # v5 = 12dp px
 
-    const/16 v14, 0xc
-    invoke-virtual {v1, v14}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->dp(I)I
-    move-result v4    # 12dp px
+    const/16 v2, 0x24
+    invoke-virtual {v1, v2}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->dp(I)I
+    move-result v6    # v6 = 36dp px
 
-    const/16 v14, 0x24
-    invoke-virtual {v1, v14}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->dp(I)I
-    move-result v5    # 36dp px
+    # ── v7 = outer card: horizontal LinearLayout ──────────────────────────────
+    new-instance v7, Landroid/widget/LinearLayout;
+    invoke-direct {v7, v0}, Landroid/widget/LinearLayout;-><init>(Landroid/content/Context;)V
+    const/4 v2, 0x0
+    invoke-virtual {v7, v2}, Landroid/widget/LinearLayout;->setOrientation(I)V    # HORIZONTAL
+    const/16 v2, 0x10
+    invoke-virtual {v7, v2}, Landroid/widget/LinearLayout;->setGravity(I)V        # CENTER_VERTICAL
 
-    # ── Outer card: horizontal LinearLayout ───────────────────────────────────
-    new-instance v6, Landroid/widget/LinearLayout;
-    invoke-direct {v6, v0}, Landroid/widget/LinearLayout;-><init>(Landroid/content/Context;)V
-    const/4 v14, 0x0
-    invoke-virtual {v6, v14}, Landroid/widget/LinearLayout;->setOrientation(I)V      # HORIZONTAL
-    const/16 v14, 0x10
-    invoke-virtual {v6, v14}, Landroid/widget/LinearLayout;->setGravity(I)V          # CENTER_VERTICAL
-
-    # Card background: dark rounded rect
-    new-instance v7, Landroid/graphics/drawable/GradientDrawable;
-    invoke-direct {v7}, Landroid/graphics/drawable/GradientDrawable;-><init>()V
-    const v14, 0xFF252535
-    invoke-virtual {v7, v14}, Landroid/graphics/drawable/GradientDrawable;->setColor(I)V
-    int-to-float v14, v3    # 8dp as float for corner radius
-    invoke-virtual {v7, v14}, Landroid/graphics/drawable/GradientDrawable;->setCornerRadius(F)V
-    invoke-virtual {v6, v7}, Landroid/view/View;->setBackground(Landroid/graphics/drawable/Drawable;)V
+    # Card background: dark rounded rect (temp GD in v12)
+    new-instance v12, Landroid/graphics/drawable/GradientDrawable;
+    invoke-direct {v12}, Landroid/graphics/drawable/GradientDrawable;-><init>()V
+    const v2, 0xFF252535
+    invoke-virtual {v12, v2}, Landroid/graphics/drawable/GradientDrawable;->setColor(I)V
+    int-to-float v2, v4    # 8dp as float for corner radius
+    invoke-virtual {v12, v2}, Landroid/graphics/drawable/GradientDrawable;->setCornerRadius(F)V
+    invoke-virtual {v7, v12}, Landroid/view/View;->setBackground(Landroid/graphics/drawable/Drawable;)V
 
     # Card padding: 12dp all sides
-    invoke-virtual {v6, v4, v4, v4, v4}, Landroid/widget/LinearLayout;->setPadding(IIII)V
+    invoke-virtual {v7, v5, v5, v5, v5}, Landroid/widget/LinearLayout;->setPadding(IIII)V
 
-    # Card layout params: MATCH_PARENT width, WRAP_CONTENT height, margins 12/4/12/4
-    new-instance v7, Landroid/widget/LinearLayout$LayoutParams;
-    const/4 v14, -0x1   # MATCH_PARENT
-    const/4 v13, -0x2   # WRAP_CONTENT
-    invoke-direct {v7, v14, v13}, Landroid/widget/LinearLayout$LayoutParams;-><init>(II)V
-    invoke-virtual {v7, v4, v2, v4, v2}, Landroid/widget/LinearLayout$LayoutParams;->setMargins(IIII)V
-    invoke-virtual {v6, v7}, Landroid/view/View;->setLayoutParams(Landroid/view/ViewGroup$LayoutParams;)V
+    # Card LayoutParams: MATCH_PARENT x WRAP_CONTENT, margins 12/4/12/4
+    new-instance v12, Landroid/widget/LinearLayout$LayoutParams;
+    const/4 v2, -0x1    # MATCH_PARENT
+    const/4 v1, -0x2    # WRAP_CONTENT (temporarily reuse v1)
+    invoke-direct {v12, v2, v1}, Landroid/widget/LinearLayout$LayoutParams;-><init>(II)V
+    invoke-virtual {v12, v5, v3, v5, v3}, Landroid/widget/LinearLayout$LayoutParams;->setMargins(IIII)V
+    invoke-virtual {v7, v12}, Landroid/view/View;->setLayoutParams(Landroid/view/ViewGroup$LayoutParams;)V
 
-    # ── Accent strip (left colored bar) ──────────────────────────────────────
+    # Restore v1 = activity (overwritten above)
+    iget-object v1, p0, Lcom/xj/landscape/launcher/ui/menu/BhComponentAdapter;->activity:Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;
+
+    # ── v8 = accent strip View ────────────────────────────────────────────────
     new-instance v8, Landroid/view/View;
     invoke-direct {v8, v0}, Landroid/view/View;-><init>(Landroid/content/Context;)V
 
-    # GradientDrawable for accent (stored in ViewHolder to change color in onBind)
-    new-instance v9, Landroid/graphics/drawable/GradientDrawable;
-    invoke-direct {v9}, Landroid/graphics/drawable/GradientDrawable;-><init>()V
-    int-to-float v14, v2    # 4dp corner radius
-    invoke-virtual {v9, v14}, Landroid/graphics/drawable/GradientDrawable;->setCornerRadius(F)V
-    invoke-virtual {v8, v9}, Landroid/view/View;->setBackground(Landroid/graphics/drawable/Drawable;)V
+    # Accent strip GD: temp in v12 (only needed to set background, not stored in ViewHolder)
+    new-instance v12, Landroid/graphics/drawable/GradientDrawable;
+    invoke-direct {v12}, Landroid/graphics/drawable/GradientDrawable;-><init>()V
+    int-to-float v2, v3    # 4dp as float for corner radius
+    invoke-virtual {v12, v2}, Landroid/graphics/drawable/GradientDrawable;->setCornerRadius(F)V
+    invoke-virtual {v8, v12}, Landroid/view/View;->setBackground(Landroid/graphics/drawable/Drawable;)V
 
-    # Strip layout: 4dp wide, 36dp tall, right margin 12dp
-    new-instance v7, Landroid/widget/LinearLayout$LayoutParams;
-    invoke-direct {v7, v2, v5}, Landroid/widget/LinearLayout$LayoutParams;-><init>(II)V
-    invoke-virtual {v7, v14, v14, v4, v14}, Landroid/widget/LinearLayout$LayoutParams;->setMargins(IIII)V
-    invoke-virtual {v6, v8, v7}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V
+    # Accent strip LayoutParams: 4dp wide x 36dp tall, right margin 12dp
+    new-instance v12, Landroid/widget/LinearLayout$LayoutParams;
+    invoke-direct {v12, v3, v6}, Landroid/widget/LinearLayout$LayoutParams;-><init>(II)V
+    const/4 v2, 0x0
+    invoke-virtual {v12, v2, v2, v5, v2}, Landroid/widget/LinearLayout$LayoutParams;->setMargins(IIII)V
+    invoke-virtual {v7, v8, v12}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V
 
-    # ── Text column: vertical LinearLayout (flex) ─────────────────────────────
-    new-instance v10, Landroid/widget/LinearLayout;
-    invoke-direct {v10, v0}, Landroid/widget/LinearLayout;-><init>(Landroid/content/Context;)V
-    const/4 v14, 0x1
-    invoke-virtual {v10, v14}, Landroid/widget/LinearLayout;->setOrientation(I)V    # VERTICAL
+    # ── Text column LinearLayout (temp in v12 until added to card) ────────────
+    new-instance v12, Landroid/widget/LinearLayout;
+    invoke-direct {v12, v0}, Landroid/widget/LinearLayout;-><init>(Landroid/content/Context;)V
+    const/4 v2, 0x1
+    invoke-virtual {v12, v2}, Landroid/widget/LinearLayout;->setOrientation(I)V    # VERTICAL
 
-    # ── Name TextView ─────────────────────────────────────────────────────────
-    new-instance v11, Landroid/widget/TextView;
-    invoke-direct {v11, v0}, Landroid/widget/TextView;-><init>(Landroid/content/Context;)V
-    const/high16 v14, 0x41700000    # 15.0f sp
-    invoke-virtual {v11, v14}, Landroid/widget/TextView;->setTextSize(F)V
-    const v14, 0xFFFFFFFF
-    invoke-virtual {v11, v14}, Landroid/widget/TextView;->setTextColor(I)V
-    const/4 v14, 0x1
-    invoke-virtual {v11, v14}, Landroid/widget/TextView;->setMaxLines(I)V
-    sget-object v14, Landroid/text/TextUtils$TruncateAt;->END:Landroid/text/TextUtils$TruncateAt;
-    invoke-virtual {v11, v14}, Landroid/widget/TextView;->setEllipsize(Landroid/text/TextUtils$TruncateAt;)V
+    # ── v9 = name TextView ────────────────────────────────────────────────────
+    new-instance v9, Landroid/widget/TextView;
+    invoke-direct {v9, v0}, Landroid/widget/TextView;-><init>(Landroid/content/Context;)V
+    const/high16 v2, 0x41700000    # 15sp
+    invoke-virtual {v9, v2}, Landroid/widget/TextView;->setTextSize(F)V
+    const v2, 0xFFFFFFFF
+    invoke-virtual {v9, v2}, Landroid/widget/TextView;->setTextColor(I)V
+    const/4 v2, 0x1
+    invoke-virtual {v9, v2}, Landroid/widget/TextView;->setMaxLines(I)V
+    sget-object v2, Landroid/text/TextUtils$TruncateAt;->END:Landroid/text/TextUtils$TruncateAt;
+    invoke-virtual {v9, v2}, Landroid/widget/TextView;->setEllipsize(Landroid/text/TextUtils$TruncateAt;)V
+    invoke-virtual {v12, v9}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
 
-    invoke-virtual {v10, v11}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
+    # ── v10 = type badge TextView ─────────────────────────────────────────────
+    new-instance v10, Landroid/widget/TextView;
+    invoke-direct {v10, v0}, Landroid/widget/TextView;-><init>(Landroid/content/Context;)V
+    const/high16 v2, 0x41300000    # 11sp
+    invoke-virtual {v10, v2}, Landroid/widget/TextView;->setTextSize(F)V
 
-    # ── Type badge TextView ───────────────────────────────────────────────────
-    new-instance v12, Landroid/widget/TextView;
-    invoke-direct {v12, v0}, Landroid/widget/TextView;-><init>(Landroid/content/Context;)V
-    const/high16 v14, 0x41300000    # 11.0f sp
-    invoke-virtual {v12, v14}, Landroid/widget/TextView;->setTextSize(F)V
-    # Badge background GradientDrawable (stored in ViewHolder)
-    new-instance v13, Landroid/graphics/drawable/GradientDrawable;
-    invoke-direct {v13}, Landroid/graphics/drawable/GradientDrawable;-><init>()V
-    int-to-float v14, v2
-    invoke-virtual {v13, v14}, Landroid/graphics/drawable/GradientDrawable;->setCornerRadius(F)V
-    invoke-virtual {v12, v13}, Landroid/view/View;->setBackground(Landroid/graphics/drawable/Drawable;)V
-    # Badge padding: 6/2/6/2
-    const/16 v14, 0x6
-    invoke-virtual {v1, v14}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->dp(I)I
-    move-result v14
-    invoke-virtual {v12, v14, v2, v14, v2}, Landroid/widget/TextView;->setPadding(IIII)V
-    # Top margin 4dp on badge
-    new-instance v7, Landroid/widget/LinearLayout$LayoutParams;
-    const/4 p2, -0x2    # WRAP_CONTENT
-    invoke-direct {v7, p2, p2}, Landroid/widget/LinearLayout$LayoutParams;-><init>(II)V
-    invoke-virtual {v7, v14, v3, v14, v14}, Landroid/widget/LinearLayout$LayoutParams;->setMargins(IIII)V
-    invoke-virtual {v10, v12, v7}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V
+    # ── v11 = badge background GradientDrawable ────────────────────────────────
+    new-instance v11, Landroid/graphics/drawable/GradientDrawable;
+    invoke-direct {v11}, Landroid/graphics/drawable/GradientDrawable;-><init>()V
+    int-to-float v2, v3    # 4dp as float for corner radius
+    invoke-virtual {v11, v2}, Landroid/graphics/drawable/GradientDrawable;->setCornerRadius(F)V
+    invoke-virtual {v10, v11}, Landroid/view/View;->setBackground(Landroid/graphics/drawable/Drawable;)V
 
-    # Add text column to card with weight=1
-    new-instance v7, Landroid/widget/LinearLayout$LayoutParams;
-    const/4 p2, 0x0
-    const/4 v14, -0x2   # WRAP_CONTENT
-    const/high16 v15, 0x3f800000  # 1.0f
-    invoke-direct {v7, p2, v14, v15}, Landroid/widget/LinearLayout$LayoutParams;-><init>(IIF)V
-    invoke-virtual {v6, v10, v7}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V
+    # Badge padding: 6dp / 4dp / 6dp / 4dp
+    const/16 v2, 0x6
+    invoke-virtual {v1, v2}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->dp(I)I
+    move-result v2    # 6dp px
+    invoke-virtual {v10, v2, v3, v2, v3}, Landroid/widget/TextView;->setPadding(IIII)V
 
-    # ── Arrow TextView ────────────────────────────────────────────────────────
-    new-instance v7, Landroid/widget/TextView;
-    invoke-direct {v7, v0}, Landroid/widget/TextView;-><init>(Landroid/content/Context;)V
-    const-string v14, "\u203a"
-    invoke-virtual {v7, v14}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
-    const/high16 v14, 0x41a00000    # 20.0f sp
-    invoke-virtual {v7, v14}, Landroid/widget/TextView;->setTextSize(F)V
-    const v14, 0xFF666666
-    invoke-virtual {v7, v14}, Landroid/widget/TextView;->setTextColor(I)V
-    invoke-virtual {v6, v7}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
+    # Badge LayoutParams: WRAP_CONTENT x WRAP_CONTENT, top margin = 4dp (v3)
+    new-instance v2, Landroid/widget/LinearLayout$LayoutParams;
+    const/4 v1, -0x2    # WRAP_CONTENT
+    invoke-direct {v2, v1, v1}, Landroid/widget/LinearLayout$LayoutParams;-><init>(II)V
+    const/4 v1, 0x0
+    invoke-virtual {v2, v1, v3, v1, v1}, Landroid/widget/LinearLayout$LayoutParams;->setMargins(IIII)V
+    invoke-virtual {v12, v10, v2}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V
 
-    # ── Wrap card in a FrameLayout for full-width swipe hit area ──────────────
-    # Actually just use the LinearLayout itself; RecyclerView wraps it.
-    # Set MATCH_PARENT width explicitly so swipe covers full row.
-    new-instance v7, Landroidx/recyclerview/widget/RecyclerView$LayoutParams;
-    const/4 v14, -0x1
-    const/4 p2, -0x2
-    invoke-direct {v7, v14, p2}, Landroidx/recyclerview/widget/RecyclerView$LayoutParams;-><init>(II)V
-    invoke-virtual {v6, v7}, Landroid/view/View;->setLayoutParams(Landroid/view/ViewGroup$LayoutParams;)V
+    # Text column LayoutParams: width=0 height=WRAP_CONTENT weight=1.0f
+    new-instance v2, Landroid/widget/LinearLayout$LayoutParams;
+    const/4 v1, 0x0
+    const/4 v6, -0x2    # WRAP_CONTENT (reuse v6, 36dp no longer needed)
+    const/high16 v3, 0x3f800000    # 1.0f (reuse v3, 4dp no longer needed)
+    invoke-direct {v2, v1, v6, v3}, Landroid/widget/LinearLayout$LayoutParams;-><init>(IIF)V
+    invoke-virtual {v7, v12, v2}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V
 
-    # ── Create and return ViewHolder ──────────────────────────────────────────
-    new-instance v7, Lcom/xj/landscape/launcher/ui/menu/BhComponentAdapter$ViewHolder;
-    invoke-direct/range {v7 .. v13}, Lcom/xj/landscape/launcher/ui/menu/BhComponentAdapter$ViewHolder;-><init>(Lcom/xj/landscape/launcher/ui/menu/BhComponentAdapter;Landroid/view/View;Landroid/view/View;Landroid/widget/TextView;Landroid/widget/TextView;Landroid/graphics/drawable/GradientDrawable;)V
-    return-object v7
+    # ── Arrow TextView (temp in v2) ───────────────────────────────────────────
+    new-instance v2, Landroid/widget/TextView;
+    invoke-direct {v2, v0}, Landroid/widget/TextView;-><init>(Landroid/content/Context;)V
+    const-string v1, "\u203a"
+    invoke-virtual {v2, v1}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    const/high16 v1, 0x41a00000    # 20sp
+    invoke-virtual {v2, v1}, Landroid/widget/TextView;->setTextSize(F)V
+    const v1, 0xFF666666
+    invoke-virtual {v2, v1}, Landroid/widget/TextView;->setTextColor(I)V
+    invoke-virtual {v7, v2}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
+
+    # Set RecyclerView.LayoutParams on card: MATCH_PARENT x WRAP_CONTENT
+    new-instance v2, Landroidx/recyclerview/widget/RecyclerView$LayoutParams;
+    const/4 v1, -0x1    # MATCH_PARENT
+    const/4 v3, -0x2    # WRAP_CONTENT
+    invoke-direct {v2, v1, v3}, Landroidx/recyclerview/widget/RecyclerView$LayoutParams;-><init>(II)V
+    invoke-virtual {v7, v2}, Landroid/view/View;->setLayoutParams(Landroid/view/ViewGroup$LayoutParams;)V
+
+    # ── Assemble ViewHolder: move to consecutive v0..v6 ───────────────────────
+    # Constructor: <init>(adapter, itemView, accentStrip, nameText, typeBadge, badgeBg)
+    move-object v2, v7     # itemView (card) → v2
+    move-object v3, v8     # accentStrip → v3
+    move-object v4, v9     # nameText → v4
+    move-object v5, v10    # typeBadge → v5
+    move-object v6, v11    # badgeBg → v6
+    new-instance v0, Lcom/xj/landscape/launcher/ui/menu/BhComponentAdapter$ViewHolder;
+    move-object v1, p0     # adapter → v1
+    invoke-direct/range {v0 .. v6}, Lcom/xj/landscape/launcher/ui/menu/BhComponentAdapter$ViewHolder;-><init>(Lcom/xj/landscape/launcher/ui/menu/BhComponentAdapter;Landroid/view/View;Landroid/view/View;Landroid/widget/TextView;Landroid/widget/TextView;Landroid/graphics/drawable/GradientDrawable;)V
+    return-object v0
 .end method
 
 # ── onBindViewHolder ──────────────────────────────────────────────────────────
@@ -422,10 +444,7 @@
     invoke-virtual {v4, v2}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
     invoke-virtual {v4, v3}, Landroid/widget/TextView;->setTextColor(I)V
 
-    # Badge background: type color at 25% alpha
-    and-int/lit16 v5, v3, 0xFFFF
-    int-to-long v5, v5   # nope - just bit ops
-    # (typeColor & 0x00FFFFFF) | 0x33000000
+    # Badge background: (typeColor & 0x00FFFFFF) | 0x33000000
     const v5, 0x00FFFFFF
     and-int/2addr v5, v3
     const v4, 0x33000000
