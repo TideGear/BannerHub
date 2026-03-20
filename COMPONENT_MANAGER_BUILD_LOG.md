@@ -2276,4 +2276,4 @@ This was the THIRD VerifyError in v2.6.x — after (1) private method invoke-vir
 Always verify `.locals N` so that no `const*` instruction targets the register that p0 maps to (vN). This is a silent register alias — smali assemblers do not warn about it.
 
 ### CI result
-→ ⏳ pending — run triggered by tag v2.6.7-pre
+→ ✅ run 23365752576 — PASSED — Normal APK built
