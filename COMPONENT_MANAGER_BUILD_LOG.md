@@ -30,6 +30,96 @@ Each entry covers one logical change unit (commit or closely related set of comm
 
 ---
 
+## Entry 093 — fix: GOG token refresh GET not POST, fix full client_secret (v2.7.0-beta22, gog-beta)
+**Date:** 2026-03-21
+**Branch:** gog-beta  |  **Tag:** v2.7.0-beta22
+
+### Root-cause analysis
+`GogTokenRefresh.smali` was sending `grant_type=refresh_token` as an HTTP POST with a `application/x-www-form-urlencoded` body. The GOG token endpoint (`auth.gog.com/token`) accepts GET requests with all parameters as query strings — same as the initial `authorization_code` exchange. Additionally the `client_secret` constant in the POST body was truncated to 32 hex chars instead of the full 64-char value.
+
+### Changes
+
+**GogTokenRefresh.smali:**
+- Removed: `setDoOutput(true)`, `Content-Type` header, `getOutputStream()`, body write, body bytes (`v3` register)
+- Changed: `setRequestMethod("GET")`
+- URL now built as `https://auth.gog.com/token?client_id=...&client_secret=...&grant_type=refresh_token&refresh_token={token}`
+- Fixed `client_secret`: was `9d85c43b1482497dbbce61f6e4aa173a` (truncated), now full `9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9`
+- `.locals` reduced from 12 → 11 (body bytes register freed)
+
+### Files modified
+- `patches/smali_classes16/.../GogTokenRefresh.smali` — POST→GET + client_secret fix
+
+**Commit:** `0956dde`
+**CI result:** [CI✅] run 23390629182
+
+---
+
+## Entry 092 — polish: card ripple, dialog title in view, store URL tappable, rating unit (v2.7.0-beta20, gog-beta)
+**Date:** 2026-03-21
+**Branch:** gog-beta  |  **Tag:** v2.7.0-beta20
+
+### Changes
+
+**GogGamesFragment$2 (card list):**
+- Touch ripple: after `setClickable(true)`, resolve `android.R.attr.selectableItemBackground` (0x0101009d) via `Context.getTheme().resolveAttribute()` → `Context.getDrawable(resourceId)` → `View.setForeground()`. Preserves the dark GradientDrawable background while adding visual tap feedback on top.
+- Thumbnail placeholder: `0xFF262626` → `0xFF333333` — noticeably lighter than the `#1A1A1A` card background so placeholder area is visible during load.
+
+**GogGamesFragment$3 (detail dialog):**
+- Title in custom view: new bold white 18sp TextView added to top of root LinearLayout (before cover art). Uses v4 (reused — info TextView uses same register later). Padding 16dp H, 16dp top, 8dp bottom.
+- Removed `AlertDialog.Builder.setTitle()` call — system title bar no longer shown, dialog is entirely dark custom content + Close button.
+- Store URL tappable: `move-object v6, v9` saves storeUrl before v9 gets overwritten by color/padding constants. After `addView(store TextView)`, new `GogGamesFragment$5` OnClickListener attached; `setClickable(true)` set.
+- Rating unit: `const-string "/100"` → `"%"` — consistent with card list meta string.
+
+**GogGamesFragment$5 (new):**
+- OnClickListener: reads Context (field a) + storeUrl (field b); calls `Uri.parse(url)`, constructs `Intent("android.intent.action.VIEW", uri)`, calls `Context.startActivity()`. `.locals 4`.
+
+### Files modified
+- `patches/smali_classes16/.../GogGamesFragment$2.smali` — ripple foreground + placeholder color
+- `patches/smali_classes16/.../GogGamesFragment$3.smali` — title TV, remove setTitle, store URL click, rating unit
+- `patches/smali_classes16/.../GogGamesFragment$5.smali` — [NEW] store URL browser intent click listener
+
+**CI result:** [CI✅] run pending
+
+---
+
+## Entry 091 — feat: silent GOG token refresh on 401 (v2.7.0-beta19, gog-beta)
+**Date:** 2026-03-21
+**Branch:** gog-beta  |  **Tag:** v2.7.0-beta19
+
+### Root-cause analysis
+Access tokens expire approximately 1 hour after login. After that, every `getFilteredProducts` request returns HTTP 401. The previous error path cleared `access_token` and posted null → `$2` showed "Session expired - sign in again via the GOG side menu". Users had to re-login every session.
+
+GOG's implicit-flow redirect also provides a `refresh_token` (lifetime weeks/months). A `grant_type=refresh_token` POST to `auth.gog.com/token` silently issues a new `access_token` (and optionally a rotated `refresh_token`) without requiring the user to open a browser.
+
+### Fix
+
+**New `GogTokenRefresh.smali`** (static helper, `.locals 12`):
+- Reads `refresh_token` from `bh_gog_prefs` SP; returns null immediately if absent
+- Builds POST body: `client_id=...&client_secret=...&grant_type=refresh_token&refresh_token=<token>`
+- POSTs to `https://auth.gog.com/token`, 15 s timeouts
+- Reads response, parses `access_token` + `refresh_token` via `GogLoginActivity.parseJsonStringField()`
+- Saves both to SP (skips `refresh_token` save if null/not rotated)
+- Returns new `access_token`, or null on any failure (exception, non-200, missing field)
+
+**Modified `GogGamesFragment$1.smali`** non-200 path:
+1. Disconnect the expired connection immediately
+2. Get context; if null → clear tokens
+3. Call `GogTokenRefresh.refresh(ctx)` → new token or null
+4. If null → clear both `access_token` and `refresh_token` from SP, post null
+5. If non-null → update `v1` (token), open fresh `HttpURLConnection`, set Bearer header, check response code
+6. If retry returns 200 → jump to `:ok_200`, parse games normally
+7. If retry also non-200 → disconnect, clear tokens, post null
+
+Registers: no `.locals` count change needed (v6/v7/v8 freely reusable in the non-200 path).
+
+### Files modified
+- `patches/smali_classes16/.../GogTokenRefresh.smali` — [NEW] static token refresh helper
+- `patches/smali_classes16/.../GogGamesFragment$1.smali` — non-200 path: try refresh+retry before clearing session
+
+**CI result:** [CI✅] run 23389889405 — Normal APK built successfully
+
+---
+
 ## Entry 090 — Fix: GOG cover art blank (JSON escaping + missing CDN suffix) (v2.7.0-beta18, gog-beta)
 **Date:** 2026-03-21
 **Branch:** gog-beta  |  **Tag:** v2.7.0-beta18

@@ -4,6 +4,38 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [beta] — v2.7.0-beta22 — fix: GOG token refresh GET not POST, fix full client_secret (2026-03-21)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta22
+**What changed:** `GogTokenRefresh.smali` was sending the refresh grant as a POST with a form body. The GOG token endpoint uses GET with query params. Fix: remove `setDoOutput`, `Content-Type` header, `getOutputStream`/write; build full URL with params as query string. Also fixed truncated `client_secret` (last 32 hex chars were missing). `.locals` reduced 12→11.
+**Files touched:** `GogTokenRefresh.smali`
+**CI result:** ✅ run 23390629182
+
+---
+
+## [beta] — v2.7.0-beta21 — fix: crash Resources$NotFoundException from ripple code (2026-03-21)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta21
+**What changed:** `resolveAttribute(selectableItemBackground)` returned `resourceId=0` on the device theme (attribute resolves to a color/data value, not a drawable resource ID). `Context.getDrawable(0)` threw `Resources$NotFoundException` crashing the app. Fix: check `resolveAttribute()` return value (Z) and guard `tv.resourceId != 0` before calling `getDrawable()`. Ripple silently skipped if not a drawable resource on this theme.
+**Files touched:** `GogGamesFragment$2.smali`
+**CI result:** ✅ run 23389889405
+
+---
+
+## [beta] — v2.7.0-beta20 — polish: card ripple, dialog title, store URL link, rating unit (2026-03-21)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta20
+**What changed:** (1) Card touch ripple — selectableItemBackground resolved from theme set as card foreground. (2) Thumbnail placeholder `#262626` → `#333333`. (3) Title moved into dark custom view (bold 18sp, 16dp padding); `setTitle()` removed so no system title bar clash. (4) Store URL TextView now tappable via new `GogGamesFragment$5` OnClickListener firing `Intent.ACTION_VIEW`. (5) Rating unit `"/100"` → `"%"` to match card list.
+**Files touched:** `GogGamesFragment$2.smali`, `GogGamesFragment$3.smali`, `GogGamesFragment$5.smali` (new)
+**CI result:** ✅ run pending
+
+---
+
+## [beta] — v2.7.0-beta19 — feat: silent GOG token refresh on 401 (2026-03-21)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta19
+**What changed:** When the GOG library fetch returns non-200 (expired access_token), silently try a refresh_token grant before clearing the session. New `GogTokenRefresh.smali` static helper POSTs `grant_type=refresh_token` to `auth.gog.com/token`, saves the new `access_token` + `refresh_token` to SP, and returns the new token. `GogGamesFragment$1.smali` updated: on non-200, call `GogTokenRefresh.refresh(ctx)`, retry the library fetch with the new token if successful, otherwise clear both tokens and show the "Session expired" prompt. Also clears `refresh_token` from SP on full session expiry (previously only `access_token` was removed).
+**Files touched:** `GogTokenRefresh.smali` (new), `GogGamesFragment$1.smali`
+**CI result:** ✅ run 23389889405 — Normal APK built successfully
+
+---
+
 ## [beta] — v2.7.0-beta18 — Fix: GOG cover art blank (JSON escaping + missing CDN suffix) (2026-03-21)
 **Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta18
 **What changed:** Cover art thumbnails (card list + dialog) showed blank placeholders. Two silent root causes: (1) GOG API may return image paths with JSON-escaped slashes (`\/\/images-4.gog.com\/hash`) → `MalformedURLException` in `java.net.URL` constructor, caught by `$4` catch-all. Fix: `String.replace("\\/", "/")` before URL assembly. (2) GOG CDN base hash paths have no extension and may not serve an image without a format suffix. Fix: append `_product_card_v2_mobile_slider_639.jpg` when no `.jpg`/`.webp`/`.png` extension present.
