@@ -4,6 +4,14 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [beta] — v2.7.0-beta7 — Fix VerifyError: invoke-direct for private handleImplicitRedirect (2026-03-21)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta7
+**What changed:** VerifyError on `GogLoginActivity$1`: private method `handleImplicitRedirect(Uri)` was called with `invoke-virtual` — ART rejects this. Private methods must use `invoke-direct`. Changed both call sites (`replace_all`).
+**Files touched:** `GogLoginActivity$1.smali`
+**CI result:** pending
+
+---
+
 ## [beta] — v2.7.0-beta6 — GOG implicit flow: bypass revoked client_secret (2026-03-21)
 **Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta6
 **What changed:** beta5 logcat confirmed `HTTP 400: {"error":"invalid_client","error_description":"The client credentials are invalid"}`. GOG has revoked `client_secret=9d85c43b1482497dbbce61f6e4aa173a` for third-party token exchanges. Fix: switch to OAuth2 implicit flow (`response_type=token`). Tokens arrive directly in the redirect URL fragment — no token exchange, no client_secret. `$1` now parses `#access_token=TOKEN&refresh_token=R&user_id=U` from the fragment using `Uri.parse("x://x?"+fragment)`. `$2` rewritten to 4-field constructor (activity, accessToken, refreshToken, userId); run() only fetches userData.json for username then saves all to SP. `$1` also extracted a `handleImplicitRedirect(Uri)` private helper to share logic between WebResourceRequest and deprecated String variants cleanly.

@@ -128,7 +128,7 @@
     if-eqz v2, :not_redirect
 
     # It is the on_login_success redirect — parse fragment for tokens
-    invoke-virtual {p0, v0}, Lcom/xj/landscape/launcher/ui/menu/GogLoginActivity$1;->handleImplicitRedirect(Landroid/net/Uri;)V
+    invoke-direct {p0, v0}, Lcom/xj/landscape/launcher/ui/menu/GogLoginActivity$1;->handleImplicitRedirect(Landroid/net/Uri;)V
 
     const/4 v0, 0x1
 

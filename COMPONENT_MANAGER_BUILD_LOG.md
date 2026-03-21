@@ -30,6 +30,28 @@ Each entry covers one logical change unit (commit or closely related set of comm
 
 ---
 
+## Entry 081 — Fix VerifyError: invoke-direct for private handleImplicitRedirect (v2.7.0-beta7, gog-beta)
+**Date:** 2026-03-21
+**Branch:** gog-beta  |  **Tag:** v2.7.0-beta7
+
+### Root-cause analysis
+VerifyError in logcat: `[0x10] invoke-super/virtual can't be used on private method void GogLoginActivity$1.handleImplicitRedirect(android.net.Uri)`. ART's bytecode verifier enforces that private methods must be dispatched with `invoke-direct`, not `invoke-virtual`. `handleImplicitRedirect` was declared `.method private` but both call sites used `invoke-virtual`. smali2 does not catch this mismatch at assemble time — it only surfaces as a VerifyError at class load.
+
+### Fix
+Changed `invoke-virtual {p0, v0}, ...->handleImplicitRedirect(...)` → `invoke-direct {p0, v0}, ...->handleImplicitRedirect(...)` at both call sites in `$1.smali` (replace_all).
+
+### Files changed
+- `[MOD] patches/smali_classes16/com/xj/landscape/launcher/ui/menu/GogLoginActivity$1.smali`
+
+### Methods changed
+- `shouldOverrideUrlLoading(WebView,WebResourceRequest)` — `invoke-virtual` → `invoke-direct` for `handleImplicitRedirect`
+- `shouldOverrideUrlLoading(WebView,String)` — same
+
+### CI result
+→ pending
+
+---
+
 ## Entry 080 — GOG implicit flow: bypass revoked client_secret (v2.7.0-beta6, gog-beta)
 **Date:** 2026-03-21
 **Branch:** gog-beta  |  **Tag:** v2.7.0-beta6
