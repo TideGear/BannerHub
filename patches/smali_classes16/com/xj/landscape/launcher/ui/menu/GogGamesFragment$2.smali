@@ -32,8 +32,11 @@
 .method public run()V
     .locals 16
 
-    iget-object v0, p0, Lcom/xj/landscape/launcher/ui/menu/GogGamesFragment$2;->a:Lcom/xj/landscape/launcher/ui/menu/GogGamesFragment;
-    iget-object v1, p0, Lcom/xj/landscape/launcher/ui/menu/GogGamesFragment$2;->b:Ljava/util/ArrayList;
+    # p0 = v16 with .locals 16 — too high for iget-object (4-bit limit).
+    # Move this into v14 (free at start of method) for the two field reads.
+    move-object/from16 v14, p0
+    iget-object v0, v14, Lcom/xj/landscape/launcher/ui/menu/GogGamesFragment$2;->a:Lcom/xj/landscape/launcher/ui/menu/GogGamesFragment;
+    iget-object v1, v14, Lcom/xj/landscape/launcher/ui/menu/GogGamesFragment$2;->b:Ljava/util/ArrayList;
 
     # Null = session expired (token cleared by $1 after non-200 response)
     if-eqz v1, :session_expired
