@@ -30,6 +30,24 @@ Each entry covers one logical change unit (commit or closely related set of comm
 
 ---
 
+## Entry 096 — fix: request initial focus on first card for D-pad nav (v2.7.0-beta25, gog-beta)
+**Date:** 2026-03-21
+**Branch:** gog-beta  |  **Tag:** v2.7.0-beta25
+
+### Root-cause analysis
+`setFocusable(true)` on the cards (beta24) was necessary but not sufficient. `ScrollView.arrowScroll()` only calls `FocusFinder.findNextFocus()` when `findFocus()` returns a non-null currently-focused view. On list load, no view is focused, so the first D-pad press finds `currentFocused=null` and falls through to `scrollAndFocus()` (just scrolls). There is no automatic initial-focus assignment in a `ScrollView`+`LinearLayout` setup.
+
+### Fix
+After the card build loop in `GogGamesFragment$2.run()`, call `getChildAt(0)` on `gameListLayout` (v4) and `requestFocus()` on the result. This establishes an anchor view, and all subsequent D-pad navigation works correctly via `ScrollView.arrowScroll()`.
+
+### Files modified
+- `patches/smali_classes16/.../GogGamesFragment$2.smali` — requestFocus on first card after loop_done
+
+**Commit:** `5702d51`
+**CI result:** [CI✅] run 23391012847
+
+---
+
 ## Entry 095 — fix: GOG game cards focusable for controller/D-pad (v2.7.0-beta24, gog-beta)
 **Date:** 2026-03-21
 **Branch:** gog-beta  |  **Tag:** v2.7.0-beta24

@@ -4,6 +4,14 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [beta] — v2.7.0-beta25 — fix: request focus on first card for D-pad/controller nav (2026-03-21)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta25
+**What changed:** `ScrollView.arrowScroll()` only moves focus when `findFocus()` returns a non-null anchor. With no view focused after list load, the first D-pad press just scrolled instead of selecting a card. Fix: after the card loop, `requestFocus()` called on `getChildAt(0)` so first card is focused on load. `setFocusable(true)` (beta24) was necessary but not sufficient — this completes the fix.
+**Files touched:** `GogGamesFragment$2.smali`
+**CI result:** ✅ run 23391012847
+
+---
+
 ## [beta] — v2.7.0-beta24 — fix: GOG game cards focusable for controller/D-pad navigation (2026-03-21)
 **Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta24
 **What changed:** `setFocusable(true)` added to each card view in `GogGamesFragment$2` immediately after `setClickable(true)`. Without `setFocusable`, Android's focus system had no targets to traverse and controller up/down did nothing. `v14` already held `true` from the preceding `setClickable` call — zero extra registers needed.
