@@ -30,6 +30,67 @@ Each entry covers one logical change unit (commit or closely related set of comm
 
 ---
 
+## Entry 090 — Fix: GOG cover art blank (JSON escaping + missing CDN suffix) (v2.7.0-beta18, gog-beta)
+**Date:** 2026-03-21
+**Branch:** gog-beta  |  **Tag:** v2.7.0-beta18
+
+### Root-cause analysis
+Cover art thumbnails in the card list and dialog showed blank dark placeholders. Two independent silent failures — both caught by `$4.run()` catch-all, no log output.
+
+**Cause 1 — JSON escaped forward slashes:** GOG's API may serialize image paths as `\/\/images-4.gog.com\/hash` (backslash-escaped slashes). After `"https:" + rawValue` the string becomes `https:\/\/images-4.gog.com\/hash`. `java.net.URL` throws `MalformedURLException` on this string → caught silently → `$4` returns immediately.
+
+**Cause 2 — Missing GOG CDN format suffix:** GOG CDN hash paths (e.g., `//images-4.gog.com/abc123...`) serve images only with a format/size suffix appended (e.g., `_product_card_v2_mobile_slider_639.jpg`). Without the suffix the CDN may return a non-200 or an undecodable response → `$4` aborts or `BitmapFactory.decodeStream()` returns null.
+
+**Fix in `$1.run()` (image URL building):**
+1. After extracting raw image value: `v13.replace("\\/", "/")` → unescape
+2. Check if URL already has extension (`.jpg`, `.webp`, `.png`); if not, append `_product_card_v2_mobile_slider_639.jpg`
+3. Prepend `"https:"` as before
+
+Registers: v12 and v14 reused as temps (free at that point in the method); no `.locals` count change needed.
+
+### Files modified
+- `patches/smali_classes16/.../GogGamesFragment$1.smali` — image URL building block: add unescape + suffix logic
+
+**CI result:** [CI✅] run 23389506174 — Normal APK built successfully
+
+---
+
+## Entry 089 — Fix crash: GradientDrawable wrong package path (v2.7.0-beta17, gog-beta)
+**Date:** 2026-03-21
+**Branch:** gog-beta  |  **Tag:** v2.7.0-beta17
+
+### Root-cause analysis
+`NoClassDefFoundError: Failed resolution of: Landroid/graphics/GradientDrawable;` on GOG Games tab open. Class does not exist at `android.graphics.GradientDrawable` — correct path is `android.graphics.drawable.GradientDrawable` (note: `drawable` subpackage). Four occurrences of the wrong path in `GogGamesFragment$2.smali`. Confirmed correct path by cross-checking `BhComponentAdapter.smali`.
+
+### Files modified
+- `patches/smali_classes16/.../GogGamesFragment$2.smali` — 4× `Landroid/graphics/GradientDrawable;` → `Landroid/graphics/drawable/GradientDrawable;`
+
+**CI result:** [CI✅] run 23389246633 — Normal APK built successfully
+
+---
+
+## Entry 088 — GOG game detail dialog + styled card list + cover art loaders (v2.7.0-beta16, gog-beta)
+**Date:** 2026-03-21
+**Branch:** gog-beta  |  **Tag:** v2.7.0-beta16
+
+### Root-cause analysis
+Full game detail experience. `$2.run()` rewritten to build styled card rows (horizontal LinearLayout, dark rounded GradientDrawable bg, 60dp thumbnail ImageView, bold white title, grey meta). `$3.onClick()` rewritten to show AlertDialog with setView() (200dp cover art, info text, blue store URL). New `$4` bg image loader (HttpURLConnection → BitmapFactory → View.post). New `$4$1` UI-thread bitmap setter.
+
+**Register overflow (beta14/beta15 failures):** `.locals 16` in `$1.run()` and `$2.run()` maps `p0` (this) to virtual register v16. `iget-object` uses format 22c (4-bit register nibbles, max v15). Fix: `move-object/from16 vX, p0` at method entry to bring `this` into a reachable register.
+
+### Files created
+- `patches/smali_classes16/.../GogGamesFragment$4.smali` — bg image loader; fields: `a` (imageUrl), `b` (ImageView); `.locals 6`
+- `patches/smali_classes16/.../GogGamesFragment$4$1.smali` — UI Runnable calling `setImageBitmap`; `.locals 2`
+
+### Files modified
+- `patches/smali_classes16/.../GogGamesFragment$1.smali` — added `move-object/from16 v15, p0` at start of `run()`
+- `patches/smali_classes16/.../GogGamesFragment$2.smali` — full rewrite; styled card list; `move-object/from16 v14, p0` fix
+- `patches/smali_classes16/.../GogGamesFragment$3.smali` — full rewrite; constructor now takes `GogGame` not `String`; AlertDialog with cover art + info
+
+**CI result:** [CI✅] run 23389111217 — Normal APK built successfully
+
+---
+
 ## Entry 087 — Fix: check-cast v8 to String in $2, dex verifier crash (v2.7.0-beta13, gog-beta)
 **Date:** 2026-03-21
 **Branch:** gog-beta  |  **Tag:** v2.7.0-beta13

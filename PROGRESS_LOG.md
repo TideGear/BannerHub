@@ -4,6 +4,14 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [beta] — v2.7.0-beta18 — Fix: GOG cover art blank (JSON escaping + missing CDN suffix) (2026-03-21)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta18
+**What changed:** Cover art thumbnails (card list + dialog) showed blank placeholders. Two silent root causes: (1) GOG API may return image paths with JSON-escaped slashes (`\/\/images-4.gog.com\/hash`) → `MalformedURLException` in `java.net.URL` constructor, caught by `$4` catch-all. Fix: `String.replace("\\/", "/")` before URL assembly. (2) GOG CDN base hash paths have no extension and may not serve an image without a format suffix. Fix: append `_product_card_v2_mobile_slider_639.jpg` when no `.jpg`/`.webp`/`.png` extension present.
+**Files touched:** `GogGamesFragment$1.smali`
+**CI result:** ✅ run 23389506174 — Normal APK built successfully
+
+---
+
 ## [beta] — v2.7.0-beta17 — Fix crash: GradientDrawable wrong package path (2026-03-21)
 **Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta17
 **What changed:** `NoClassDefFoundError: android.graphics.GradientDrawable` — class does not exist at that path. Correct package is `android.graphics.drawable.GradientDrawable`. Replaced all 4 occurrences in `GogGamesFragment$2.smali`.
