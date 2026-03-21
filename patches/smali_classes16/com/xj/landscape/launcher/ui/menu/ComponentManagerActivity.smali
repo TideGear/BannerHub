@@ -2,7 +2,7 @@
 .super Landroidx/appcompat/app/AppCompatActivity;
 
 # BannerHub Component Manager — redesigned UI
-# Card-based RecyclerView, search bar, bottom action buttons, empty state
+# Card-based RecyclerView, bottom action buttons, empty state
 # Swipe LEFT = remove, Swipe RIGHT = backup
 
 .field public recyclerView:Landroidx/recyclerview/widget/RecyclerView;
@@ -51,13 +51,13 @@
 .method public buildUI()V
     .locals 6
 
-    # Root: vertical LinearLayout, dark navy bg, fitsSystemWindows
+    # Root: vertical LinearLayout, black bg, fitsSystemWindows
     new-instance v0, Landroid/widget/LinearLayout;
     invoke-direct {v0, p0}, Landroid/widget/LinearLayout;-><init>(Landroid/content/Context;)V
     const/4 v1, 0x1
     invoke-virtual {v0, v1}, Landroid/widget/LinearLayout;->setOrientation(I)V
     invoke-virtual {v0, v1}, Landroid/view/View;->setFitsSystemWindows(Z)V
-    const v1, 0xFF1A1A2E
+    const v1, 0xFF0D0D0D
     invoke-virtual {v0, v1}, Landroid/view/View;->setBackgroundColor(I)V
 
     # Header
@@ -65,11 +65,6 @@
     move-result-object v1
     const/4 v2, -0x1   # MATCH_PARENT
     const/4 v3, -0x2   # WRAP_CONTENT
-    invoke-virtual {v0, v1, v2, v3}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;II)V
-
-    # Search bar
-    invoke-virtual {p0}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->buildSearchBar()Landroid/widget/EditText;
-    move-result-object v1
     invoke-virtual {v0, v1, v2, v3}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;II)V
 
     # Content (RecyclerView + empty state in FrameLayout), weight=1
@@ -110,7 +105,7 @@
     invoke-virtual {v2, v3}, Landroid/widget/LinearLayout;->setOrientation(I)V   # HORIZONTAL
     const/16 v3, 0x10
     invoke-virtual {v2, v3}, Landroid/widget/LinearLayout;->setGravity(I)V       # CENTER_VERTICAL
-    const v3, 0xFF1E1E30
+    const v3, 0xFF161616
     invoke-virtual {v2, v3}, Landroid/view/View;->setBackgroundColor(I)V
     invoke-virtual {v2, v1, v0, v1, v0}, Landroid/widget/LinearLayout;->setPadding(IIII)V
 
@@ -141,7 +136,7 @@
     invoke-virtual {v3, v4}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
     const/high16 v4, 0x41880000    # 17sp
     invoke-virtual {v3, v4}, Landroid/widget/TextView;->setTextSize(F)V
-    const v4, 0xFFFFFFFF
+    const v4, 0xFFFF9800
     invoke-virtual {v3, v4}, Landroid/widget/TextView;->setTextColor(I)V
     new-instance v4, Landroid/widget/LinearLayout$LayoutParams;
     const/4 v5, 0x0
@@ -233,7 +228,7 @@
     # RecyclerView
     new-instance v1, Landroidx/recyclerview/widget/RecyclerView;
     invoke-direct {v1, p0}, Landroidx/recyclerview/widget/RecyclerView;-><init>(Landroid/content/Context;)V
-    const v2, 0xFF1A1A2E
+    const v2, 0xFF0D0D0D
     invoke-virtual {v1, v2}, Landroid/view/View;->setBackgroundColor(I)V
 
     # LinearLayoutManager
@@ -353,43 +348,41 @@
     invoke-direct {v0, p0}, Landroid/widget/LinearLayout;-><init>(Landroid/content/Context;)V
     const/4 v1, 0x0
     invoke-virtual {v0, v1}, Landroid/widget/LinearLayout;->setOrientation(I)V   # HORIZONTAL
-    const v1, 0xFF1E1E30
+    const v1, 0xFF161616
     invoke-virtual {v0, v1}, Landroid/view/View;->setBackgroundColor(I)V
     invoke-virtual {v0, v8, v8, v8, v8}, Landroid/widget/LinearLayout;->setPadding(IIII)V
 
-    # "Add New" button (blue)
+    # "Add New" button (orange, small, left-aligned)
     const-string v1, "+ Add New"
-    const v2, 0xFF3D7AED
+    const v2, 0xFFFF9800
     invoke-virtual {p0, v1, v2}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->makeBtn(Ljava/lang/String;I)Landroid/widget/TextView;
     move-result-object v1
     new-instance v3, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity$BhAddListener;
     invoke-direct {v3, p0}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity$BhAddListener;-><init>(Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;)V
     invoke-virtual {v1, v3}, Landroid/view/View;->setOnClickListener(Landroid/view/View$OnClickListener;)V
     new-instance v3, Landroid/widget/LinearLayout$LayoutParams;
-    const/4 v4, 0x0
-    const/16 v5, 0x30
+    const/4 v4, -0x2
+    const/16 v5, 0x20
     invoke-virtual {p0, v5}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->dp(I)I
     move-result v5
-    const/high16 v6, 0x3f800000
-    invoke-direct {v3, v4, v5, v6}, Landroid/widget/LinearLayout$LayoutParams;-><init>(IIF)V
+    invoke-direct {v3, v4, v5}, Landroid/widget/LinearLayout$LayoutParams;-><init>(II)V
     invoke-virtual {v3, v8, v9, v8, v9}, Landroid/widget/LinearLayout$LayoutParams;->setMargins(IIII)V
     invoke-virtual {v0, v1, v3}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V
 
-    # "Download" button (green)
+    # "Download" button (orange, small, left-aligned)
     const-string v1, "\u2193 Download"
-    const v2, 0xFF47B24F
+    const v2, 0xFFFF9800
     invoke-virtual {p0, v1, v2}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->makeBtn(Ljava/lang/String;I)Landroid/widget/TextView;
     move-result-object v1
     new-instance v3, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity$BhDownloadListener;
     invoke-direct {v3, p0}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity$BhDownloadListener;-><init>(Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;)V
     invoke-virtual {v1, v3}, Landroid/view/View;->setOnClickListener(Landroid/view/View$OnClickListener;)V
     new-instance v3, Landroid/widget/LinearLayout$LayoutParams;
-    const/4 v4, 0x0
-    const/16 v5, 0x30
+    const/4 v4, -0x2
+    const/16 v5, 0x20
     invoke-virtual {p0, v5}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->dp(I)I
     move-result v5
-    const/high16 v6, 0x3f800000
-    invoke-direct {v3, v4, v5, v6}, Landroid/widget/LinearLayout$LayoutParams;-><init>(IIF)V
+    invoke-direct {v3, v4, v5}, Landroid/widget/LinearLayout$LayoutParams;-><init>(II)V
     invoke-virtual {v3, v8, v9, v8, v9}, Landroid/widget/LinearLayout$LayoutParams;->setMargins(IIII)V
     invoke-virtual {v0, v1, v3}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V
 
@@ -420,6 +413,15 @@
     int-to-float v2, v2
     invoke-virtual {v1, v2}, Landroid/graphics/drawable/GradientDrawable;->setCornerRadius(F)V
     invoke-virtual {v0, v1}, Landroid/view/View;->setBackground(Landroid/graphics/drawable/Drawable;)V
+
+    # padding: 16dp H, 8dp V
+    const/16 v1, 0x10
+    invoke-virtual {p0, v1}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->dp(I)I
+    move-result v1
+    const/16 v2, 0x8
+    invoke-virtual {p0, v2}, Lcom/xj/landscape/launcher/ui/menu/ComponentManagerActivity;->dp(I)I
+    move-result v2
+    invoke-virtual {v0, v1, v2, v1, v2}, Landroid/widget/TextView;->setPadding(IIII)V
 
     return-object v0
 .end method

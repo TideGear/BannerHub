@@ -11,8 +11,8 @@
 .end method
 
 .method public getView(ILandroid/view/View;Landroid/view/ViewGroup;)Landroid/view/View;
-    .locals 4
-    # .locals 4 → v0-v3 locals; p0=v4(this), p1=v5(pos), p2=v6(convertView), p3=v7(parent)
+    .locals 7
+    # .locals 7 → v0-v6 locals; p0=v7(this), p1=v8(pos), p2=v9(convertView), p3=v10(parent)
 
     # get item string
     invoke-virtual {p0, p1}, Landroid/widget/ArrayAdapter;->getItem(I)Ljava/lang/Object;
@@ -41,7 +41,7 @@
     const v3, 0xFFFF9800
     goto :setcolor
     :white
-    const v3, 0xFFFFFFFF
+    const v3, 0xFFF0F0F0
     :setcolor
     invoke-virtual {v2, v3}, Landroid/widget/TextView;->setTextColor(I)V
 
@@ -50,9 +50,41 @@
     const/16 v1, 0x18
     invoke-virtual {v2, v3, v1, v3, v1}, Landroid/widget/TextView;->setPadding(IIII)V
 
-    # dark item background (slightly lighter than navy)
-    const v3, 0xFF1E1E35
-    invoke-virtual {v2, v3}, Landroid/view/View;->setBackgroundColor(I)V
+    # StateListDrawable: pressed=darker, selected(D-pad)=orange tint, default=dark
+    new-instance v3, Landroid/graphics/drawable/StateListDrawable;
+    invoke-direct {v3}, Landroid/graphics/drawable/StateListDrawable;-><init>()V
+
+    # pressed → very dark
+    const/4 v6, 0x1
+    new-array v4, v6, [I
+    const v5, 0x010100a7
+    const/4 v6, 0x0
+    aput v5, v4, v6
+    new-instance v5, Landroid/graphics/drawable/ColorDrawable;
+    const v6, 0xFF090909
+    invoke-direct {v5, v6}, Landroid/graphics/drawable/ColorDrawable;-><init>(I)V
+    invoke-virtual {v3, v4, v5}, Landroid/graphics/drawable/StateListDrawable;->addState([ILandroid/graphics/drawable/Drawable;)V
+
+    # selected (D-pad/controller) → dark orange tint
+    const/4 v6, 0x1
+    new-array v4, v6, [I
+    const v5, 0x010100a1
+    const/4 v6, 0x0
+    aput v5, v4, v6
+    new-instance v5, Landroid/graphics/drawable/ColorDrawable;
+    const v6, 0xFF241A06
+    invoke-direct {v5, v6}, Landroid/graphics/drawable/ColorDrawable;-><init>(I)V
+    invoke-virtual {v3, v4, v5}, Landroid/graphics/drawable/StateListDrawable;->addState([ILandroid/graphics/drawable/Drawable;)V
+
+    # default → near-black
+    const/4 v6, 0x0
+    new-array v4, v6, [I
+    new-instance v5, Landroid/graphics/drawable/ColorDrawable;
+    const v6, 0xFF1A1A1A
+    invoke-direct {v5, v6}, Landroid/graphics/drawable/ColorDrawable;-><init>(I)V
+    invoke-virtual {v3, v4, v5}, Landroid/graphics/drawable/StateListDrawable;->addState([ILandroid/graphics/drawable/Drawable;)V
+
+    invoke-virtual {v2, v3}, Landroid/view/View;->setBackground(Landroid/graphics/drawable/Drawable;)V
 
     return-object v2
 .end method

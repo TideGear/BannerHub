@@ -42,13 +42,13 @@
     invoke-direct {v0}, Ljava/util/ArrayList;-><init>()V
     iput-object v0, p0, Lcom/xj/landscape/launcher/ui/menu/ComponentDownloadActivity;->mCurrentUrls:Ljava/util/ArrayList;
 
-    # ── Root: dark navy vertical LinearLayout ─────────────────────────────────
+    # ── Root: black vertical LinearLayout ─────────────────────────────────────
     new-instance v0, Landroid/widget/LinearLayout;
     invoke-direct {v0, p0}, Landroid/widget/LinearLayout;-><init>(Landroid/content/Context;)V
     const/4 v1, 0x1
     invoke-virtual {v0, v1}, Landroid/widget/LinearLayout;->setOrientation(I)V
     invoke-virtual {v0, v1}, Landroid/view/View;->setFitsSystemWindows(Z)V
-    const v1, 0xFF1A1A2E
+    const v1, 0xFF0D0D0D
     invoke-virtual {v0, v1}, Landroid/view/View;->setBackgroundColor(I)V
 
     # ── Header ────────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@
     invoke-direct {v1, p0}, Landroid/widget/LinearLayout;-><init>(Landroid/content/Context;)V
     const/4 v2, 0x0
     invoke-virtual {v1, v2}, Landroid/widget/LinearLayout;->setOrientation(I)V
-    const v2, 0xFF16213E
+    const v2, 0xFF161616
     invoke-virtual {v1, v2}, Landroid/view/View;->setBackgroundColor(I)V
     const/16 v2, 0x10
     invoke-virtual {v1, v2}, Landroid/widget/LinearLayout;->setGravity(I)V
@@ -90,7 +90,7 @@
     invoke-virtual {v2, v3}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
     const/high16 v3, 0x41A00000
     invoke-virtual {v2, v3}, Landroid/widget/TextView;->setTextSize(F)V
-    const v3, 0xFFFFFFFF
+    const v3, 0xFFFF9800
     invoke-virtual {v2, v3}, Landroid/widget/TextView;->setTextColor(I)V
     const/16 v3, 0x8
     invoke-virtual {p0, v3}, Lcom/xj/landscape/launcher/ui/menu/ComponentDownloadActivity;->dp(I)I
@@ -119,7 +119,7 @@
     invoke-virtual {v1, v2}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
     const/high16 v2, 0x41600000
     invoke-virtual {v1, v2}, Landroid/widget/TextView;->setTextSize(F)V
-    const v2, 0xFFAAAAAA
+    const v2, 0xFF888888
     invoke-virtual {v1, v2}, Landroid/widget/TextView;->setTextColor(I)V
     const/16 v2, 0x10
     invoke-virtual {p0, v2}, Lcom/xj/landscape/launcher/ui/menu/ComponentDownloadActivity;->dp(I)I
@@ -153,8 +153,13 @@
     invoke-virtual {v1, p0}, Landroid/widget/AbsListView;->setOnItemClickListener(Landroid/widget/AdapterView$OnItemClickListener;)V
     const/4 v2, 0x0
     invoke-virtual {v1, v2}, Landroid/view/ViewGroup;->setClipToPadding(Z)V
-    const v2, 0xFF1A1A2E
+    const v2, 0xFF0D0D0D
     invoke-virtual {v1, v2}, Landroid/view/View;->setBackgroundColor(I)V
+    # selector: semi-transparent orange for D-pad focus + touch press
+    new-instance v2, Landroid/graphics/drawable/ColorDrawable;
+    const v3, 0x40FF9800
+    invoke-direct {v2, v3}, Landroid/graphics/drawable/ColorDrawable;-><init>(I)V
+    invoke-virtual {v1, v2}, Landroid/widget/AbsListView;->setSelector(Landroid/graphics/drawable/Drawable;)V
     # add to root: MATCH_PARENT x 0dp weight=1
     new-instance v2, Landroid/widget/LinearLayout$LayoutParams;
     const/4 v3, -0x1
