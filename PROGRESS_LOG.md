@@ -4,6 +4,14 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [beta] — v2.7.0-beta14 — GOG game detail dialog + cover art + card list (2026-03-21)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta14
+**What changed:** Full game detail experience on tap. (1) `$2.run()` rewritten: plain TextView list replaced with styled card rows — horizontal LinearLayout per game with 60dp ImageView thumbnail (async-loaded by new `$4`), title TextView (white 15sp bold), meta TextView (grey 13sp: "Category · rating% · DLC: N"), dark rounded GradientDrawable bg (10dp radius, #1A1A1A), 12/6dp margins. `$3` click listener now receives the full `GogGame` object. (2) `$3.onClick()` rewritten: replaces Toast with AlertDialog using `setView()` — custom view has 200dp cover art ImageView (async-loaded by `$4`), info TextView (Genre/Rating/DLC), blue store URL TextView. Dialog title = game title. (3) New `GogGamesFragment$4`: bg Runnable fetching Bitmap via HttpURLConnection + BitmapFactory, posts `$4$1` via `View.post()`. (4) New `GogGamesFragment$4$1`: UI-thread Runnable calling `setImageBitmap()`.
+**Files touched:** `GogGamesFragment$2.smali` (rewrite), `GogGamesFragment$3.smali` (rewrite), `GogGamesFragment$4.smali` (new), `GogGamesFragment$4$1.smali` (new)
+**CI result:** pending
+
+---
+
 ## [beta] — v2.7.0-beta13 — Fix: check-cast v8 to String in $2, dex verifier crash (2026-03-21)
 **Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta13
 **What changed:** VerifyError crash on GOG Games tab selection. `GogGamesFragment$2.run()` rejected by verifier at the `GogGamesFragment$3.<init>` call: v8 had static type `Object` (from `ArrayList.get()` → `move-object v8, v6`) but `$3` constructor declares `Ljava/lang/String;`. Fix: add `check-cast v8, Ljava/lang/String;` immediately after `move-object v8, v6`.

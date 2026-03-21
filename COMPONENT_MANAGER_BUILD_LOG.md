@@ -2864,3 +2864,23 @@ LinearLayout weight=1 (height=0dp child) requires EXACTLY MeasureSpec on the wei
 
 ### CI result
 → ✅ run 67991306650 — Normal APK built
+
+## Entry 73 — v2.7.0-beta14 — GOG game detail dialog + cover art + card list (2026-03-21)
+
+### Files changed
+- `patches/smali_classes16/.../GogGamesFragment$2.smali` — full rewrite
+- `patches/smali_classes16/.../GogGamesFragment$3.smali` — full rewrite
+- `patches/smali_classes16/.../GogGamesFragment$4.smali` — new
+- `patches/smali_classes16/.../GogGamesFragment$4$1.smali` — new
+
+### Methods changed
+- `GogGamesFragment$2.run()` — replaced plain TextView list with styled card rows: each card is a horizontal LinearLayout with a 60dp×60dp ImageView (thumbnail, async-loaded by $4), a title TextView (white 15sp bold), and a meta TextView (grey 13sp: "Category · rating% · DLC: N"). Dark rounded bg (GradientDrawable 10dp radius #1A1A1A), 12/6dp margins. `$3` click listener now receives the full `GogGame` object.
+- `GogGamesFragment$3.onClick(View)` — replaced Toast with AlertDialog. Custom view: cover art ImageView (MATCH_PARENT×200dp, FIT_CENTER, #1A1A1A placeholder), info TextView (Genre / Rating/100 / DLC Packs), store URL TextView (blue). Title set via setTitle(). Cover loaded async by $4. `.locals 11`.
+- `GogGamesFragment$4.run()` — new bg image loader: HttpURLConnection → BitmapFactory.decodeStream → posts $4$1 via View.post(). Silent catch on failure.
+- `GogGamesFragment$4$1.run()` — new UI-thread Runnable: calls imageView.setImageBitmap(bitmap).
+
+### Root-cause / design
+Previous tap showed a Toast (title only). Replaced with full detail dialog using android.app.AlertDialog.Builder.setView(). Image loading uses only java.net + android.graphics.BitmapFactory — no third-party libs. View.post() marshals bitmap set to main thread without a Handler. $3 constructor changes from (GogGamesFragment, String) to (GogGamesFragment, GogGame) so all fields are accessible in the dialog.
+
+### CI result
+→ pending
