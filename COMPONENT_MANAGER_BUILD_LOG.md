@@ -3329,7 +3329,7 @@ WineActivity launched but called finish() on itself (app-request) 2-3 seconds af
 After Step 1 extracted the build manifest URL into v4, the progress-update call used `const/4 v4, 0x0` to set the null message argument — overwriting v4 (the URL) with 0. `fetchBytes(v4=null, v1)` always returned null, causing every install to fail with "GOG: failed to read build manifest" immediately. v3 held the build JSONObject which was fully consumed by that point, so it's safe to repurpose as the null constant.
 
 ### CI result
-→ pending
+→ ✅ run 23397124795 — Normal APK built successfully
 
 ### 404 — v2.7.0-beta41 — test: option 1 — Z: drive path for Wine exe launch (2026-03-22)
 **Files changed:**
