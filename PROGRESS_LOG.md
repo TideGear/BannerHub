@@ -4,6 +4,24 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [beta] — v2.7.0-beta53 — fix: smali register errors in $1/$6/$2 from beta50 redesign (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta53
+**Commit:** `d30bfaf`
+**What changed:** Three consecutive register-encoding fixes: (1) GogDownloadManager$1.postProgress() bumped to .locals 6 so {v0..v5} are all free locals for invoke-direct/range to GogDownloadManager$3.<init>; (2) GogGamesFragment$6.onClick() reduced to .locals 15 (p0=v15 stays in 4-bit range), range shifted {v9..v15}→{v8..v14}, p1 copied via move-object/from16; (3) GogGamesFragment$2 line 335 saved bar/statusTV/launchBtn to v13-v15 before new-instance at v10, enabling invoke-direct/range {v10..v15} for $6 constructor.
+**Files touched:** `GogDownloadManager$1`, `GogGamesFragment$6`, `GogGamesFragment$2`
+**CI result:** ✅ run 23407620772
+
+---
+
+## [beta] — v2.7.0-beta50 — feat(gog): Install button → size dialog → ProgressBar+statusTV flow (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta50
+**Commit:** `3b45dd1`
+**What changed:** Full card UI redesign: single Install button per card → tapping opens AlertDialog showing download size (MB) and available space (GB) with Cancel/Download buttons. Download confirm: Install hides (GONE), ProgressBar appears with statusTV below it showing step text (Fetching build info… → Fetching manifest… → Getting CDN link… → Downloading files… → Assembling… → Finishing up… → ✓ Complete). At 100%: bar+statusTV GONE, Launch button VISIBLE+enabled. If game already installed at card render: Install GONE, Launch shown immediately. fileSize:J field added to GogGame and populated from products/{id}?expand=downloads API.
+**Files touched:** `GogGame`, `GogGamesFragment$1`, `GogGamesFragment$2`, `GogGamesFragment$6` (rewrite), `GogGamesFragment$8` (new), `GogDownloadManager`, `GogDownloadManager$1`, `GogDownloadManager$3` (rewrite)
+**CI result:** ❌ run 23407367959 — postProgress invoke-direct 6-register limit
+
+---
+
 ## [beta] — v2.7.0-beta49 — feat: readable Download/Launch buttons + percentage progress (2026-03-22)
 **Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta49
 **Commit:** `6a8b336`

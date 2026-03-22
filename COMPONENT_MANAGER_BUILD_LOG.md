@@ -3360,3 +3360,50 @@ The weight=1 LP inside a horizontal LinearLayout caused each button to take half
 
 ### CI result
 → ✅ run 23397624611 — Normal APK built successfully
+
+### 408 — v2.7.0-beta50 — feat: Install button → size dialog → ProgressBar+statusTV flow (2026-03-22)
+**Files changed:**
+- `GogGame.smali`: added `fileSize:J` field (long, bytes from downloads.installers[].total_size)
+- `GogGamesFragment$1.smali`: parses `total_size` for windows installer from products expand; `iget-wide` for fileSize, `iput-wide v6, v11, GogGame->fileSize:J`
+- `GogGamesFragment$2.smali`: redesigned right section — single Install button (v8, VISIBLE), ProgressBar (v10, GONE, horizontal 3-arg ctor with 0x1010078), statusTV (v11, GONE), Launch button (v12, GONE); if gog_exe_ pref non-empty → hide Install, show+enable Launch; wires Install→$6
+- `GogGamesFragment$6.smali` (rewrite): Install button OnClickListener; computes fileSizeMB (iget-wide fileSize, div-long by 1MB, long-to-int) and availGB (StatFs getAvailableBytes, div-long by 1GB, long-to-int); builds "Download Size: X MB\nAvailable Space: Y GB" message; creates $8 (range invoke), shows AlertDialog "Download Game" with Cancel/Download
+- `GogGamesFragment$8.smali` (new): DialogInterface$OnClickListener; on confirm: GONE install button, VISIBLE ProgressBar, setText "Starting download..." + VISIBLE statusTV, calls GogDownloadManager.startDownload
+- `GogDownloadManager.smali`: startDownload signature changed to (Context, GogGame, ProgressBar, TextView, Button)V; .locals 6 for range invoke of $1
+- `GogDownloadManager$1.smali`: field d reverted to ProgressBar; added field g:TextView (statusTV); constructor (Context,GogGame,ProgressBar,TextView,Button); postProgress uses $3 for UI updates; all 7 progress calls updated with status strings
+- `GogDownloadManager$3.smali` (rewrite): (ProgressBar, TextView, Button, int, String); run(): setProgress, setText if message non-null; at ≥100: GONE bar+statusTV, VISIBLE+enabled Launch button
+
+### Root-cause / design
+Replaced separate Download/Launch buttons with a single Install button that opens a confirmation dialog showing download size and available space. On confirm, Install is hidden and replaced by a ProgressBar+statusTV for in-progress feedback. At completion, both hide and Launch appears. fileSize is parsed from the existing products/{id}?expand=downloads API response.
+
+### CI result
+→ ❌ run 23407367959 — GogDownloadManager$1.smali[57,19]: non-range invoke with 6 registers
+
+### 409 — v2.7.0-beta51 — fix: GogDownloadManager$1 postProgress range invoke (2026-03-22)
+**Files changed:**
+- `GogDownloadManager$1.smali`: postProgress() bumped .locals 4→6; new-instance v0 first, then reload ProgressBar→v1, TextView→v2, Button→v3, move p1→v4/p2→v5; invoke-direct/range {v0..v5}; Handler.post uses v1 (reloaded from field f) + v0 ($3 still live)
+
+### Root-cause / design
+With .locals 4 and params p0..p2, p1=v5 and p2=v6, which are not consecutive with v0..v3. The only way to get 6 consecutive args for the $3 ctor is to bump .locals to 6 (pushing params to v6..v8) and use v0..v5 as all-local consecutive range.
+
+### CI result
+→ ❌ run 23407469974 — GogGamesFragment$6.smali[37]: Invalid register v16 (p0 with .locals 16)
+
+### 410 — v2.7.0-beta52 — fix: GogGamesFragment$6 .locals 16→15, range {v8..v14} (2026-03-22)
+**Files changed:**
+- `GogGamesFragment$6.smali`: .locals 16→15 → p0=v15 (4-bit valid), p1=v16; message stored in v7 (not v8) to free v8 for new-instance $8; range {v9..v15}→{v8..v14}; p1 (install View) copied via move-object/from16 v11, p1
+
+### Root-cause / design
+iget-object uses 22c format (4-bit registers, max v15). With .locals 16, p0=v16 which overflows 4-bit. Reducing to .locals 15 makes p0=v15 (valid). p1=v16 can only be accessed via move-object/from16 (22x format, 16-bit source). Shift of range from {v9..v15} to {v8..v14} frees v15 for p0.
+
+### CI result
+→ ❌ run 23407557305 — GogGamesFragment$2.smali[335]: non-range invoke with 6 non-consecutive registers
+
+### 411 — v2.7.0-beta53 — fix: GogGamesFragment$2 line 335 consecutive regs for $6 range (2026-03-22)
+**Files changed:**
+- `GogGamesFragment$2.smali`: Save v10/v11/v12 (bar/statusTV/launchBtn) to v13/v14/v15; new-instance at v10; copy ctx→v11/game→v12; invoke-direct/range {v10..v15}; setOnClickListener uses v10 (was v13)
+
+### Root-cause / design
+$6.<init> takes 6 args (this + 5). The original code had them in non-consecutive registers {v13,v3,v6,v10,v11,v12}. Saving the 3 view refs to v13-v15 first makes room to lay out v10=new, v11=ctx, v12=game with v13-v15 already holding the remaining 3 views.
+
+### CI result
+→ ✅ run 23407620772 — Normal APK built successfully
