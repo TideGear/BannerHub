@@ -928,9 +928,10 @@
     if-nez v9, :err_gen1
 
     # ── Step 2: fetch+decompress build manifest ───────────────────────────────
+    # v4 = manifest link URL (must not be clobbered); v3 is free (JSONObject consumed)
     const/16 v13, 0x14
-    const/4 v4, 0x0
-    invoke-direct {p0, v13, v4}, Lcom/xj/landscape/launcher/ui/menu/GogDownloadManager$1;->postProgress(ILjava/lang/String;)V
+    const/4 v3, 0x0
+    invoke-direct {p0, v13, v3}, Lcom/xj/landscape/launcher/ui/menu/GogDownloadManager$1;->postProgress(ILjava/lang/String;)V
 
     invoke-direct {p0, v4, v1}, Lcom/xj/landscape/launcher/ui/menu/GogDownloadManager$1;->fetchBytes(Ljava/lang/String;Ljava/lang/String;)[B
     move-result-object v4

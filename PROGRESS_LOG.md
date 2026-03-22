@@ -4,6 +4,15 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [beta] — v2.7.0-beta46 — fix: manifest link URL clobbered by const/4 v4 null arg (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta46
+**Commit:** (pending)
+**What changed:** In `GogDownloadManager$1.run()`, Step 2 posted a 20% progress update using `const/4 v4, 0x0` as the null message argument — but v4 held the build manifest link URL from Step 1. The URL was silently overwritten with null before `fetchBytes(v4, v1)` was called, so `fetchBytes` returned null every time → "GOG: failed to read build manifest". Fix: use `v3` (free after JSONObject consumed) for the null message instead of `v4`.
+**Files touched:** `GogDownloadManager$1.smali` (modified)
+**CI result:** (pending)
+
+---
+
 ## [beta] — v2.7.0-beta35 — fix: VerifyError in assembleFile — use v6 not v11 for size int (2026-03-22)
 **Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta35
 **Commit:** `6a12617`
