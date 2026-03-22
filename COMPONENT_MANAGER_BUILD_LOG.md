@@ -3272,3 +3272,13 @@ GameHub launches PC games via PcGameSetupActivity, passing a WineActivityData Pa
 
 ### CI result
 → pending (beta36 tag not yet pushed)
+
+### 400 — v2.7.0-beta37 — fix: const/16 for v16/v17 (const/4 is 4-bit only) (2026-03-21)
+**Files changed:**
+- `GogGamesFragment$7.smali`: `const/4 v16, 0x0` → `const/16 v16, 0x0`; `const/4 v17, 0x0` → `const/16 v17, 0x0`
+
+### Root-cause / design
+`const/4` opcode (format 11n) encodes the destination register in 4 bits → supports v0-v15 only. With `.locals 18`, v16 and v17 exist but cannot be set with `const/4`. The smali2 assembler correctly rejects them with "Invalid register: v16. Must be between v0 and v15". Fix: `const/16` (format 21s) uses an 8-bit register field → supports v0-v255.
+
+### CI result
+→ ✅ run completed — Normal APK built successfully

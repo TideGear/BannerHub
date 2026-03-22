@@ -1760,3 +1760,10 @@ ART 14 blocks cross-dex private field access. `DialogSettingListItemEntity` is i
 - `patches/smali_classes16/.../GogDownloadManager$1.smali`
 - `patches/smali_classes16/.../GogGamesFragment$3.smali`
 - `patches/smali_classes16/.../GogGamesFragment$7.smali` (new)
+
+### [pre] — v2.7.0-beta37 — fix: const/16 for v16/v17 in GogGamesFragment$7 (2026-03-21)
+**Commit:** `a84fe6a`  |  **Tag:** v2.7.0-beta37
+#### What changed
+- `GogGamesFragment$7.smali`: changed `const/4 v16/v17, 0x0` → `const/16 v16/v17, 0x0`; const/4 only supports v0-v15 (4-bit register field)
+#### Files touched
+- `patches/smali_classes16/.../GogGamesFragment$7.smali`
