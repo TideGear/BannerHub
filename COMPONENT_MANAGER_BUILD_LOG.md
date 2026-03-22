@@ -3407,3 +3407,13 @@ $6.<init> takes 6 args (this + 5). The original code had them in non-consecutive
 
 ### CI result
 → ✅ run 23407620772 — Normal APK built successfully
+
+### 412 — v2.7.0-beta54 — fix: Install/Launch button 0dp height (2026-03-22)
+**Files changed:**
+- `GogGamesFragment$2.smali`: added `setMinimumHeight(40dp)` on Install button (v8) after setTextColor, and on Launch button (v12) after setTextColor; uses existing `v2` density float (mul-float + float-to-int)
+
+### Root-cause / design
+Programmatic Buttons in GameHub theme have no default minHeight, so WRAP_CONTENT collapses them to ~0dp. The density float is already in `v2` from the thumbnail LP calculation earlier in run().
+
+### CI result
+→ ✅ run 23407752284 — Normal APK built successfully

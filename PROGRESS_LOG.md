@@ -4,6 +4,15 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [beta] — v2.7.0-beta54 — fix: Install/Launch button 0dp height (setMinimumHeight 40dp) (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta54
+**Commit:** `bf5e521`
+**What changed:** Added `setMinimumHeight(40dp)` on both Install (v8) and Launch (v12) buttons using the existing density float `v2`. Programmatic Buttons in GameHub's theme collapse to ~0dp height with WRAP_CONTENT because no default minHeight is applied.
+**Files touched:** `GogGamesFragment$2`
+**CI result:** ✅ run 23407752284
+
+---
+
 ## [beta] — v2.7.0-beta53 — fix: smali register errors in $1/$6/$2 from beta50 redesign (2026-03-22)
 **Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta53
 **Commit:** `d30bfaf`
