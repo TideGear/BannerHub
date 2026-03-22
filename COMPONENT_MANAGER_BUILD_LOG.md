@@ -3417,3 +3417,173 @@ Programmatic Buttons in GameHub theme have no default minHeight, so WRAP_CONTENT
 
 ### CI result
 → ✅ run 23407752284 — Normal APK built successfully
+
+### 413 — v2.7.0-beta55 through beta57 — button LP/position/height fixes (2026-03-22)
+**Files changed:**
+- `GogGamesFragment$2.smali`: beta55: explicit LP(MATCH_PARENT, 40dp_px) via addView(view, lp) for Install+Launch; beta56: LP(WRAP_CONTENT, 40dp_px) + LP.gravity=Gravity.END (0x800005) + 12sp text; beta57: thumbnail LP 60dp→78dp (card 30% taller)
+
+### Root-cause / design
+setMinimumHeight() (beta54) was ineffective in GameHub theme. Explicit LayoutParams with integer pixel height passed to addView() is the only reliable way to set button height. Button width defaulted to MATCH_PARENT, spanning full card; WRAP_CONTENT + Gravity.END aligns button to right edge. Thumbnail LP drives card height — increasing from 60dp to 78dp (×1.3) stretches the card 30%.
+
+### CI result
+→ ✅ beta55 run 23407899965, ✅ beta56 run 23408202069, ✅ beta57 run 23408537869
+
+---
+
+### 414 — v2.7.0-beta58 — feat: per-file download percentage "Downloading files... X%" (2026-03-22)
+**Files changed:**
+- `GogDownloadManager$1.smali`: after add-int/lit8 v9,v9,1 in :file_loop — compute pct=(v9*40/v10)+45 into v13; build StringBuilder in v14 with v3 for string literals; call postProgress(v13, v14)
+
+### Root-cause / design
+Previously a static "Downloading files..." string was posted before the loop, giving no incremental progress. Per-file update maps fileIndex*40/totalFiles+45 to the 45%→85% progress band. v3,v13,v14 are all scratch within the loop body (v3 is reloaded fresh at line 1201 after the loop; v13/v14 are used only as temporaries).
+
+### CI result
+→ ❌ run 23408885820 — `mul-int v13, v9, 0x28` invalid (mul-int takes 3 registers, not immediate)
+
+---
+
+### 415 — v2.7.0-beta59 — fix: mul-int/lit8 for download percentage calculation (2026-03-22)
+**Files changed:**
+- `GogDownloadManager$1.smali`: changed `mul-int v13, v9, 0x28` → `mul-int/lit8 v13, v9, 0x28`
+
+### Root-cause / design
+`mul-int` (opcode 0x92, format 23x) takes three register operands. `mul-int/lit8` (opcode 0xd2, format 22b) takes two registers + an 8-bit immediate. The percentage multiplier 40 (0x28) fits in 8 bits, so mul-int/lit8 is correct.
+
+### CI result
+→ ✅ run 23408923443 — Normal APK built successfully
+
+---
+
+### 416 — v2.7.0-beta60 — feat: cover art preview dialog before launch (2026-03-22)
+**Files changed:**
+- `GogDownloadManager$1.smali`: at :sp_apply — writes gog_cover_{gameId}=installDir/cover.jpg to prefs editor before apply(); after apply(), fetches imageUrl bytes via fetchBytes(url,"") and writes to installDir/cover.jpg (try/catch, best-effort)
+- `GogGamesFragment$7.smali` (rewrite): onClick reads gog_cover_ path from prefs; decodes Bitmap via BitmapFactory.decodeFile(); builds ImageView with setAdjustViewBounds(true); creates GogGamesFragment$9(context, exePath); AlertDialog with title=game.title, setView(ImageView), Launch→$9, Cancel→null; .locals 12 (p0=v12 ✓)
+- `GogGamesFragment$9.smali` (new): DialogInterface$OnClickListener; fields a:Context, b:String (exePath); onClick: check-cast v0→LandscapeLauncherMainActivity, invoke-virtual B3(exePath)
+
+### Root-cause / design
+EditImportedGameInfoDialog (classes12, bypassed) has no cover image parameter. Solution: show our own AlertDialog before B3() — full control over UI. Cover image downloaded during install pipeline (GogGame.imageUrl is a public GOG CDN URL, no auth token needed). Stored as cover.jpg in the game's install directory. BitmapFactory.decodeFile() loads it synchronously on the UI thread (acceptable since cover.jpg is local, small JPEG).
+
+### CI result
+→ ✅ run 23409333203 — Normal APK built successfully
+
+---
+
+### 417 — v2.7.0-beta61 — revert: roll back beta60 cover art to beta59 state (2026-03-22)
+**Files changed:**
+- `GogDownloadManager$1.smali`: reverted `:sp_apply` section to beta59 (removed cover image fetch + gog_cover_ pref write)
+- `GogGamesFragment$7.smali`: reverted to direct B3() call (.locals 6); removed bitmap/AlertDialog/GogGamesFragment$9 code
+- `GogGamesFragment$9.smali`: deleted (new file from beta60 removed entirely)
+
+### Root-cause / design
+Cover art preview dialog (beta60) reported as not working by user. Root cause unclear (possibly BitmapFactory.decodeFile returning null, cover.jpg not yet written, or dialog lifecycle issue). Reverted to simplest working state (beta59: Launch → B3() directly).
+
+### CI result
+→ ✅ run 23409452782 — Normal APK built successfully
+
+---
+
+### 418 — v2.7.0-beta62 — feat: Gen 1 legacy download fallback (2026-03-22)
+**Files changed:**
+- `GogDownloadManager$1.smali`: changed `:err_gen1` from toast to `invoke-direct {p0, v1, v2} runGen1(String,String)V; goto :run_done`
+- `GogDownloadManager$1.smali`: new method `runGen1(Ljava/lang/String;Ljava/lang/String;)V` (.locals 13; p0=v13, p1=v14 token, p2=v15 gameId)
+- `GogDownloadManager$1.smali`: new method `processGen1DepotManifest(Ljava/lang/String;Ljava/util/ArrayList;)V` (.locals 6; p0=v6, p1=v7, p2=v8)
+- `GogDownloadManager$1.smali`: new method `downloadRange(Ljava/lang/String;IILjava/io/File;)Z` (.locals 8; p0=v8, p1=v9, p2=v10, p3=v11, p4=v12)
+
+### Root-cause / design
+Some older GOG titles only have Gen 1 builds (`generation=1`). Gen 1 uses a different manifest format (`product.{timestamp, installDirectory, rootGameId, depots[]}`) and downloads from a single `main.bin` blob using `Range: bytes=N-M` HTTP headers instead of content-addressed chunks. `runGen1` runs an 8-step pipeline: builds?generation=1 API → fetchBytes+decompressBytes manifest → parse product fields → processGen1DepotManifest per depot (skip support=true entries) → exe scan → secure_link?type=depot&path=/windows/{ts}/ → parseCdnUrl + append /main.bin → downloadRange per file → finalize (same as Gen 2: manifest json, prefs gog_dir_/gog_cover_/gog_exe_, cover download, 100% Complete). `downloadRange` builds end = offset + (size − 1), sets `Range` header, reads with 32KB buffer. Finalize section reuses v9 (freed loop counter) as scratch for string builders. All registers ≤ v15 for all invoke-direct calls.
+
+### CI result
+→ ✅ — Normal APK built successfully
+
+---
+
+### 419 — v2.7.0-beta63 — feat: ✓ Installed checkmark on GOG game card (2026-03-22)
+**Files changed:**
+- `GogGamesFragment$2.smali`: after meta TextView addView (line ~247), inserted 37-line block: reads `gog_exe_{gameId}` from bh_gog_prefs; if non-empty creates TextView in v11 with text "✓ Installed", color 0xFF4CAF50, 10sp, addView to right-info layout (v9)
+
+### Root-cause / design
+After install completes, `gog_exe_{gameId}` is written to bh_gog_prefs. Reading it at card build time is a cheap SP lookup. Only adds the view when installed — no placeholder. v11 is free at insertion point (meta TV just added, not needed again until statusTV creation at line ~282). v13/v14/v15 used as scratch for StringBuilder + SP lookup.
+
+### CI result
+→ ✅ run 23410432005 — Normal APK built successfully
+
+---
+
+### 420 — v2.7.0-beta64 — feat: Gen 1 / Gen 2 badge on GOG game cards (2026-03-22)
+**Files changed:**
+- `GogGamesFragment$1.smali`: after `ArrayList.add(game)` in game_loop — added ~90-line gen-check block (try_gen_start/end); builds URL, opens HttpURLConnection with auth, reads body, parses items array length; stores gog_gen_{gameId}=2 or 1 via SP putInt/apply; :gen_check_done handler disconnects + stores; added `.catch Exception {:try_gen_start..:try_gen_end} :gen_check_done`
+- `GogGamesFragment$2.smali`: after :ck_done — added ~40-line badge block; reads `gog_gen_{gameId}` via SP getInt(default 0); skips if 0; creates TextView "Gen 2" (0xFF4FC3F7, 10sp) or "Gen 1" (0xFFFF9800, 10sp); addView to right-info layout
+
+### Root-cause / design
+Generation info is not in the products API response — requires a separate builds?generation=2 call per game. One extra HTTP call per game during sync (background thread, acceptable). Inner try_gen catch ensures a network failure on any single game's gen-check doesn't abort the entire sync. Default is Gen 1 on error or timeout, which is the safer assumption for older titles. getInt default=0 lets $2 skip the badge entirely for games synced before beta64 (no stale Gen 1 shown for games that may actually be Gen 2).
+
+### CI result
+→ ✅ run 23410601968 — Normal APK built successfully
+
+---
+
+### 421 — v2.7.0-beta65 — feat: Uninstall button in GOG game detail dialog (2026-03-22)
+**Files changed:**
+- `GogGamesFragment$10.smali` [NEW]: `DialogInterface$OnClickListener`; fields a:Context, b:GogGame; `deleteRecursive(File)V` static method (recursion via listFiles + aget-object loop); `onClick` reads gog_dir_ → deleteRecursive → removes 4 prefs keys (gog_dir_/exe_/cover_/gen_) via chained editor.remove() → apply() → Toast "Uninstalled"
+- `GogGamesFragment$3.smali` [MOD]: added `new-instance v9 GogGamesFragment$10; invoke-direct {v9,v0,v1}; const-string v10 "Uninstall"; invoke-virtual {v6,v10,v9} setNegativeButton` before show()
+
+### Root-cause / design
+`File.delete()` only removes empty directories; recursive delete needed for game install dirs that contain subdirectories. `deleteRecursive` uses `listFiles()` + recursive `invoke-static` call. `.locals 4` in deleteRecursive → p0=v4 (File), v0-v3 scratch — all within 4-bit range. `onClick` `.locals 7` → p0=v7 — iget-object v0/v1 from v7 ✓. Prefs removal chains editor.remove() calls, capturing return value with move-result-object each time to maintain the editor reference.
+
+### CI result
+→ ✅ run 23410775545 — Normal APK built successfully
+
+---
+
+### 425 — v2.7.0-beta69 — feat: rename Launch button to Add on GOG game cards (2026-03-22)
+**Files changed:**
+- `GogGamesFragment$2.smali`: line 393 `const-string v14, "Launch"` → `"Add"`
+
+### Root-cause / design
+"Launch" was misleading — the button calls B3(exePath) which opens EditImportedGameInfoDialog to register/import the game into the launcher's library. "Add" better describes that action.
+
+### CI result
+→ ✅ run 23412435537 — Normal APK built successfully
+
+---
+
+### 424 — v2.7.0-beta68 — fix: v16 register error in checkmark propagation (2026-03-22)
+**Files changed:**
+- `GogGamesFragment$2.smali`: checkmark block revised — create in v13 (4-bit), `move-object/from16 v16, v13` to persist, reload with `move-object/from16 v13, v16` in installed branch. No non-range use of v16.
+
+### Root-cause / design
+beta67 failed smali assembly: `v16` was used in `invoke-virtual {v16, ...}` and `new-instance v16`. Smali assembler enforces 4-bit limit (v0-v15) for all non-range instructions. `move-object/from16 vAA, vBBBB` allows 8-bit dest so v16 is valid as destination. Range invoke `{v10..v16}` uses 16-bit indices so v16 is valid. Fix: all setup uses v13 (4-bit), v16 only touched by /from16 and range invoke.
+
+### CI result
+→ ✅ run 23411891622 — Normal APK built successfully
+
+---
+
+### 423 — v2.7.0-beta67 — feat: show ✓ Installed checkmark immediately on install complete (2026-03-22)
+**Files changed:**
+- `GogGamesFragment$2.smali`: .locals 16→17; checkmark always created as GONE, ref persisted in v16; passed to $6 via range {v10..v16}
+- `GogGamesFragment$6.smali`: field f:TextView (checkmark); ctor p6; onClick restructured to {v6..v13} range for $8
+- `GogGamesFragment$8.smali`: field g:TextView (checkmark); ctor p7; onClick uses invoke-static/range {v0..v5} for startDownload
+- `GogDownloadManager.smali`: .locals 6→7; new TextView param; move-object v6, p5; range {v0..v6} for $1
+- `GogDownloadManager$1.smali`: field h:TextView; ctor p6; postProgress .locals 6→7; pass v6 to $3 range {v0..v6}
+- `GogDownloadManager$3.smali`: field f:TextView; ctor p6; run() shows checkmark VISIBLE at progress=100
+
+### Root-cause / design
+`GogDownloadManager$3.run()` had no reference to any UI component except ProgressBar, statusTV, and Launch button. No way to trigger a card rebuild or flip the checkmark. Solution: always create the checkmark as GONE in the card builder ($2), save the reference, and thread it through 5 constructor levels so $3 can flip it VISIBLE at 100%.
+
+### CI result
+→ ❌ run 23411771578 — smali v16 non-range register error (fixed in beta68)
+
+---
+
+### 422 — v2.7.0-beta66 — fix: card layout, uninstall path, post-uninstall refresh (2026-03-22)
+**Files changed:**
+- `GogGamesFragment$2.smali`: line 453 `const/4 v15, -0x1` → `const/4 v15, -0x2` (right-column LP height MATCH_PARENT→WRAP_CONTENT)
+- `GogGamesFragment$3.smali`: `iget-object v10, p0, $3->a:GogGamesFragment` added before $10 constructor call; constructor arg changed from v0 (Context) to v10 (GogGamesFragment)
+- `GogGamesFragment$10.smali`: field a type changed Context→GogGamesFragment; constructor updated; onClick: get context via fragment.getContext(); build full path getFilesDir()/gog_games/{dirName}; after prefs clear read access_token + start GogGamesFragment$1 thread for re-sync
+
+### Root-cause / design
+Three bugs from beta65: (1) right-column LP MATCH_PARENT clips content to parent height (~78dp thumbnail), pushing buttons off when checkmark+badge added — WRAP_CONTENT lets right column drive card height. (2) gog_dir_ stores just the dir NAME from File.getName() — must prepend context.getFilesDir().getAbsolutePath()+"/gog_games/" to get the real install path. (3) No card rebuild after uninstall — fixed by triggering GogGamesFragment$1 re-sync; $10 now holds GogGamesFragment ref (not Context) so it can start the Runnable and the sync can post $2 to the main thread to rebuild cards.
+
+### CI result
+→ ✅ run 23411207426 — Normal APK built successfully

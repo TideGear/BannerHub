@@ -4,6 +4,114 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [beta] — v2.7.0-beta69 — feat(gog): rename Launch button to Add on GOG game cards (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta69
+**Commit:** `def0813`
+**What changed:** `GogGamesFragment$2` line 393: `const-string v14, "Launch"` → `"Add"`. The button after install now reads "Add" to better reflect that it opens EditImportedGameInfoDialog to register the game with the launcher.
+**Files touched:** `GogGamesFragment$2`
+**CI result:** ✅ run 23412435537
+
+---
+
+## [beta] — v2.7.0-beta68 — fix(gog): fix v16 register error in checkmark propagation (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta68
+**Commit:** `9d881a2`
+**What changed:** beta67 failed because `v16` was used in non-range instructions (4-bit limit is v0-v15). Fix: create/setup checkmark in v13 (4-bit), persist to v16 via `move-object/from16 v16, v13` (8-bit dest OK), reload via `move-object/from16 v13, v16` when setting VISIBLE. v16 only appears in valid 8-bit/range contexts.
+**Files touched:** `GogGamesFragment$2` only
+**CI result:** ✅ run 23411891622
+
+---
+
+## [beta] — v2.7.0-beta67 — fix(gog): show ✓ Installed checkmark immediately when download completes (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta67
+**Commit:** `3743330`
+**What changed:** Checkmark "✓ Installed" now appears on the game card immediately when download finishes — no app restart required. Approach: checkmark TextView always created as GONE in `$2`, initial visibility set from gog_exe_ pref. Reference propagated through 5 levels: `$2`→`$6`→`$8`→`GogDownloadManager`→`$1`→`$3`. At progress=100 in `$3.run()`, `setVisibility(VISIBLE)` called on the checkmark ref. Root cause was that `$3` had no way to trigger UI update; this avoids a full card rebuild.
+**Files touched:** `GogGamesFragment$2`, `GogGamesFragment$6`, `GogGamesFragment$8`, `GogDownloadManager`, `GogDownloadManager$1`, `GogDownloadManager$3`
+**CI result:** ❌ smali v16 register error (fixed in beta68)
+
+---
+
+## [beta] — v2.7.0-beta66 — fix(gog): card layout, uninstall path, post-uninstall refresh (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta66
+**Commit:** `4540dc8`
+**What changed:** (1) `$2` right-column LP height MATCH_PARENT→WRAP_CONTENT — cards grow to fit all content. (2) `$10` field `a` changed Context→GogGamesFragment; full install path built via `getFilesDir()/gog_games/{dirName}` (gog_dir_ stores name only, not path); after prefs clear, reads `access_token` and starts new `GogGamesFragment$1` thread to re-sync+rebuild cards. (3) `$3` passes fragment ref to `$10` constructor via `iget-object v10, p0, $3->a`.
+**Files touched:** `GogGamesFragment$2`, `GogGamesFragment$3`, `GogGamesFragment$10`
+**CI result:** ✅ run 23411207426
+
+---
+
+## [beta] — v2.7.0-beta65 — feat(gog): Uninstall button in game detail dialog (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta65
+**Commit:** `7214d44`
+**What changed:** New `GogGamesFragment$10` (DialogInterface$OnClickListener): reads `gog_dir_{gameId}`, recursively deletes install dir via `deleteRecursive(File)`, removes prefs keys `gog_dir_`, `gog_exe_`, `gog_cover_`, `gog_gen_`, shows Toast "Uninstalled". `GogGamesFragment$3` wired up with `setNegativeButton("Uninstall", $10)` before `show()`.
+**Files touched:** `GogGamesFragment$3` (modified), `GogGamesFragment$10` (new)
+**CI result:** ✅ run 23410775545
+
+---
+
+## [beta] — v2.7.0-beta64 — feat(gog): Gen 1 / Gen 2 badge on each game card (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta64
+**Commit:** `0a10b89`
+**What changed:** Library sync ($1) now probes `builds?generation=2&system=windows` per game after adding it to the list. Stores `gog_gen_{gameId}=2` or `1` in bh_gog_prefs. HTTP/JSON errors silently caught (inner try_gen → :gen_check_done). Card builder ($2) reads the pref and adds a 10sp badge TextView: "Gen 2" (light blue 0xFF4FC3F7) or "Gen 1" (orange 0xFFFF9800). Skipped if value is 0.
+**Files touched:** `GogGamesFragment$1`, `GogGamesFragment$2`
+**CI result:** ✅ run 23410601968
+
+---
+
+## [beta] — v2.7.0-beta63 — feat(gog): ✓ Installed checkmark on game card (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta63
+**Commit:** `ee5173d`
+**What changed:** After a game is installed, a green "✓ Installed" TextView (0xFF4CAF50, 10sp) appears on the card between the meta line and Install button. Reads gog_exe_{gameId} from bh_gog_prefs — only created and added if non-empty. Registers v11/v13/v14/v15 used as scratch at insertion point.
+**Files touched:** `GogGamesFragment$2`
+**CI result:** ✅ run 23410432005
+
+---
+
+## [beta] — v2.7.0-beta62 — feat(gog): Gen 1 legacy download fallback (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta62
+**Commit:** `d096da0`
+**What changed:** Added Gen 1 download fallback when no Gen 2 build is found. New methods: `runGen1(token, gameId)` (8-step pipeline: builds?generation=1 → manifest → depot manifests → secure_link → downloadRange per file → finalize), `processGen1DepotManifest(json, list)` (parses depot.files[], skips support=true), `downloadRange(url, offset, size, outFile)` (Range: bytes=N-M HTTP download with 32KB buffer). :err_gen1 in run() now calls runGen1() instead of showing a toast. Finalize identical to Gen 2 (manifest json, prefs, exe stored, 100% Complete).
+**Files touched:** `GogDownloadManager$1` (modified: :err_gen1 branch + 3 new private methods)
+**CI result:** ✅
+
+---
+
+## [beta] — v2.7.0-beta61 — revert: roll back cover art preview to beta59 (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta61
+**Commit:** `3cedaec`
+**What changed:** Reverted beta60 cover art changes. Restored GogDownloadManager$1 and GogGamesFragment$7 to beta59 state. Removed GogGamesFragment$9.
+**Files touched:** `GogDownloadManager$1`, `GogGamesFragment$7`, `GogGamesFragment$9` (deleted)
+**CI result:** ✅ run 23409452782
+
+---
+
+## [beta] — v2.7.0-beta60 — feat(gog): cover art preview dialog before launch (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta60
+**Commit:** `9e717d3`
+**What changed:** Tapping Launch now shows a cover-art preview AlertDialog (game title + cover image + Launch/Cancel) before handing off to B3(). During install, cover image is fetched from GogGame.imageUrl → saved as installDir/cover.jpg; path stored as gog_cover_{gameId} in bh_gog_prefs. GogGamesFragment$7 rewritten to load bitmap via BitmapFactory.decodeFile() and show dialog. New GogGamesFragment$9: DialogInterface$OnClickListener that calls B3(exePath).
+**Files touched:** `GogDownloadManager$1`, `GogGamesFragment$7` (rewrite), `GogGamesFragment$9` (new)
+**CI result:** ✅ run 23409333203
+
+---
+
+## [beta] — v2.7.0-beta59 — fix: use mul-int/lit8 for download percentage calc (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta59
+**Commit:** `66f569b`
+**What changed:** Fixed smali error in beta58: `mul-int vA, vB, imm` is not a valid opcode — corrected to `mul-int/lit8 vA, vB, imm`.
+**Files touched:** `GogDownloadManager$1`
+**CI result:** ✅ run 23408923443
+
+---
+
+## [beta] — v2.7.0-beta58 — feat(gog): per-file download percentage in status text (2026-03-22)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta58
+**Commit:** `bf16ee5`
+**What changed:** During the file download loop (45%→85%), status text now updates after each file: "Downloading files... X%" using `pct = fileIndex * 40 / totalFiles + 45`. Uses v3/v13/v14 (all scratch within loop). beta58 failed CI due to invalid `mul-int vA, vB, imm` opcode — fixed in beta59.
+**Files touched:** `GogDownloadManager$1`
+**CI result:** ❌ run 23408885820 — mul-int does not accept immediate
+
+---
+
 ## [beta] — v2.7.0-beta54 — fix: Install/Launch button 0dp height (setMinimumHeight 40dp) (2026-03-22)
 **Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta54
 **Commit:** `bf5e521`
