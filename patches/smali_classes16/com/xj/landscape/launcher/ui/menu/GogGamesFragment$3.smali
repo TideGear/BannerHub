@@ -28,7 +28,7 @@
 
 
 .method public onClick(Landroid/view/View;)V
-    .locals 11
+    .locals 12
 
     # v0 = context
     iget-object v0, p0, Lcom/xj/landscape/launcher/ui/menu/GogGamesFragment$3;->a:Lcom/xj/landscape/launcher/ui/menu/GogGamesFragment;
@@ -237,6 +237,46 @@
     invoke-virtual {v5, v9}, Landroid/view/View;->setClickable(Z)V
 
     :skip_store
+
+    # ── Install Button ────────────────────────────────────────────────────────
+    new-instance v11, Landroid/widget/Button;
+    invoke-direct {v11, v0}, Landroid/widget/Button;-><init>(Landroid/content/Context;)V
+
+    const-string v9, "Install"
+    invoke-virtual {v11, v9}, Landroid/widget/Button;->setText(Ljava/lang/CharSequence;)V
+
+    const v9, 0xFF2E7D32   # dark green
+    invoke-virtual {v11, v9}, Landroid/view/View;->setBackgroundColor(I)V
+
+    const v9, 0xFFFFFFFF
+    invoke-virtual {v11, v9}, Landroid/widget/TextView;->setTextColor(I)V
+
+    # Padding: 16dp H, 12dp V
+    const/high16 v9, 0x41800000  # 16.0f
+    mul-float v9, v8, v9
+    float-to-int v9, v9
+    const/high16 v10, 0x41400000  # 12.0f
+    mul-float v10, v8, v10
+    float-to-int v10, v10
+    invoke-virtual {v11, v9, v10, v9, v10}, Landroid/widget/Button;->setPadding(IIII)V
+
+    # LP: MATCH_PARENT x WRAP_CONTENT with 16dp margins
+    new-instance v9, Landroid/widget/LinearLayout$LayoutParams;
+    const/4 v10, -0x1  # MATCH_PARENT
+    const/4 v7, -0x2  # WRAP_CONTENT
+    invoke-direct {v9, v10, v7}, Landroid/widget/LinearLayout$LayoutParams;-><init>(II)V
+    const/high16 v7, 0x41800000  # 16.0f
+    mul-float v7, v8, v7
+    float-to-int v7, v7  # 16dp margins
+    invoke-virtual {v9, v7, v7, v7, v7}, Landroid/widget/LinearLayout$LayoutParams;->setMargins(IIII)V
+    invoke-virtual {v2, v11, v9}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V
+
+    # OnClickListener: call GogDownloadManager.startDownload then dismiss
+    # Build a simple anonymous click: we need dialog reference to dismiss.
+    # Use GogGamesFragment$6 as the install click listener.
+    new-instance v9, Lcom/xj/landscape/launcher/ui/menu/GogGamesFragment$6;
+    invoke-direct {v9, v0, v1}, Lcom/xj/landscape/launcher/ui/menu/GogGamesFragment$6;-><init>(Landroid/content/Context;Lcom/xj/landscape/launcher/ui/menu/GogGame;)V
+    invoke-virtual {v11, v9}, Landroid/view/View;->setOnClickListener(Landroid/view/View$OnClickListener;)V
 
     # ── AlertDialog ───────────────────────────────────────────────────────────
     new-instance v6, Landroid/app/AlertDialog$Builder;

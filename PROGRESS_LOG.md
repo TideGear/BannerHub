@@ -4,6 +4,51 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [beta] — v2.7.0-beta30 — feat: Task #6 Gen 2 GOG download pipeline (2026-03-21)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta30
+**Commit:** `(pending)`
+**What changed:** Full Gen 2 GOG download pipeline. New `GogDownloadManager.smali` (static `startDownload(Context, GogGame)`), `GogDownloadManager$1.smali` (7-step Runnable: builds API → compressed manifest → depot manifests → secure CDN link → chunk download with retry → zlib assembly → finalize), `GogGamesFragment$6.smali` (Install button click listener). Added "Install" button (dark green) to game detail dialog in `GogGamesFragment$3.smali`.
+**Files touched:** `GogDownloadManager.smali` (new), `GogDownloadManager$1.smali` (new), `GogGamesFragment$3.smali` (Install button added), `GogGamesFragment$6.smali` (new)
+**CI result:** (pending)
+
+---
+
+## [beta] — v2.7.0-beta29 — feat: Task #5 define GOG install path files/gog_games/{installDirectory}/ (2026-03-21)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta29
+**Commit:** `d4a887f`
+**What changed:** New `GogInstallPath.smali` — static `getInstallDir(Context, String) -> File` returning `{filesDir}/gog_games/{installDirectory}`. Sibling to `files/Steam/`. Called by Task #6 download pipeline.
+**Files touched:** `GogInstallPath.smali` (new)
+**CI result:** ✅ run 23391795871
+
+---
+
+## [beta] — v2.7.0-beta28 — feat: Task #4 proactive token expiry check before library fetch (2026-03-21)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta28
+**Commit:** `36d724d`
+**What changed:** At start of `GogGamesFragment$1.run()`, read `bh_gog_login_time`+`bh_gog_expires_in` from SP; if `currentTime >= loginTime+expiresIn`, call `GogTokenRefresh.refresh()` proactively; use fresh token for all subsequent calls. loginTime=0 treated as expired → one-time refresh for pre-beta23 sessions. On refresh failure, proceeds with old token (401 retry handles it).
+**Files touched:** `GogGamesFragment$1.smali`
+**CI result:** ✅ run 23391595779
+
+---
+
+## [beta] — v2.7.0-beta27 — fix: NoSuchFieldError crash — $2 still referenced removed rating/dlcCount fields (2026-03-21)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta27
+**Commit:** `812f17d`
+**What changed:** `GogGamesFragment$2` card meta line still accessed `GogGame.rating` and `GogGame.dlcCount` which were removed in beta26. Caused `NoSuchFieldError` crash on GOG tab open. Replaced with `GogGame.developer` — card subtitle now shows "Category · Developer".
+**Files touched:** `GogGamesFragment$2.smali`
+**CI result:** ✅ run 23391493572
+
+---
+
+## [beta] — v2.7.0-beta26 — feat: Task #3 two-step GOG library sync with org.json + description/developer (2026-03-21)
+**Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta26
+**Commit:** `9774025`
+**What changed:** Replaced single `getFilteredProducts` call + manual indexOf parsing with proper two-step fetch: Step 1 `GET embed.gog.com/user/data/games` → owned ID list; Step 2 per-ID `GET api.gog.com/products/{id}?expand=downloads,description` → full product JSON parsed via `org.json.JSONObject/JSONArray`. `GogGame` now has `description`/`developer` fields (removed `rating`/`dlcCount`). Dialog shows Genre+Developer in info TV and a new description TV (Html.fromHtml, max 5 lines). Inner per-product try/catch skips one bad product without bailing the whole loop.
+**Files touched:** `GogGame.smali`, `GogGamesFragment$1.smali`, `GogGamesFragment$3.smali`
+**CI result:** ✅ run 23391361724
+
+---
+
 ## [beta] — v2.7.0-beta25 — fix: request focus on first card for D-pad/controller nav (2026-03-21)
 **Branch:** `gog-beta`  |  **Tag:** v2.7.0-beta25
 **What changed:** `ScrollView.arrowScroll()` only moves focus when `findFocus()` returns a non-null anchor. With no view focused after list load, the first D-pad press just scrolled instead of selecting a card. Fix: after the card loop, `requestFocus()` called on `getChildAt(0)` so first card is focused on load. `setFocusable(true)` (beta24) was necessary but not sufficient — this completes the fix.

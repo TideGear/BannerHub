@@ -30,6 +30,114 @@ Each entry covers one logical change unit (commit or closely related set of comm
 
 ---
 
+## Entry 101 — feat: Task #6 Gen 2 GOG download pipeline (v2.7.0-beta30, gog-beta)
+**Date:** 2026-03-21
+**Branch:** gog-beta  |  **Tag:** v2.7.0-beta30
+
+### Changes
+Full Gen 2 GOG download pipeline implemented as smali classes in smali_classes16.
+
+**`GogDownloadManager.smali`** [NEW] — static entry point, `startDownload(Context, GogGame)` spawns Thread(GogDownloadManager$1).
+
+**`GogDownloadManager$1.smali`** [NEW] — background Runnable, `.locals 16` + `move-object/from16 v0, p0` bridge. Methods:
+- `run()` — 7-step pipeline: (1) builds API pick windows gen2, (2) fetch+decompress build manifest (gzip/zlib/plain magic detection), (3) per-depot fetch+decompress meta + language filter (*/en-US/en/english), (4) secure CDN link, (5+6) per-file: download chunks → assemble, (7) `_gog_manifest.json` + cleanup
+- `httpGet(String url, String token)` → String — UTF-8 line reader
+- `fetchBytes(String url, String token)` → `[B` — raw bytes (for compressed manifests)
+- `decompressBytes([B)` → String — gzip (0x1F 0x8B), zlib (0x78 xx), or plain UTF-8
+- `buildCdnPath(String hash)` → String — `"abcdef..." → "ab/cd/abcdef..."`
+- `parseCdnUrl(String json)` → String — `{param}` placeholder fill + `/{path}` strip
+- `processDepotManifest(String json, ArrayList filesList)` — DepotFile collection, skips DepotDirectory/DepotLink and support-flagged files
+- `assembleFile(JSONObject fileObj, File installDir, String baseCdnUrl, File chunkDir)` — per-file chunk download + zlib Inflater decompress + FileOutputStream append
+- `downloadChunk(String url, File dest)` → boolean — 3 retries, 2s/4s/8s backoff
+- `readFile(File)` → `[B` — reads file to byte array
+- `showToast(String)` — main-thread Toast
+- `deleteDir(File)` — recursive delete
+
+**`GogGamesFragment$6.smali`** [NEW] — OnClickListener for Install button: calls `GogDownloadManager.startDownload(context, game)` + Toast.
+
+**`GogGamesFragment$3.smali`** [MOD] — `.locals 11→12`; Install button (dark green, MATCH_PARENT) added before AlertDialog; wired to `GogGamesFragment$6`.
+
+### Files created / modified
+- `patches/smali_classes16/.../GogDownloadManager.smali` [NEW]
+- `patches/smali_classes16/.../GogDownloadManager$1.smali` [NEW]
+- `patches/smali_classes16/.../GogGamesFragment$3.smali` [MOD]
+- `patches/smali_classes16/.../GogGamesFragment$6.smali` [NEW]
+
+**Commit:** `(pending)`
+**CI result:** (pending)
+
+---
+
+## Entry 100 — feat: Task #5 GOG install path helper (v2.7.0-beta29, gog-beta)
+**Date:** 2026-03-21
+**Branch:** gog-beta  |  **Tag:** v2.7.0-beta29
+
+### Changes
+New `GogInstallPath.smali` — single static method `getInstallDir(Context, String) -> File`. Returns `new File(new File(ctx.getFilesDir(), "gog_games"), installDirectory)`. Path is `{filesDir}/gog_games/{installDirectory}/` — sibling to `files/Steam/`, not inside Wine prefix.
+
+### Files created
+- `patches/smali_classes16/.../GogInstallPath.smali` [NEW]
+
+**Commit:** `d4a887f`
+**CI result:** [CI✅] run 23391795871
+
+---
+
+## Entry 099 — feat: Task #4 proactive token expiry check (v2.7.0-beta28, gog-beta)
+**Date:** 2026-03-21
+**Branch:** gog-beta  |  **Tag:** v2.7.0-beta28
+
+### Changes
+At the top of `GogGamesFragment$1.run()` (before the first HTTP call): read `bh_gog_login_time` + `bh_gog_expires_in` from `bh_gog_prefs`; compute `threshold = loginTime + expiresIn`; get `currentTime = currentTimeMillis()/1000` (wide long → int via div-long + long-to-int); if `currentTime >= threshold`, call `GogTokenRefresh.refresh(context)` and update `v1` (access_token) with fresh result. Falls through to `:expiry_skip` on null context, null refresh result, or non-expired token. Uses registers v3-v11 (within the 16-register budget).
+
+### Files modified
+- `patches/smali_classes16/.../GogGamesFragment$1.smali`
+
+**Commit:** `36d724d`
+**CI result:** [CI✅] run 23391595779
+
+---
+
+## Entry 098 — fix: NoSuchFieldError crash from removed rating/dlcCount in $2 (v2.7.0-beta27, gog-beta)
+**Date:** 2026-03-21
+**Branch:** gog-beta  |  **Tag:** v2.7.0-beta27
+
+### Root-cause analysis
+beta26 removed `GogGame.rating` and `GogGame.dlcCount` fields and updated `$1` and `$3`. `GogGamesFragment$2` was missed — it still had `iget-object v14, v6, GogGame->rating` and `iget-object v14, v6, GogGame->dlcCount` in the card meta string builder. At runtime, Dalvik field lookup threw `NoSuchFieldError` and crashed the main thread.
+
+### Fix
+Replaced rating+dlcCount meta block with `GogGame.developer`. Card subtitle now: `"Category · Developer"`.
+
+### Files modified
+- `patches/smali_classes16/.../GogGamesFragment$2.smali` — meta string uses developer field
+
+**Commit:** `812f17d`
+**CI result:** [CI✅] run 23391493572
+
+---
+
+## Entry 097 — feat: Task #3 two-step GOG library sync, org.json, description/developer (v2.7.0-beta26, gog-beta)
+**Date:** 2026-03-21
+**Branch:** gog-beta  |  **Tag:** v2.7.0-beta26
+
+### Root-cause analysis
+The previous `getFilteredProducts` endpoint does not include `description`, `developers`, or `genres` per game. Switching to the two-step approach (`user/data/games` → owned IDs → per-ID `products/{id}?expand=downloads,description`) gives access to the full product metadata. The old manual `indexOf` string parsing was also fragile — switching to `org.json.JSONObject`/`JSONArray` with `opt*` methods is both safer and cleaner.
+
+### Changes
+- `GogGame.smali`: removed `rating` + `dlcCount` fields; added `description` + `developer` fields
+- `GogGamesFragment$1.smali`: full rewrite — two-step fetch; `org.json` parsing with `optString`/`optBoolean`/`optJSONObject`/`optJSONArray`; inner `try_product_start..try_product_end` + `.catch Exception :loop_next` so bad product JSON skips only that game; filters: skip ID `1801418160`, `is_secret=true`, `game_type=dlc`, empty title; token-refresh retry path unchanged; `.locals 16` with `move-object/from16 v15, p0` bridge
+- `GogGamesFragment$3.smali`: info TV now Genre+Developer (was Genre+Rating+DLC); new description TV via `Html.fromHtml(String, int)` (max 5 lines, 12sp, gray #AAAAAA); placed between info TV and store URL TV
+
+### Files modified
+- `patches/smali_classes16/.../GogGame.smali`
+- `patches/smali_classes16/.../GogGamesFragment$1.smali`
+- `patches/smali_classes16/.../GogGamesFragment$3.smali`
+
+**Commit:** `9774025`
+**CI result:** [CI✅] run 23391361724
+
+---
+
 ## Entry 096 — fix: request initial focus on first card for D-pad nav (v2.7.0-beta25, gog-beta)
 **Date:** 2026-03-21
 **Branch:** gog-beta  |  **Tag:** v2.7.0-beta25
