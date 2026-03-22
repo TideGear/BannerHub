@@ -1807,3 +1807,20 @@ ART 14 blocks cross-dex private field access. `DialogSettingListItemEntity` is i
 - `GogGamesFragment$7.smali`: replaced WineActivityData + PcGameSetupActivity launch with `LandscapeLauncherMainActivity.B3(exePath)` call, which triggers the built-in `EditImportedGameInfoDialog` (Import Game flow). Uses the full absolute exe path stored in `gog_exe_` SP key.
 #### Files touched
 - `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/GogGamesFragment$7.smali`
+
+### [feat] — v2.7.0-beta43/44 — In-dialog download progress bar (2026-03-22)
+**Commit:** `030cc9b` (beta43 — CI fail) → `c274659` (beta44 — CI ✅)  |  **Tag:** v2.7.0-beta44
+#### What changed
+- Install button moved from AlertDialog negative button into content LinearLayout — dialog stays open during download
+- `GogDownloadManager$3.smali` (new): UI-thread Runnable updates ProgressBar + status TextView; hides bar at 100%
+- `GogDownloadManager$1.smali`: added d/e/f fields (ProgressBar, TextView, Handler); added `postProgress()` helper; replaced 6 progress/completion showToast calls with postProgress calls (5%→20%→40%→45%→85%→90%→100%+checkmark)
+- `GogDownloadManager.smali`: updated startDownload() signature to `(Context, GogGame, ProgressBar, TextView)`
+- `GogGamesFragment$6.smali`: now View.OnClickListener; shows ProgressBar, disables button, calls updated startDownload()
+- `GogGamesFragment$3.smali`: Install button in content, ProgressBar + status TextView added; setNegativeButton removed; dialog now [Launch][Close] only
+- **Fix:** `const/4 v9, 0x8` → `const/16` — View.GONE=8 is out of const/4 range (-8 to 7)
+#### Files touched
+- `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/GogDownloadManager$3.smali` (new)
+- `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/GogDownloadManager$1.smali`
+- `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/GogDownloadManager.smali`
+- `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/GogGamesFragment$6.smali`
+- `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/GogGamesFragment$3.smali`
