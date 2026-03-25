@@ -2,6 +2,14 @@
 
 **GameHub 5.3.5 ReVanced** — extended with a full Component Manager, in-app component downloader, GOG Games tab, in-game performance toggles, RTS touch controls, VRAM unlock, per-game CPU core affinity, root access management, offline Steam launch, and more. Built entirely with apktool smali patching — no source code, no external library injection.
 
+## AI Disclaimer
+
+All smali edits, patches, and code changes in this project are developed with the assistance of **[Claude AI Sonnet 4.6](https://www.anthropic.com/claude)** by Anthropic. Claude is used to write, review, and modify smali bytecode since this project has no source code to work from — all changes are applied directly to the decompiled APK via apktool.
+
+Before any stable release is published, all changes are manually debugged and tested by me across multiple devices — both rooted and unrooted. Debugging is done using logcat output and in-app debug log files to diagnose and verify behavior before changes are finalized.
+
+---
+
 ## Video — Installation & Feature Showcase
 
 [![BannerHub Installation & Features](https://img.youtube.com/vi/Vwv8YNnWWdg/maxresdefault.jpg)](https://youtu.be/Vwv8YNnWWdg?si=Ypz66yMU8ZQUngU9)
@@ -423,11 +431,3 @@ All APKs are signed with AOSP testkey (`testkey.pk8` / `testkey.x509.pem`), v1 +
 ---
 
 <sub>☕ [Support on Ko-fi](https://ko-fi.com/the412banner)</sub>
-
----
-
-## AI Disclaimer
-
-All smali edits, patches, and code changes in this project are developed with the assistance of **[Claude AI Sonnet 4.6](https://www.anthropic.com/claude)** by Anthropic. Claude is used to write, review, and modify smali bytecode since this project has no source code to work from — all changes are applied directly to the decompiled APK via apktool.
-
-Before any stable release is published, all changes are manually debugged and tested by me across multiple devices — both rooted and unrooted. Debugging is done using logcat output and in-app debug log files to diagnose and verify behavior before changes are finalized.
