@@ -1064,20 +1064,71 @@ public class GogGamesActivity extends Activity {
         AlertDialog.Builder b = new AlertDialog.Builder(this);
         b.setTitle(game.title);
 
+        // Custom view: message text + optional Set .exe button
+        android.widget.LinearLayout container = new android.widget.LinearLayout(this);
+        container.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int pad = dp(20);
+        container.setPadding(pad, dp(8), pad, dp(4));
+
         StringBuilder msg = new StringBuilder();
         if (!game.developer.isEmpty()) msg.append("Developer: ").append(game.developer).append("\n");
         if (!game.category.isEmpty())  msg.append("Genre: ").append(game.category).append("\n");
         if (!game.description.isEmpty()) msg.append("\n").append(game.description);
-        b.setMessage(msg.toString().trim());
 
-        b.setPositiveButton("Close", null);
+        android.widget.TextView msgView = new android.widget.TextView(this);
+        msgView.setText(msg.toString().trim());
+        msgView.setTextColor(0xFFCCCCCC);
+        container.addView(msgView);
 
         String installedExe = prefs.getString("gog_exe_" + game.gameId, null);
-        if (installedExe != null) {
+        String dirName      = prefs.getString("gog_dir_" + game.gameId, null);
+
+        if (installedExe != null && dirName != null) {
+            android.widget.TextView exeView = new android.widget.TextView(this);
+            exeView.setText("\n.exe: " + new java.io.File(installedExe).getName());
+            exeView.setTextColor(0xFF888888);
+            exeView.setTextSize(12f);
+            container.addView(exeView);
+
+            Button setExeBtn = new Button(this);
+            setExeBtn.setText("Set .exe\u2026");
+            setExeBtn.setTextColor(0xFFFFFFFF);
+            setExeBtn.setBackgroundColor(0xFF444444);
+            android.widget.LinearLayout.LayoutParams lp =
+                    new android.widget.LinearLayout.LayoutParams(-2, -2);
+            lp.topMargin = dp(10);
+            setExeBtn.setOnClickListener(v -> {
+                java.io.File installPath = GogInstallPath.getInstallDir(this, dirName);
+                new Thread(() -> {
+                    java.util.List<String> candidates =
+                            GogDownloadManager.collectExeCandidates(installPath);
+                    if (candidates.isEmpty()) {
+                        uiHandler.post(() -> Toast.makeText(this,
+                                "No .exe files found in install directory",
+                                Toast.LENGTH_SHORT).show());
+                        return;
+                    }
+                    showExePicker(candidates, selected -> {
+                        if (selected != null && !selected.isEmpty()) {
+                            prefs.edit().putString("gog_exe_" + game.gameId, selected).apply();
+                            uiHandler.post(() -> {
+                                exeView.setText("\n.exe: " + new java.io.File(selected).getName());
+                                Toast.makeText(this,
+                                        "Exe set to: " + new java.io.File(selected).getName(),
+                                        Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                    });
+                }).start();
+            });
+            container.addView(setExeBtn, lp);
+
             b.setNegativeButton("Uninstall", (dialog, which) -> uninstall(game, checkmark, actionBtn));
             b.setNeutralButton("Copy to Downloads", (dialog, which) -> copyToDownloads(game));
         }
 
+        b.setView(container);
+        b.setPositiveButton("Close", null);
         b.show();
     }
 
