@@ -239,7 +239,7 @@
     invoke-virtual {v0, p1}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
     const v1, -0x1       # white = 0xFFFFFFFF
     invoke-virtual {v0, v1}, Landroid/widget/TextView;->setTextColor(I)V
-    const/high16 v1, 0x4150   # 13.0f sp
+    const/high16 v1, 0x41500000   # 13.0f sp
     invoke-virtual {v0, v1}, Landroid/widget/TextView;->setTextSize(F)V
     const/16 v1, 0x6
     invoke-virtual {v0, v1, v1, v1, v1}, Landroid/widget/TextView;->setPadding(IIII)V
@@ -254,7 +254,7 @@
     invoke-virtual {v0, p1}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
     const v1, -0x3400    # yellow = 0xFFFFCC00
     invoke-virtual {v0, v1}, Landroid/widget/TextView;->setTextColor(I)V
-    const/high16 v1, 0x4160   # 14.0f sp
+    const/high16 v1, 0x41600000   # 14.0f sp
     invoke-virtual {v0, v1}, Landroid/widget/TextView;->setTextSize(F)V
     const/16 v1, 0x4
     const/16 v2, 0xC
@@ -303,7 +303,7 @@
     const-string v3, "Wine Task Manager"
     invoke-static {v0, v3}, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->makeHeaderText(Landroid/content/Context;Ljava/lang/String;)Landroid/widget/TextView;
     move-result-object v3
-    const/high16 v4, 0x4180   # 16.0f sp (larger for title)
+    const/high16 v4, 0x41800000   # 16.0f sp (larger for title)
     invoke-virtual {v3, v4}, Landroid/widget/TextView;->setTextSize(F)V
     invoke-virtual {v2, v3}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
 
@@ -507,7 +507,7 @@
     invoke-virtual {v7, v8}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
     const v8, -0x1     # white
     invoke-virtual {v7, v8}, Landroid/widget/TextView;->setTextColor(I)V
-    const/high16 v8, 0x4140   # 12.0f sp (compact for process list)
+    const/high16 v8, 0x41400000   # 12.0f sp (compact for process list)
     invoke-virtual {v7, v8}, Landroid/widget/TextView;->setTextSize(F)V
     # LP: width=0, height=WRAP_CONTENT, weight=1
     new-instance v8, Landroid/widget/LinearLayout$LayoutParams;
@@ -528,7 +528,7 @@
     invoke-virtual {v10, v8}, Landroid/widget/Button;->setText(Ljava/lang/CharSequence;)V
     const v8, -0x1    # white text
     invoke-virtual {v10, v8}, Landroid/widget/Button;->setTextColor(I)V
-    const/high16 v8, 0x4140   # 12.0f sp
+    const/high16 v8, 0x41400000   # 12.0f sp
     invoke-virtual {v10, v8}, Landroid/widget/Button;->setTextSize(F)V
     new-instance v11, Lcom/xj/winemu/sidebar/BhTaskManagerFragment$KillListener;
     invoke-direct {v11, v5, p0}, Lcom/xj/winemu/sidebar/BhTaskManagerFragment$KillListener;-><init>(ILcom/xj/winemu/sidebar/BhTaskManagerFragment;)V
