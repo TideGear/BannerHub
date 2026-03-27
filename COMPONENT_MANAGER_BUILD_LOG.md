@@ -3733,6 +3733,32 @@ AlertDialog with radio buttons pre-selected from the current `api_source` pref.
 
 ---
 
+## Entry 84 — v2.7.4-pre4 — Wine Task Manager container-accurate CPU + RAM (2026-03-27)
+**Commit:** `3e444a792`  |  **Tag:** v2.7.4-pre4  |  **Branch:** main  |  **[CI✅]** run 23664109023
+
+**Root-cause analysis:**
+CPU and RAM rows in Task Manager showed device-wide values (Runtime.availableProcessors() / /proc/meminfo totals), not what is configured per container. EnvironmentController sets `WINEMU_CPU_AFFINITY` (affinity bitmask int) and `WINEMU_MEMORY_LIMIT` (MB int) as env vars in the `:wine` process before launch. Since BhTaskManagerFragment runs in that same process, `System.getenv()` reads them directly.
+
+**Files modified:**
+- `[MOD]` `patches/smali_classes16/com/xj/winemu/sidebar/BhTaskManagerFragment.smali`
+
+**Methods added:**
+- `getContainerCpuInfo()Ljava/lang/String;` (.locals 5): reads `WINEMU_CPU_AFFINITY` → `Integer.parseInt()` → `Integer.bitCount()` for assigned core count; 0 = no limit (fallback to `getActiveCores()`); returns "CPU Cores:  X / Y total"
+- `getContainerRamInfo()Ljava/lang/String;` (.locals 10): reads `/proc/meminfo` for usedMb/totalMb; reads `WINEMU_MEMORY_LIMIT` → if set+nonzero returns "X MB used / Y MB limit", else "X MB used / Y MB total"; two try-catch blocks (RAF read + env parse)
+
+**Methods removed:**
+- `getRamInfo()Ljava/lang/String;` — replaced entirely by `getContainerRamInfo()`
+
+**Methods changed:**
+- `onCreateView()` — CPU row: replaced 14-line inline StringBuilder with `invoke-static getContainerCpuInfo()`; RAM row: calls `getContainerRamInfo()` instead of `getRamInfo()`
+
+**Key smali notes:**
+- `append(J)` long pair: {sb, lo, hi} e.g. {v6, v4, v5} — v4-v5 must be a consecutive long pair
+- v8 needed in limit path for " MB used / " string to avoid clobbering v7 (limitMb int)
+- Branches from within try block to label outside try block (e.g. `:no_limit`, `:build_cpu_str`) are valid smali; try-catch only catches exceptions
+
+---
+
 ## Entry 83 — v2.7.4-pre4 — Wine Task Manager three-tab UI (2026-03-27)
 
 **Files touched:**

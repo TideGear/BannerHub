@@ -4,9 +4,20 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
-## [pre] — v2.7.4-pre4 — Wine Task Manager: always-visible Container Info + two tabs (2026-03-27)
+## [pre] — v2.7.4-pre4 — Wine Task Manager: container-accurate CPU + RAM (2026-03-27)
 **Branch:** `main`  |  **Tag:** v2.7.4-pre4
-**Commit:** `52b99d47c`
+**Commit:** `3e444a792`  |  **CI:** ✅ run 23664109023
+**What changed:**
+- `getContainerCpuInfo()`: reads `WINEMU_CPU_AFFINITY` bitmask → `Integer.bitCount()` for assigned cores; falls back to `/proc/stat` count if unset/0; shows "CPU Cores: X / Y total"
+- `getContainerRamInfo()`: reads `/proc/meminfo` for used MB + `WINEMU_MEMORY_LIMIT` env var for limit; shows "X MB used / Y MB limit" or "X MB used / Y MB total"
+- Removed `getRamInfo()` (replaced)
+- `onCreateView` CPU row: replaced 14-line inline StringBuilder block with single `invoke-static getContainerCpuInfo()`
+- `onCreateView` RAM row: calls `getContainerRamInfo()` instead of `getRamInfo()`
+
+---
+
+## [pre] — v2.7.4-pre4 — Wine Task Manager: always-visible Container Info + two tabs (2026-03-27)
+**Branch:** `main`  |  **Tag:** v2.7.4-pre4 (earlier commits)
 **What changed:**
 - Wine Task Manager: Container Info (CPU/RAM/VRAM) always visible at top of panel
 - Two tabs below: Applications (Wine infra non-.exe) + Processes (Windows .exe)
