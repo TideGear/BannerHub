@@ -3691,3 +3691,23 @@ Porting BannerHub (5.3.5 smali) UI upgrades to BannerHub Lite (5.1.4 Java extens
 2. **FPS still 1**: `WinUIBridge.M()` internally calls `ProfilePuller.Companion.a().c()` — which is GPU ratio (0.0-1.0), exactly the same wrong path. Real FPS source: `WineActivity.j` field → `HudDataProvider.a()` which returns the averaged FPS from a sampled LinkedList (the same data GameHub's HUD displays). Fixed via reflection on field `j` then method `a`.
 
 **CI:** v2.7.5-pre (re-tagged)
+
+## Entry 81 — v2.7.6-pre — 3-way API selector: GameHub / EmuReady / BannerHub (2026-03-27)
+
+**Files touched:**
+- `patches/smali_classes6/app/revanced/extension/gamehub/prefs/GameHubPrefs.smali`
+
+**What changed:**
+- Replaced boolean `use_external_api` with int `api_source` (0=GameHub default, 1=EmuReady, 2=BannerHub)
+- Added `getApiSource()I` method — reads `api_source` int from prefs
+- `isExternalAPI()` now delegates to `getApiSource() != 0` — all 5 call sites unchanged
+- `toggleAPI()` now cycles 0→1→2→0 via (current+1)%3 instead of XOR flip
+- `getEffectiveApiUrl()`: 3-way URL branch — BannerHub = `https://bannerhub-api.the412banner.workers.dev/`
+- Startup mismatch check: `last_api_source` now stored as int (was boolean); uses `getInt`/`putInt`
+- `handleSettingToggle()` for CONTENT_TYPE_API: 3-way toast messages; returns `isExternalAPI()` for switch visual
+- `getCustomSettingName()`: row label changed from "EmuReady API" to "Compatibility API"
+- Added `BANNERHUB_URL` field
+
+**UX:** Tap the "Compatibility API" row in settings to cycle. Toast confirms selection. Switch ON = non-GameHub selected.
+
+**CI:** v2.7.6-pre
