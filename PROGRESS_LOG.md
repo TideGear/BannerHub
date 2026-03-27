@@ -4,6 +4,35 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [stable] — v2.7.3 — Cancel download, exe picker, Set .exe in detail dialog (2026-03-26)
+**Branch:** `main`  |  **Tag:** v2.7.3
+**Commit:** `b0445ba48`
+**What changed:**
+- Install confirmation dialog (size + free storage) before any GOG download
+- Cancel download button: red Cancel during download, stops thread + deletes partial files
+- Exe picker dialog post-install: auto-select if 1 candidate; dialog if 2+
+- Set .exe button in game detail dialog: re-scan install dir, pick, save, label updates live
+- README updated for all 4 features
+**Files touched:** `extension/GogDownloadManager.java`, `extension/GogGamesActivity.java`, `README.md`
+**CI result:** ✅ run 23600668664 (9 APKs)
+
+---
+
+## [pre] — v2.7.3-pre — Set .exe button in GOG game detail dialog (2026-03-26)
+**Branch:** `main`  |  **Tag:** v2.7.3-pre (retagged)
+**Commit:** `b0445ba48`
+**What changed:**
+- showDetailDialog replaced setMessage with custom LinearLayout view
+- When installed: shows current .exe filename label + "Set .exe…" button
+- Button scans install dir via GogDownloadManager.collectExeCandidates(), shows showExePicker()
+- On selection: saves new path to gog_exe_{gameId} prefs, updates .exe label live, shows Toast
+- Handles empty candidate list gracefully with Toast error
+- Uninstall + Copy to Downloads buttons unchanged
+**Files touched:** `extension/GogGamesActivity.java`
+**CI result:** queued run 23600303291
+
+---
+
 ## [pre] — v2.7.3-pre — GOG exe picker dialog (2026-03-26)
 **Branch:** `main`  |  **Tag:** v2.7.3-pre (retagged)
 **Commit:** `f16603864`
