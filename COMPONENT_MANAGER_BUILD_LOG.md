@@ -3733,14 +3733,15 @@ AlertDialog with radio buttons pre-selected from the current `api_source` pref.
 
 ---
 
-## Entry 83 — v2.7.4-pre4 — Wine Task Manager sidebar tab (2026-03-27)
+## Entry 83 — v2.7.4-pre4 — Wine Task Manager three-tab UI (2026-03-27)
 
 **Files touched:**
 - [NEW] `patches/res/drawable/sidebar_taskmanager.xml`
 - [NEW] `patches/res/layout/winemu_activitiy_settings_layout.xml`
 - [MOD] `patches/res/values/public.xml` — added id/sidebar_taskmanager (0x7f0a0f10) + drawable/sidebar_taskmanager (0x7f080b4e)
+- [NEW] `patches/smali_classes16/com/xj/winemu/sidebar/BhTabListener.smali`
 - [NEW] `patches/smali_classes16/com/xj/winemu/sidebar/BhTaskClickListener.smali`
-- [NEW] `patches/smali_classes16/com/xj/winemu/sidebar/BhTaskManagerFragment.smali`
+- [MOD] `patches/smali_classes16/com/xj/winemu/sidebar/BhTaskManagerFragment.smali` — complete rewrite for three-tab UI
 - [NEW] `patches/smali_classes16/com/xj/winemu/sidebar/BhTaskManagerFragment$KillListener.smali`
 - [NEW] `patches/smali_classes16/com/xj/winemu/sidebar/BhTaskManagerFragment$RefreshListener.smali`
 - [NEW] `patches/smali_classes16/com/xj/winemu/sidebar/BhTaskManagerFragment$ScanRunnable.smali`
@@ -3748,22 +3749,31 @@ AlertDialog with radio buttons pre-selected from the current `api_source` pref.
 - [MOD] `patches/smali_classes3/com/xj/winemu/sidebar/WineActivityDrawerContent.smali`
 
 **Root cause / motivation:**
-User requested a new in-game sidebar tab for Wine process management and container info.
-classes6 and classes9 are both at 65535 method-ref limit — all new code placed in smali_classes16.
+User confirmed Wine Task Manager working, then requested three-tab UI: Applications (.exe), Processes (wine infra), Performance (CPU/RAM/VRAM).
+classes6 and classes9 are both at 65535 method-ref limit — all new code in smali_classes16.
+
+**Bugs hit:**
+1. `const-wide/16 v2, 0x100000` — overflow (>16-bit signed); fixed to `const-wide/32`
+2. `const/high16 v1, 0x4150` — invalid; requires full 32-bit `0x41500000`
+3. `StringBuilder.append(J)` with 2 registers instead of 3 (long occupies lo+hi pair) → VerifyError
+4. Wrong `String.hashCode()` constant for "BhTaskManagerFragment" (manual calc off); corrected to `-0x37c3556e` via javac/java
+5. `.locals 14` in `onScanComplete` → p2 mapped to v16, invalid in non-range invoke; fixed to `.locals 13`
 
 **Methods added / changed:**
+- `BhTabListener.<init>(BhTaskManagerFragment,I)V` — stores fragment + tabIndex
+- `BhTabListener.onClick(View)V` — calls `fragment.showTab(tabIndex)`
 - `BhTaskClickListener.invoke()V` — Function0; calls `WineActivityDrawerContent.U("BhTaskManagerFragment")`
 - `BhTaskManagerFragment.<init>()V` — trivial Fragment constructor
-- `BhTaskManagerFragment.onCreateView()` — builds programmatic ScrollView UI: container info (CPU/RAM/VRAM), process list header, Refresh button, processListLayout
+- `BhTaskManagerFragment.showTab(I)V` — hides all 3 layout panels; shows selected one (0=apps, 1=procs, 2=perf)
+- `BhTaskManagerFragment.onCreateView()` — builds tab bar (3 weighted Buttons + ↺ refresh), appsLayout (VISIBLE), procsLayout (GONE), perfLayout (GONE with CPU/RAM/VRAM content)
 - `BhTaskManagerFragment.startScan()V` — spawns background Thread(ScanRunnable)
-- `BhTaskManagerFragment.onScanComplete(ArrayList,ArrayList)V` — clears+repopulates processListLayout with name TextViews + Kill buttons
+- `BhTaskManagerFragment.onScanComplete(ArrayList,ArrayList)V` — routes .exe → appsLayout, others → procsLayout; empty-state placeholders
 - `BhTaskManagerFragment$ScanRunnable.run()V` — reads /proc/*/comm, filters wine/.exe, posts UpdateRunnable
-- `BhTaskManagerFragment$ScanRunnable.readFirstLine(String)String` — RandomAccessFile first-line reader, null on exception
 - `BhTaskManagerFragment$UpdateRunnable.run()V` — calls onScanComplete on main thread
 - `BhTaskManagerFragment$KillListener.onClick(View)V` — Process.sendSignal(pid,9) + startScan()
 - `BhTaskManagerFragment$RefreshListener.onClick(View)V` — calls startScan()
-- `WineActivityDrawerContent.<init>(Context,AttributeSet,I)V` — added findViewById(0x7f0a0f10) + BhTaskClickListener setup after keyboard tab wiring
-- `WineActivityDrawerContent.U(String)V` — added hash check for -0x31c4b8be ("BhTaskManagerFragment") + new-instance + goto :goto_0
+- `WineActivityDrawerContent.<init>()` — added BhTaskClickListener for sidebar_taskmanager (0x7f0a0f10)
+- `WineActivityDrawerContent.U(String)` — hash -0x37c3556e check for "BhTaskManagerFragment"
 
-**Commit:** `7a36c3ea3`  |  **Tag:** v2.7.4-pre4
-**CI:** queued
+**Commit:** `44c53437d`  |  **Tag:** v2.7.4-pre4
+**CI:** [CI✅] run 23659625566

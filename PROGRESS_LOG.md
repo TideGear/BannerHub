@@ -4,21 +4,25 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
-## [pre] — v2.7.4-pre4 — Wine Task Manager sidebar tab (2026-03-27)
+## [pre] — v2.7.4-pre4 — Wine Task Manager three-tab UI (2026-03-27)
 **Branch:** `main`  |  **Tag:** v2.7.4-pre4
-**Commit:** `7a36c3ea3`
+**Commit:** `44c53437d`
 **What changed:**
-- New in-game sidebar tab: Wine Task Manager
-- Tab icon placed between Settings gear and keyboard icon (where user's arrow pointed)
-- Container info section: CPU active cores / total cores, RAM used/total (MB), VRAM (KGSL kgsl-3d0/gpumem_mapped → gpumem_alloc fallback → "N/A")
-- Wine processes list: scans /proc for comm names containing "wine" or ending ".exe"
-- Per-process Kill button (SIGKILL via android.os.Process.sendSignal)
-- Refresh button re-runs the scan
+- Wine Task Manager sidebar tab: upgraded from single list to three-tab UI
+  - **Applications tab**: .exe processes with PID + Kill button
+  - **Processes tab**: Wine infrastructure processes (non-.exe) with PID + Kill button
+  - **Performance tab**: CPU cores active/total, RAM used/total (MB), VRAM (KGSL sysfs)
+- BhTabListener: parameterised by tabIndex, calls fragment.showTab(I)
+- showTab(I): hides all three layout panels, shows selected one
+- onScanComplete: routes each process to appsLayout (.exe) or procsLayout
+- Empty-state placeholders shown when no processes in either list
+- Fix: .locals 14 → 13 in onScanComplete (p2 mapped to v16, invalid in standard invoke)
 - All new classes in smali_classes16 (classes6/classes9 at 65535 limit)
 #### Files touched
 - `patches/res/drawable/sidebar_taskmanager.xml` (new)
 - `patches/res/layout/winemu_activitiy_settings_layout.xml` (new tab item)
 - `patches/res/values/public.xml` (2 new IDs)
+- `patches/smali_classes16/com/xj/winemu/sidebar/BhTabListener.smali` (new)
 - `patches/smali_classes16/com/xj/winemu/sidebar/BhTaskClickListener.smali` (new)
 - `patches/smali_classes16/com/xj/winemu/sidebar/BhTaskManagerFragment.smali` (new)
 - `patches/smali_classes16/com/xj/winemu/sidebar/BhTaskManagerFragment$KillListener.smali` (new)
