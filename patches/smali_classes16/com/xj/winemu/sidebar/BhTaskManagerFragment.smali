@@ -49,9 +49,11 @@
     return-wide v0
 .end method
 
-# ── Build the RAM info string ────────────────────────────────────
-# Returns e.g. "4096 MB used / 7629 MB total"
-.method private static getRamInfo()Ljava/lang/String;
+# ── Build the RAM info string (container-accurate) ───────────────
+# Reads WINEMU_MEMORY_LIMIT env var for container limit.
+# Returns e.g. "4096 MB used / 6144 MB limit"  (limit set)
+#         or   "4096 MB used / 7629 MB total"   (no limit)
+.method private static getContainerRamInfo()Ljava/lang/String;
     .locals 10
     const-wide/16 v0, 0x0   # totalKb
     const-wide/16 v2, 0x0   # availKb
@@ -89,12 +91,42 @@
     :try_end_0
     .catch Ljava/lang/Exception; {:try_start_0 .. :try_end_0} :ram_err
 
-    # usedKb = totalKb - availKb; convert to MB
+    # usedMb = (totalKb - availKb) / 1024; totalMb = totalKb / 1024
     sub-long v4, v0, v2
     const-wide/16 v6, 0x400
-    div-long/2addr v4, v6
-    div-long/2addr v0, v6
+    div-long/2addr v4, v6   # v4-v5 = usedMb
+    div-long/2addr v0, v6   # v0-v1 = totalMb
 
+    # Try WINEMU_MEMORY_LIMIT for container RAM limit
+    :try_start_1
+    const-string v6, "WINEMU_MEMORY_LIMIT"
+    invoke-static {v6}, Ljava/lang/System;->getenv(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v6
+    if-eqz v6, :no_limit
+    invoke-virtual {v6}, Ljava/lang/String;->isEmpty()Z
+    move-result v7
+    if-nez v7, :no_limit
+    invoke-static {v6}, Ljava/lang/Integer;->parseInt(Ljava/lang/String;)I
+    move-result v7
+    if-eqz v7, :no_limit    # 0 means no limit
+    :try_end_1
+    .catch Ljava/lang/Exception; {:try_start_1 .. :try_end_1} :no_limit
+
+    # Has container limit: v7 = limitMb
+    new-instance v6, Ljava/lang/StringBuilder;
+    invoke-direct {v6}, Ljava/lang/StringBuilder;-><init>()V
+    invoke-virtual {v6, v4, v5}, Ljava/lang/StringBuilder;->append(J)Ljava/lang/StringBuilder;
+    const-string v8, " MB used / "
+    invoke-virtual {v6, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v7, " MB limit"
+    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v0
+    return-object v0
+
+    :no_limit
+    # No container limit: show used / device total
     new-instance v6, Ljava/lang/StringBuilder;
     invoke-direct {v6}, Ljava/lang/StringBuilder;-><init>()V
     invoke-virtual {v6, v4, v5}, Ljava/lang/StringBuilder;->append(J)Ljava/lang/StringBuilder;
@@ -109,6 +141,56 @@
 
     :ram_err
     const-string v0, "N/A"
+    return-object v0
+.end method
+
+# ── Build the CPU info string (container-accurate) ────────────────
+# Reads WINEMU_CPU_AFFINITY bitmask for assigned cores.
+# Returns e.g. "CPU Cores:  4 / 8 total"
+.method private static getContainerCpuInfo()Ljava/lang/String;
+    .locals 5
+    # v0 = affinityStr / result string
+    # v1 = assigned cores
+    # v2 = total cores (device)
+    # v3 = temp bool / int / StringBuilder
+    # v4 = temp String
+
+    # Default: use getActiveCores() for both
+    invoke-static {}, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->getActiveCores()I
+    move-result v1
+    invoke-static {}, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->getActiveCores()I
+    move-result v2
+
+    # Try WINEMU_CPU_AFFINITY
+    :try_start_0
+    const-string v0, "WINEMU_CPU_AFFINITY"
+    invoke-static {v0}, Ljava/lang/System;->getenv(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v0
+    if-eqz v0, :build_cpu_str
+    invoke-virtual {v0}, Ljava/lang/String;->isEmpty()Z
+    move-result v3
+    if-nez v3, :build_cpu_str
+    invoke-static {v0}, Ljava/lang/Integer;->parseInt(Ljava/lang/String;)I
+    move-result v3
+    if-eqz v3, :build_cpu_str  # 0 means no limit (all cores)
+    invoke-static {v3}, Ljava/lang/Integer;->bitCount(I)I
+    move-result v1              # assigned = number of set bits in affinity mask
+    :try_end_0
+    .catch Ljava/lang/Exception; {:try_start_0 .. :try_end_0} :build_cpu_str
+
+    :build_cpu_str
+    new-instance v3, Ljava/lang/StringBuilder;
+    invoke-direct {v3}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v4, "CPU Cores:  "
+    invoke-virtual {v3, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v3, v1}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v4, " / "
+    invoke-virtual {v3, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v3, v2}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+    const-string v4, " total"
+    invoke-virtual {v3, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v3}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v0
     return-object v0
 .end method
 
@@ -270,31 +352,15 @@
     move-result-object v3
     invoke-virtual {v2, v3}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
 
-    # CPU cores row
-    invoke-static {}, Ljava/lang/Runtime;->getRuntime()Ljava/lang/Runtime;
-    move-result-object v3
-    invoke-virtual {v3}, Ljava/lang/Runtime;->availableProcessors()I
-    move-result v3   # total cores
-    invoke-static {}, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->getActiveCores()I
-    move-result v4   # active cores
-    new-instance v5, Ljava/lang/StringBuilder;
-    invoke-direct {v5}, Ljava/lang/StringBuilder;-><init>()V
-    const-string v6, "CPU Cores:  "
-    invoke-virtual {v5, v6}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-    invoke-virtual {v5, v4}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
-    const-string v6, " active / "
-    invoke-virtual {v5, v6}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-    invoke-virtual {v5, v3}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
-    const-string v6, " total"
-    invoke-virtual {v5, v6}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-    invoke-virtual {v5}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    # CPU cores row (container-accurate: WINEMU_CPU_AFFINITY bitmask)
+    invoke-static {}, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->getContainerCpuInfo()Ljava/lang/String;
     move-result-object v3
     invoke-static {v0, v3}, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->makeInfoText(Landroid/content/Context;Ljava/lang/String;)Landroid/widget/TextView;
     move-result-object v3
     invoke-virtual {v2, v3}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
 
-    # RAM row
-    invoke-static {}, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->getRamInfo()Ljava/lang/String;
+    # RAM row (container-accurate: WINEMU_MEMORY_LIMIT env var)
+    invoke-static {}, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->getContainerRamInfo()Ljava/lang/String;
     move-result-object v3
     new-instance v4, Ljava/lang/StringBuilder;
     invoke-direct {v4}, Ljava/lang/StringBuilder;-><init>()V
