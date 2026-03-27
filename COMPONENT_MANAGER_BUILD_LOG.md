@@ -3733,6 +3733,23 @@ AlertDialog with radio buttons pre-selected from the current `api_source` pref.
 
 ---
 
+## Entry 87 — v2.7.4-pre6 — fix: VRam Limit read from SharedPreferences (2026-03-27)
+**Commit:** `2a51abc2b`  |  **Tag:** v2.7.4-pre6  |  **Branch:** main  |  **[CI✅]** run 23668107295
+
+**Root-cause analysis:**
+`WINEMU_MEMORY_LIMIT` env var is set by EnvironmentController.l() in the EnvVars map and passed to the native wine binary via execve. However, wine child processes (.exe) may not inherit it consistently, causing readWineEnv("WINEMU_MEMORY_LIMIT") to return null while readWineEnv("WINEMU_CPU_AFFINITY") works. The reliable source is the SharedPreferences file — the same source GameHub uses. SP file: `pc_g_setting<gameId>`, key: `pc_ls_max_memory` (int, MB). WineActivity stores gameId in field `u` (WineActivityData), field `a`.
+
+**Methods added:**
+- `getContainerVramInfo(Context)V` — new static method in `BhTaskManagerFragment.smali` (`.locals 3`): check-cast to WineActivity → iget WineActivityData (field u) → iget gameId (field a) → build SP name → getSharedPreferences → getInt("pc_ls_max_memory", 0) → "XXXX MB" / "Unlimited" / "N/A"
+
+**Methods changed:**
+- `onCreateView(...)` — VRam row: replaced readWineEnv block (20 lines) with invoke-static to getContainerVramInfo (3 lines)
+
+**Files modified:** 1
+- `patches/smali_classes16/com/xj/winemu/sidebar/BhTaskManagerFragment.smali`
+
+---
+
 ## Entry 86 — v2.7.4-pre5 — VRam Limit row in Container Info (2026-03-27)
 **Commit:** `0371035de`  |  **Tag:** v2.7.4-pre5  |  **Branch:** main  |  **[CI✅]** run 23667070420
 

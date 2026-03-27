@@ -4,6 +4,18 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [pre] — v2.7.4-pre6 — fix: VRam Limit from SharedPreferences (2026-03-27)
+**Branch:** `main`  |  **Tag:** v2.7.4-pre6
+**Commit:** `2a51abc2b`  |  **CI:** ✅ run 23668107295
+**What changed:**
+- VRam Limit: switched from readWineEnv("WINEMU_MEMORY_LIMIT") to SharedPreferences — WINEMU_MEMORY_LIMIT not reliably in wine child /proc/environ
+- New method getContainerVramInfo(Context): casts to WineActivity → WineActivityData.a (gameId) → SharedPreferences "pc_g_setting"+gameId → getInt("pc_ls_max_memory", 0)
+- Returns "XXXX MB", "Unlimited" (0), or "N/A" (exception)
+#### Files touched
+- `patches/smali_classes16/com/xj/winemu/sidebar/BhTaskManagerFragment.smali`
+
+---
+
 ## [pre] — v2.7.4-pre5 — VRam Limit row + Sys RAM rename in Container Info (2026-03-27)
 **Branch:** `main`  |  **Tag:** v2.7.4-pre5
 **Commit:** `0371035de`  |  **CI:** ✅ run 23667070420
