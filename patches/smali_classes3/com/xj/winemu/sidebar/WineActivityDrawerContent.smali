@@ -1046,8 +1046,8 @@
     .line 32
     if-eq v0, v1, :cond_0
 
-    # BhTaskManagerFragment hash = "BhTaskManagerFragment".hashCode() = -836091390 = -0x31c4b8be
-    const v1, -0x31c4b8be
+    # BhTaskManagerFragment hash = "BhTaskManagerFragment".hashCode() = -935548270 = -0x37c3556e
+    const v1, -0x37c3556e
     if-eq v0, v1, :cond_tm
 
     .line 33
