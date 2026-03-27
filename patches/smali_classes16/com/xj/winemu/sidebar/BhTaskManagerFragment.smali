@@ -49,12 +49,12 @@
     return-wide v0
 .end method
 
-# ── Build the RAM info string (container-accurate) ───────────────
-# Reads WINEMU_MEMORY_LIMIT env var for container limit.
-# Returns e.g. "4096 MB used / 6144 MB limit"  (limit set)
-#         or   "4096 MB used / 7629 MB total"   (no limit)
+# ── Build the RAM info string ─────────────────────────────────────
+# Reads /proc/meminfo for used/total device RAM.
+# (No per-container system RAM limit exists; WINEMU_MEMORY_LIMIT is VRam.)
+# Returns e.g. "4096 MB used / 7629 MB total"
 .method private static getContainerRamInfo()Ljava/lang/String;
-    .locals 10
+    .locals 8
     const-wide/16 v0, 0x0   # totalKb
     const-wide/16 v2, 0x0   # availKb
 
@@ -97,36 +97,6 @@
     div-long/2addr v4, v6   # v4-v5 = usedMb
     div-long/2addr v0, v6   # v0-v1 = totalMb
 
-    # Try WINEMU_MEMORY_LIMIT for container RAM limit
-    :try_start_1
-    const-string v6, "WINEMU_MEMORY_LIMIT"
-    invoke-static {v6}, Ljava/lang/System;->getenv(Ljava/lang/String;)Ljava/lang/String;
-    move-result-object v6
-    if-eqz v6, :no_limit
-    invoke-virtual {v6}, Ljava/lang/String;->isEmpty()Z
-    move-result v7
-    if-nez v7, :no_limit
-    invoke-static {v6}, Ljava/lang/Integer;->parseInt(Ljava/lang/String;)I
-    move-result v7
-    if-eqz v7, :no_limit    # 0 means no limit
-    :try_end_1
-    .catch Ljava/lang/Exception; {:try_start_1 .. :try_end_1} :no_limit
-
-    # Has container limit: v7 = limitMb
-    new-instance v6, Ljava/lang/StringBuilder;
-    invoke-direct {v6}, Ljava/lang/StringBuilder;-><init>()V
-    invoke-virtual {v6, v4, v5}, Ljava/lang/StringBuilder;->append(J)Ljava/lang/StringBuilder;
-    const-string v8, " MB used / "
-    invoke-virtual {v6, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
-    const-string v7, " MB limit"
-    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-    invoke-virtual {v6}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
-    move-result-object v0
-    return-object v0
-
-    :no_limit
-    # No container limit: show used / device total
     new-instance v6, Ljava/lang/StringBuilder;
     invoke-direct {v6}, Ljava/lang/StringBuilder;-><init>()V
     invoke-virtual {v6, v4, v5}, Ljava/lang/StringBuilder;->append(J)Ljava/lang/StringBuilder;
@@ -141,6 +111,151 @@
 
     :ram_err
     const-string v0, "N/A"
+    return-object v0
+.end method
+
+# ── Read env var from a wine child process's /proc/<pid>/environ ──
+# Scans /proc for the first .exe process, reads its environ (which is
+# null-byte delimited), and extracts the value for the given key.
+# Returns the value string, or null if not found.
+.method private static readWineEnv(Ljava/lang/String;)Ljava/lang/String;
+    .locals 9
+    # v0 = /proc File (temp)
+    # v1 = File[] proc entries
+    # v2 = array length
+    # v3 = loop index
+    # v4 = current File entry
+    # v5 = pid string / offset-0 const
+    # v6 = path string / bytes-read int / indexOf result / key prefix len
+    # v7 = byte[] buf / content String / temp int
+    # v8 = RAF / FileInputStream / comm string / bool / content String
+
+    new-instance v0, Ljava/io/File;
+    const-string v1, "/proc"
+    invoke-direct {v0, v1}, Ljava/io/File;-><init>(Ljava/lang/String;)V
+    invoke-virtual {v0}, Ljava/io/File;->listFiles()[Ljava/io/File;
+    move-result-object v1
+    if-eqz v1, :not_found
+    array-length v2, v1
+    const/4 v3, 0x0
+
+    :proc_loop
+    if-ge v3, v2, :not_found
+
+    aget-object v4, v1, v3
+    invoke-virtual {v4}, Ljava/io/File;->getName()Ljava/lang/String;
+    move-result-object v5
+
+    # Skip non-numeric entries (only PID dirs are numeric)
+    :try_start_parse
+    invoke-static {v5}, Ljava/lang/Integer;->parseInt(Ljava/lang/String;)I
+    :try_end_parse
+    .catch Ljava/lang/NumberFormatException; {:try_start_parse .. :try_end_parse} :next_proc
+
+    # Build /proc/<pid>/comm
+    new-instance v6, Ljava/lang/StringBuilder;
+    invoke-direct {v6}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v7, "/proc/"
+    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6, v5}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v7, "/comm"
+    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v6
+
+    # Read comm file
+    :try_start_comm
+    new-instance v8, Ljava/io/RandomAccessFile;
+    const-string v7, "r"
+    invoke-direct {v8, v6, v7}, Ljava/io/RandomAccessFile;-><init>(Ljava/lang/String;Ljava/lang/String;)V
+    invoke-virtual {v8}, Ljava/io/RandomAccessFile;->readLine()Ljava/lang/String;
+    move-result-object v8
+    :try_end_comm
+    .catch Ljava/lang/Exception; {:try_start_comm .. :try_end_comm} :next_proc
+
+    if-eqz v8, :next_proc
+    invoke-virtual {v8}, Ljava/lang/String;->trim()Ljava/lang/String;
+    move-result-object v8
+    invoke-virtual {v8}, Ljava/lang/String;->toLowerCase()Ljava/lang/String;
+    move-result-object v8
+    const-string v7, ".exe"
+    invoke-virtual {v8, v7}, Ljava/lang/String;->endsWith(Ljava/lang/String;)Z
+    move-result v7
+    if-eqz v7, :next_proc
+
+    # Found .exe — build /proc/<pid>/environ path
+    new-instance v6, Ljava/lang/StringBuilder;
+    invoke-direct {v6}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v7, "/proc/"
+    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6, v5}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v7, "/environ"
+    invoke-virtual {v6, v7}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v6}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v6
+
+    # Read environ as raw bytes (null-byte delimited KEY=VALUE pairs)
+    :try_start_env
+    const v7, 0x4000
+    new-array v7, v7, [B
+    new-instance v8, Ljava/io/FileInputStream;
+    invoke-direct {v8, v6}, Ljava/io/FileInputStream;-><init>(Ljava/lang/String;)V
+    invoke-virtual {v8, v7}, Ljava/io/FileInputStream;->read([B)I
+    move-result v6          # v6 = bytes read
+    invoke-virtual {v8}, Ljava/io/FileInputStream;->close()V
+    :try_end_env
+    .catch Ljava/lang/Exception; {:try_start_env .. :try_end_env} :next_proc
+
+    if-lez v6, :next_proc
+
+    # Convert bytes to String (null bytes become \u0000)
+    new-instance v8, Ljava/lang/String;
+    const/4 v5, 0x0         # offset = 0
+    invoke-direct {v8, v7, v5, v6}, Ljava/lang/String;-><init>([BII)V
+    # v8 = environ content String
+
+    # Build "KEY=" search prefix
+    new-instance v5, Ljava/lang/StringBuilder;
+    invoke-direct {v5}, Ljava/lang/StringBuilder;-><init>()V
+    invoke-virtual {v5, p0}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v6, "="
+    invoke-virtual {v5, v6}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v5}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v5   # v5 = "KEY="
+
+    # Find "KEY=" in the environ string
+    invoke-virtual {v8, v5}, Ljava/lang/String;->indexOf(Ljava/lang/String;)I
+    move-result v6          # v6 = position of "KEY=" (-1 if absent)
+    if-lt v6, 0, :next_proc
+
+    # Advance past "KEY=" to get value start position
+    invoke-virtual {v5}, Ljava/lang/String;->length()I
+    move-result v7
+    add-int/2addr v6, v7   # v6 = value start position
+
+    # Find next null byte (char 0) from value start
+    const/4 v7, 0x0
+    invoke-virtual {v8, v7, v6}, Ljava/lang/String;->indexOf(II)I
+    move-result v7          # v7 = end of value (-1 if no null found)
+
+    if-lt v7, 0, :value_to_end
+
+    # Extract value[v6 .. v7]
+    invoke-virtual {v8, v6, v7}, Ljava/lang/String;->substring(II)Ljava/lang/String;
+    move-result-object v0
+    return-object v0
+
+    :value_to_end
+    invoke-virtual {v8, v6}, Ljava/lang/String;->substring(I)Ljava/lang/String;
+    move-result-object v0
+    return-object v0
+
+    :next_proc
+    add-int/lit8 v3, v3, 0x1
+    goto :proc_loop
+
+    :not_found
+    const/4 v0, 0x0
     return-object v0
 .end method
 
@@ -161,10 +276,10 @@
     invoke-static {}, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->getActiveCores()I
     move-result v2
 
-    # Try WINEMU_CPU_AFFINITY
+    # Try WINEMU_CPU_AFFINITY from wine child process environ
     :try_start_0
     const-string v0, "WINEMU_CPU_AFFINITY"
-    invoke-static {v0}, Ljava/lang/System;->getenv(Ljava/lang/String;)Ljava/lang/String;
+    invoke-static {v0}, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->readWineEnv(Ljava/lang/String;)Ljava/lang/String;
     move-result-object v0
     if-eqz v0, :build_cpu_str
     invoke-virtual {v0}, Ljava/lang/String;->isEmpty()Z
