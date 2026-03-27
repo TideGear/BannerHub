@@ -2172,3 +2172,14 @@ ART 14 blocks cross-dex private field access. `DialogSettingListItemEntity` is i
 #### Files touched
 - `extension/BhFrameRating.java`
 - `patches/smali_classes16/com/xj/winemu/sidebar/BhPerfSetupDelegate.smali`
+
+### [fix] — v2.7.5-pre (retag) — Root call removed, real FPS, drag (2026-03-27)
+**Commit:** `bbe96a63d`  |  **Tag:** v2.7.5-pre (force-pushed)
+#### What changed
+- Sidebar never calls su again — reads `root_granted` from bh_prefs instead
+- FPS source corrected: `WineActivity.j` (HudDataProvider) → `a()` — same data as GameHub HUD
+- Drag support via OnTouchListener
+- GPU reads `gpubusy` first
+#### Files touched
+- `extension/BhFrameRating.java`
+- `patches/smali_classes16/com/xj/winemu/sidebar/BhPerfSetupDelegate.smali`
