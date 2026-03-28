@@ -110,7 +110,7 @@ public class BhFrameRating extends LinearLayout implements Runnable {
         extraDetailGroup.addView(divider, divLp);
 
         tvTime     = addExtraLabel(ctx, "TIME --:--", 0xFFFFFFFF);
-        tvCpuCores = addExtraLabel(ctx, "C0:--\nC1:--\nC2:--\nC3:--\nC4:--\nC5:--\nC6:--\nC7:--", 0xFFFFFFFF);
+        tvCpuCores = addExtraLabel(ctx, "C0: --\nC1: --\nC2: --\nC3: --\nC4: --\nC5: --\nC6: --\nC7: --", 0xFFFFFFFF);
         tvGpuMhzLabel = addExtraLabel(ctx, "GPU:", 0xFFFFAB91);
         tvGpuMhzVal   = addExtraLabel(ctx, "--MHz", 0xFFFFAB91);
 
@@ -177,7 +177,7 @@ public class BhFrameRating extends LinearLayout implements Runnable {
         TextView tv = new TextView(ctx);
         tv.setText(text);
         tv.setTextColor(color);
-        tv.setTextSize(10f);
+        tv.setTextSize(9f);
         tv.setPadding(4, 0, 4, 0);
         tv.setTypeface(Typeface.MONOSPACE);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -193,7 +193,7 @@ public class BhFrameRating extends LinearLayout implements Runnable {
         TextView tv = new TextView(ctx);
         tv.setText(" | ");
         tv.setTextColor(0xFF555555);
-        tv.setTextSize(10f);
+        tv.setTextSize(9f);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -207,7 +207,7 @@ public class BhFrameRating extends LinearLayout implements Runnable {
         TextView tv = new TextView(ctx);
         tv.setText(text);
         tv.setTextColor(color);
-        tv.setTextSize(9f);
+        tv.setTextSize(8f);
         tv.setPadding(4, 2, 4, 2);
         tv.setTypeface(Typeface.MONOSPACE);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -370,8 +370,8 @@ public class BhFrameRating extends LinearLayout implements Runnable {
                         if (extraDetail && isVertical) {
                             if (coreMhz != null && coreMhz.length >= 8) {
                                 tvCpuCores.setText(String.format(
-                                        "C0:%4dMHz\nC1:%4dMHz\nC2:%4dMHz\nC3:%4dMHz\n" +
-                                        "C4:%4dMHz\nC5:%4dMHz\nC6:%4dMHz\nC7:%4dMHz",
+                                        "C0:%4d\nC1:%4d\nC2:%4d\nC3:%4d\n" +
+                                        "C4:%4d\nC5:%4d\nC6:%4d\nC7:%4d",
                                         coreMhz[0], coreMhz[1], coreMhz[2], coreMhz[3],
                                         coreMhz[4], coreMhz[5], coreMhz[6], coreMhz[7]));
                             }
