@@ -3733,6 +3733,29 @@ AlertDialog with radio buttons pre-selected from the current `api_source` pref.
 
 ---
 
+## Entry 88 — v2.7.5-pre1 — FPS overlay: API label, FPS graph, charging detection (2026-03-28)
+**Commit:** `ffefa9c32`  |  **Tag:** v2.7.5-pre1  |  **Branch:** main  |  **[CI⏳]** pending
+
+**Root-cause analysis:**
+BhFrameRating overlay was missing two Winlator overlay features: (1) DXVK/VKD3D/WineD3D API label at the left end, (2) FPS history graph at the right end. Additionally, BAT watts were always shown even when device is charging (GameHub's own HUD hides this when charging). The original GameHub HUD uses HudDataProvider.b() (ACTION_BATTERY_CHANGED sticky broadcast) for charging detection and stores selected renderer in pc_g_setting{gameId} SP under keys pc_ls_DXVK / pc_ls_VK3k as JSON PcSettingDataEntity objects.
+
+**Methods added:**
+- `readApiName()` — reads WineActivity.u.a (gameId), opens pc_g_setting{gameId} SP, reads pc_ls_DXVK or pc_ls_VK3k JSON, applies showName() logic (displayName fallback to name), returns "DXVK X", "VKD3D X", or "WineD3D"
+- `showName(String json)` — mirrors PcSettingDataEntity.getShowName(): displayName if non-empty, else name
+- `isCharging()` — uses ACTION_BATTERY_CHANGED sticky broadcast (same as HudDataProvider.b()); returns true when BATTERY_STATUS_CHARGING or FULL
+- `dpToPx(Context, int)` — dp → px helper for FpsGraphView layout
+- `FpsGraphView` (inner static class) — 30-sample float ring buffer, Canvas bar chart; push(float) adds sample + invalidates; bars color-shift green→red relative to max sample in window
+
+**Methods changed:**
+- `addSep(Context)` — return type void → View so sepBat ref can be saved
+- Constructor — added tvApi (left, purple 0xFFCE93D8), saved sepBat ref, added FpsGraphView at right with 60dp width
+- `run()` — calls readApiName(), isCharging(), conditionally hides sepBat+tvBat when charging, pushes fps to fpsGraph
+
+**Files modified:** 1
+- `extension/BhFrameRating.java`
+
+---
+
 ## Entry 87 — v2.7.4-pre6 — fix: VRam Limit read from SharedPreferences (2026-03-27)
 **Commit:** `2a51abc2b`  |  **Tag:** v2.7.4-pre6  |  **Branch:** main  |  **[CI✅]** run 23668107295
 

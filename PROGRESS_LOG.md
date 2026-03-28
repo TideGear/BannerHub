@@ -4,6 +4,18 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [pre] — v2.7.5-pre1 — FPS overlay: API label, FPS graph, charging detection (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre1
+**Commit:** `ffefa9c32`  |  **CI:** ⏳ pending
+**What changed:**
+- `tvApi` TextView at far left: reads active renderer from `pc_g_setting{gameId}` SP (same source as GameHub) — `pc_ls_DXVK` → "DXVK name", `pc_ls_VK3k` → "VKD3D name", fallback "WineD3D"; mirrors PcSettingDataEntity.getShowName() logic
+- `FpsGraphView` inner class at far right: 30-sample ring buffer, Canvas bar chart, bars shift green→red relative to max FPS in window
+- `isCharging()` via ACTION_BATTERY_CHANGED sticky broadcast (same method as HudDataProvider.b()): hides sepBat + tvBat entirely when device is charging or full
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
 ## [pre] — v2.7.4-pre6 — fix: VRam Limit from SharedPreferences (2026-03-27)
 **Branch:** `main`  |  **Tag:** v2.7.4-pre6
 **Commit:** `2a51abc2b`  |  **CI:** ✅ run 23668107295
