@@ -3733,6 +3733,24 @@ AlertDialog with radio buttons pre-selected from the current `api_source` pref.
 
 ---
 
+## Entry 89 — v2.7.5-pre2 — FPS overlay: CHRG label when charging, strip API version (2026-03-28)
+**Commit:** `57de19552`  |  **Tag:** v2.7.5-pre2  |  **Branch:** main  |  **[CI✅]** run 23687095100
+
+**Root-cause analysis:**
+Two user-reported issues from pre1 test: (1) BAT label disappeared entirely when device is charging — should show "CHRG" to confirm the charging state is detected. (2) API label showed full displayName string (e.g. "DXVK dxvk-2.3.1") — user wants type-only label ("DXVK", "VKD3D", "WineD3D"). Logcat confirmed both features were working (no exceptions); changes are purely display logic. Also: `sepBat` field was only used for the hide/show logic — since BAT is now always visible, field + its save are removed; `showName()` + `org.json` import no longer needed.
+
+**Methods changed:**
+- `run()` → `handler.post()` — charging branch: `tvBat.setText("CHRG")` instead of GONE; removed `sepBat` visibility calls
+- `readApiName()` — DXVK/VKD3D branches return bare label only, no version suffix
+
+**Methods removed:**
+- `showName(String)` — no longer needed
+
+**Files modified:** 1
+- `extension/BhFrameRating.java`
+
+---
+
 ## Entry 88 — v2.7.5-pre1 — FPS overlay: API label, FPS graph, charging detection (2026-03-28)
 **Commit:** `ffefa9c32`  |  **Tag:** v2.7.5-pre1  |  **Branch:** main  |  **[CI✅]** run 23686862934 (3m46s)
 

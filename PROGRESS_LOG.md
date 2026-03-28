@@ -4,6 +4,18 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [pre] — v2.7.5-pre2 — FPS overlay: CHRG label when charging, strip API version (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre2
+**Commit:** `57de19552`  |  **CI:** ✅ run 23687095100
+**What changed:**
+- BAT label shows "CHRG" when charging/full instead of disappearing; separator always visible
+- API label stripped to type-only: "DXVK", "VKD3D", "WineD3D" — no version appended
+- Removed `sepBat` field, `showName()` method, and `org.json.JSONObject` import
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
 ## [pre] — v2.7.5-pre1 — FPS overlay: API label, FPS graph, charging detection (2026-03-28)
 **Branch:** `main`  |  **Tag:** v2.7.5-pre1
 **Commit:** `ffefa9c32`  |  **CI:** ✅ run 23686862934 (3m46s)
