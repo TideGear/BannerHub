@@ -21,8 +21,6 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import org.json.JSONObject;
-
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -40,7 +38,6 @@ import java.lang.reflect.Method;
 public class BhFrameRating extends LinearLayout implements Runnable {
 
     private final TextView tvApi, tvGpu, tvCpu, tvRam, tvBat, tvTmp, tvFps;
-    private final View sepBat; // separator before BAT — hidden when charging
     private final FpsGraphView fpsGraph;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Activity activity;
@@ -68,8 +65,7 @@ public class BhFrameRating extends LinearLayout implements Runnable {
         tvCpu = addLabel(ctx, "CPU --%", 0xFFFFFFFF);
         addSep(ctx);
         tvRam = addLabel(ctx, "RAM --%", 0xFF90CAF9);
-        // separator before BAT — saved so it can be hidden together with tvBat
-        sepBat = addSep(ctx);
+        addSep(ctx);
         tvBat = addLabel(ctx, "BAT --W", 0xFFFFD54F);
         addSep(ctx);
         tvTmp = addLabel(ctx, "TMP --\u00b0C", 0xFFEF9A9A);
@@ -185,11 +181,8 @@ public class BhFrameRating extends LinearLayout implements Runnable {
                         tvCpu.setText("CPU " + cpu + "%");
                         tvRam.setText("RAM " + ram + "%");
                         if (charging) {
-                            sepBat.setVisibility(GONE);
-                            tvBat.setVisibility(GONE);
+                            tvBat.setText("CHRG");
                         } else {
-                            sepBat.setVisibility(VISIBLE);
-                            tvBat.setVisibility(VISIBLE);
                             tvBat.setText(String.format("BAT %.1fW", bat));
                         }
                         tvTmp.setText("TMP " + tmp + "\u00b0C");
@@ -231,33 +224,19 @@ public class BhFrameRating extends LinearLayout implements Runnable {
             // DXVK (key: "pc_ls_DXVK")
             String dxvkJson = sp.getString("pc_ls_DXVK", null);
             if (dxvkJson != null && !dxvkJson.isEmpty()) {
-                String label = showName(dxvkJson);
-                return label.isEmpty() ? "DXVK" : "DXVK " + label;
+                return "DXVK";
             }
 
             // VKD3D (key: "pc_ls_VK3k")
             String vkd3dJson = sp.getString("pc_ls_VK3k", null);
             if (vkd3dJson != null && !vkd3dJson.isEmpty()) {
-                String label = showName(vkd3dJson);
-                return label.isEmpty() ? "VKD3D" : "VKD3D " + label;
+                return "VKD3D";
             }
 
             // Neither set — WineD3D (software renderer)
             return "WineD3D";
         } catch (Exception e) {
             return "API";
-        }
-    }
-
-    /** Mirrors PcSettingDataEntity.getShowName(): displayName if non-empty, else name. */
-    private String showName(String json) {
-        try {
-            JSONObject obj = new JSONObject(json);
-            String display = obj.optString("displayName", "").trim();
-            if (!display.isEmpty()) return display;
-            return obj.optString("name", "").trim();
-        } catch (Exception e) {
-            return "";
         }
     }
 
