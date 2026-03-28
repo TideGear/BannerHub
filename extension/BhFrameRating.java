@@ -268,34 +268,35 @@ public class BhFrameRating extends LinearLayout implements Runnable {
         // Extra detail group only visible in vertical mode when pref is on
         extraDetailGroup.setVisibility(extraDetail && isVertical ? VISIBLE : GONE);
 
-        requestLayout();
+        // Measure unconstrained NOW (all orientation/visibility changes already applied)
+        // then fix margins before triggering layout — so FrameLayout's AT_MOST constraint
+        // never clips the overlay.
         reclampPosition();
     }
 
-    /** Re-clamps overlay position after layout has settled (e.g. after orientation toggle). */
+    /** Measures unconstrained, corrects margins, then triggers a single layout pass. */
     private void reclampPosition() {
-        handler.postDelayed(new Runnable() {
-            @Override public void run() {
-                ViewGroup.LayoutParams vlp = getLayoutParams();
-                if (!(vlp instanceof FrameLayout.LayoutParams)) return;
-                FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) vlp;
-                int screenW = getRootView().getWidth();
-                int screenH = getRootView().getHeight();
-                // Measure unconstrained in height so we get the true natural height,
-                // not the FrameLayout-clipped value (AT_MOST screenH - topMargin).
-                measure(
-                    MeasureSpec.makeMeasureSpec(screenW, MeasureSpec.AT_MOST),
-                    MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
-                );
-                int naturalW = getMeasuredWidth();
-                int naturalH = getMeasuredHeight();
-                if (lp.leftMargin < 0) lp.leftMargin = 0;
-                if (lp.topMargin  < 0) lp.topMargin  = 0;
-                if (lp.leftMargin + naturalW > screenW) lp.leftMargin = screenW - naturalW;
-                if (lp.topMargin  + naturalH > screenH) lp.topMargin  = screenH - naturalH;
-                setLayoutParams(lp);
-            }
-        }, 32);
+        ViewGroup.LayoutParams vlp = getLayoutParams();
+        if (!(vlp instanceof FrameLayout.LayoutParams)) {
+            requestLayout();
+            return;
+        }
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) vlp;
+        int screenW = getRootView().getWidth();
+        int screenH = getRootView().getHeight();
+        if (screenW == 0 || screenH == 0) { requestLayout(); return; }
+        // Measure with unconstrained height to get true natural dimensions.
+        measure(
+            MeasureSpec.makeMeasureSpec(screenW, MeasureSpec.AT_MOST),
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        );
+        int naturalW = getMeasuredWidth();
+        int naturalH = getMeasuredHeight();
+        if (lp.leftMargin < 0) lp.leftMargin = 0;
+        if (lp.topMargin  < 0) lp.topMargin  = 0;
+        if (lp.leftMargin + naturalW > screenW) lp.leftMargin = screenW - naturalW;
+        if (lp.topMargin  + naturalH > screenH) lp.topMargin  = screenH - naturalH;
+        setLayoutParams(lp); // triggers requestLayout internally
     }
 
     @Override
@@ -366,7 +367,10 @@ public class BhFrameRating extends LinearLayout implements Runnable {
                             extraDetail = newExtra;
                             extraDetailGroup.setVisibility(
                                     extraDetail && isVertical ? VISIBLE : GONE);
-                            reclampPosition();
+                            // post so the visibility change is committed before we measure
+                            handler.post(new Runnable() {
+                                @Override public void run() { reclampPosition(); }
+                            });
                         }
 
                         // Update extra detail rows (vertical mode only)
