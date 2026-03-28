@@ -265,7 +265,7 @@ public class BhFrameRating extends LinearLayout implements Runnable {
         int alpha = opacity0to100 * 255 / 100;
         setBackgroundColor(android.graphics.Color.argb(alpha, 0, 0, 0));
         boolean strokeOutline = opacity0to100 < 10;
-        float shadowRadius = (opacity0to100 >= 10 && opacity0to100 < 30) ? 4f : 0f;
+        float shadowRadius = opacity0to100 < 30 ? 4f : 0f;
         for (TextView tv : new TextView[]{tvApi, tvTimeV, tvGpu, tvCpu, tvRam,
                 tvBat, tvTmp, tvFps, tvTime, tvCpuCores, tvGpuMhzLabel, tvGpuMhzVal}) {
             tv.setShadowLayer(shadowRadius, 0f, 0f, shadowRadius > 0 ? 0xFF000000 : 0);
