@@ -194,6 +194,97 @@
 
     # No listener — disabled checkbox should not fire changes
 
+    # ── HUD Opacity label ────────────────────────────────────────────────────
+    const-string v3, "bh_hud_opacity_label"
+    invoke-virtual {v0, v3}, Landroid/view/View;->findViewWithTag(Ljava/lang/Object;)Landroid/view/View;
+    move-result-object v3
+
+    if-nez v3, :cond_opacity_label_exists
+
+    new-instance v3, Landroid/widget/TextView;
+    invoke-direct {v3, v1}, Landroid/widget/TextView;-><init>(Landroid/content/Context;)V
+
+    const-string v4, "bh_hud_opacity_label"
+    invoke-virtual {v3, v4}, Landroid/view/View;->setTag(Ljava/lang/Object;)V
+
+    const-string v4, "HUD Opacity"
+    invoke-virtual {v3, v4}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+
+    const v4, 0xFFFFFFFF
+    invoke-virtual {v3, v4}, Landroid/widget/TextView;->setTextColor(I)V
+
+    new-instance v4, Landroid/widget/LinearLayout$LayoutParams;
+    const/4 v5, -0x1
+    const/4 v6, -0x2
+    invoke-direct {v4, v5, v6}, Landroid/widget/LinearLayout$LayoutParams;-><init>(II)V
+
+    invoke-virtual {v1}, Landroid/content/Context;->getResources()Landroid/content/res/Resources;
+    move-result-object v5
+    invoke-virtual {v5}, Landroid/content/res/Resources;->getDisplayMetrics()Landroid/util/DisplayMetrics;
+    move-result-object v5
+    iget v5, v5, Landroid/util/DisplayMetrics;->density:F
+    const/4 v6, 0x4
+    int-to-float v6, v6
+    mul-float v5, v5, v6
+    float-to-int v5, v5
+    iput v5, v4, Landroid/widget/LinearLayout$LayoutParams;->topMargin:I
+
+    check-cast v0, Landroid/view/ViewGroup;
+    invoke-virtual {v0, v3, v4}, Landroid/view/ViewGroup;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V
+
+    :cond_opacity_label_exists
+
+    # ── HUD Opacity SeekBar ───────────────────────────────────────────────────
+    const-string v3, "bh_hud_opacity_bar"
+    invoke-virtual {v0, v3}, Landroid/view/View;->findViewWithTag(Ljava/lang/Object;)Landroid/view/View;
+    move-result-object v3
+
+    if-nez v3, :cond_opacity_bar_exists
+
+    new-instance v3, Landroid/widget/SeekBar;
+    invoke-direct {v3, v1}, Landroid/widget/SeekBar;-><init>(Landroid/content/Context;)V
+
+    const-string v4, "bh_hud_opacity_bar"
+    invoke-virtual {v3, v4}, Landroid/view/View;->setTag(Ljava/lang/Object;)V
+
+    # setMax(100)
+    const/16 v4, 0x64
+    invoke-virtual {v3, v4}, Landroid/widget/ProgressBar;->setMax(I)V
+
+    new-instance v4, Landroid/widget/LinearLayout$LayoutParams;
+    const/4 v5, -0x1
+    const/4 v6, -0x2
+    invoke-direct {v4, v5, v6}, Landroid/widget/LinearLayout$LayoutParams;-><init>(II)V
+
+    invoke-virtual {v1}, Landroid/content/Context;->getResources()Landroid/content/res/Resources;
+    move-result-object v5
+    invoke-virtual {v5}, Landroid/content/res/Resources;->getDisplayMetrics()Landroid/util/DisplayMetrics;
+    move-result-object v5
+    iget v5, v5, Landroid/util/DisplayMetrics;->density:F
+    const/4 v6, 0x2
+    int-to-float v6, v6
+    mul-float v5, v5, v6
+    float-to-int v5, v5
+    iput v5, v4, Landroid/widget/LinearLayout$LayoutParams;->topMargin:I
+
+    check-cast v0, Landroid/view/ViewGroup;
+    invoke-virtual {v0, v3, v4}, Landroid/view/ViewGroup;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V
+
+    :cond_opacity_bar_exists
+    check-cast v3, Landroid/widget/SeekBar;
+
+    # Sync progress from pref (default 80)
+    const-string v4, "hud_opacity"
+    const/16 v5, 0x50
+    invoke-interface {v2, v4, v5}, Landroid/content/SharedPreferences;->getInt(Ljava/lang/String;I)I
+    move-result v4
+    invoke-virtual {v3, v4}, Landroid/widget/ProgressBar;->setProgress(I)V
+
+    # Set listener
+    new-instance v4, Lcom/xj/winemu/sidebar/BhHudOpacityListener;
+    invoke-direct {v4, v1}, Lcom/xj/winemu/sidebar/BhHudOpacityListener;-><init>(Landroid/content/Context;)V
+    invoke-virtual {v3, v4}, Landroid/widget/SeekBar;->setOnSeekBarChangeListener(Landroid/widget/SeekBar$OnSeekBarChangeListener;)V
+
     # ── Inject BhFrameRating into DecorView (once per WineActivity instance) ─
     check-cast v1, Landroid/app/Activity;
     invoke-virtual {v1}, Landroid/app/Activity;->getWindow()Landroid/view/Window;

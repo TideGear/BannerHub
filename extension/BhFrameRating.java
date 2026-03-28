@@ -332,11 +332,12 @@ public class BhFrameRating extends LinearLayout implements Runnable {
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-        // Restore extra detail state from pref
+        // Restore extra detail state and opacity from pref
         try {
             SharedPreferences sp = getContext().getSharedPreferences("bh_prefs", 0);
             extraDetail = sp.getBoolean("hud_extra_detail", false);
             extraDetailGroup.setVisibility(extraDetail && isVertical ? VISIBLE : GONE);
+            setAlpha(sp.getInt("hud_opacity", 80) / 100f);
         } catch (Exception ignored) {}
         running = true;
         Thread t = new Thread(this, "BhFrameRating");
