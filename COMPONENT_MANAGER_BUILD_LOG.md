@@ -3819,6 +3819,37 @@ Task Manager RAM row (5718 MB / 15278 MB total) showed device system RAM — no 
 
 ---
 
+## Entry 87 — v2.7.5-pre5 — feat: Extra Detailed checkbox for Winlator HUD (2026-03-28)
+**Commit:** `3efcb78ad`  |  **Tag:** v2.7.5-pre5  |  **Branch:** main  |  **[CI✅]** run 23689179502
+
+**Root-cause analysis:**
+User requested additional HUD stats (per-core MHz, GPU model/freq/temp, SWAP, BAT%, skin temp, fan, time). Previous overlay had no room in horizontal mode. Solution: extra detail block only shown in vertical mode (after tap-to-toggle), controlled by a new CheckBox in the Performance sidebar. BhFrameRating reads `hud_extra_detail` pref every second in its background loop — no direct method call from smali needed.
+
+**Methods added/changed:**
+- `addExtraLabel(Context, String, int)V` — new helper, adds TextView to extraDetailGroup
+- `readCoreMhz()` → `int[]` — reads 8 cores from `cpufreq/scaling_cur_freq` (kHz→MHz)
+- `readGpuMhz()` → `int` — kgsl gpuclk (Hz→MHz) or clock_mhz
+- `readGpuModel()` → `String` — kgsl gpu_model, TM marker stripped
+- `readGpuThermal()` → `int` — thermal zone type="gpu"
+- `readSkinTemp()` → `int` — thermal zone type="skin"
+- `readThermalZone(String)` → `int` — scans 30 thermal zones by type name
+- `readRamDetail()` → `float[]` — used/total GB via ActivityManager
+- `readSwap()` → `String` — parses /proc/meminfo SwapTotal/SwapFree
+- `readBatPercent()` → `int` — BATTERY_PROPERTY_CAPACITY
+- `readFanSpeed()` → `int` — hwmon fan*_input (0 if no sensor)
+- `readTime()` → `String` — SimpleDateFormat HH:mm
+- `run()` extended: reads newExtra each cycle, syncs extraDetailGroup visibility, posts extra rows
+- `toggleOrientation()` extended: updates extraDetailGroup visibility on orientation flip
+
+**Files created:** 1
+- `patches/smali_classes16/com/xj/winemu/sidebar/BhHudExtraDetailListener.smali`
+
+**Files modified:** 2
+- `extension/BhFrameRating.java`
+- `patches/smali_classes16/com/xj/winemu/sidebar/BhPerfSetupDelegate.smali`
+
+---
+
 ## Entry 86 — v2.7.5-pre4 — feat: tap-to-toggle vertical/horizontal FPS overlay (2026-03-28)
 **Commit:** `1b7994096`  |  **Tag:** v2.7.5-pre4  |  **Branch:** main  |  **[CI✅]** run 23688722622
 

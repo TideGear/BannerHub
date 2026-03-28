@@ -4,6 +4,22 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [pre] — v2.7.5-pre5 — feat: Extra Detailed checkbox for Winlator HUD (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre5
+**Commit:** `3efcb78ad`  |  **CI:** ✅ run 23689179502
+**What changed:**
+- "Extra Detailed" CheckBox added below Winlator HUD Style switch in Performance sidebar
+- In vertical mode with checkbox on: shows per-core MHz (C0–C7), GPU model+clock, GPU temp, RAM GB, SWAP GB, BAT%, skin temp, fan speed, current time
+- `extraDetailGroup` (vertical LinearLayout) appended to BhFrameRating — always GONE in horizontal mode
+- `BhHudExtraDetailListener` saves `hud_extra_detail` pref; BhFrameRating reads it each 1s cycle
+- `BhPerfSetupDelegate` creates CheckBox tagged `"bh_hud_extra_cb"` with 4dp top margin
+#### Files touched
+- `extension/BhFrameRating.java`
+- `patches/smali_classes16/com/xj/winemu/sidebar/BhHudExtraDetailListener.smali` (new)
+- `patches/smali_classes16/com/xj/winemu/sidebar/BhPerfSetupDelegate.smali`
+
+---
+
 ## [pre] — v2.7.5-pre4 — feat: tap-to-toggle vertical/horizontal FPS overlay (2026-03-28)
 **Branch:** `main`  |  **Tag:** v2.7.5-pre4
 **Commit:** `1b7994096`  |  **CI:** ✅ run 23688722622
