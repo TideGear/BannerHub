@@ -4,6 +4,17 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [feat] — v2.7.5-pre23 — HUD Opacity slider in Performance sidebar (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre23
+**Commit:** `f56405f9c`  |  **CI:** queued
+**What changed:** "HUD Opacity" label + SeekBar (0-100, default 80) added below Extra Detailed checkbox. BhHudOpacityListener saves pref + sets alpha on BhFrameRating. BhFrameRating.onAttachedToWindow restores opacity.
+#### Files touched
+- `patches/smali_classes16/com/xj/winemu/sidebar/BhHudOpacityListener.smali` (new)
+- `patches/smali_classes16/com/xj/winemu/sidebar/BhPerfSetupDelegate.smali`
+- `extension/BhFrameRating.java`
+
+---
+
 ## [fix] — v2.7.5-pre22 — gray out Extra Detailed checkbox (coming soon) (2026-03-28)
 **Branch:** `main`  |  **Tag:** v2.7.5-pre22
 **Commit:** `e373e10b7`  |  **CI:** queued
