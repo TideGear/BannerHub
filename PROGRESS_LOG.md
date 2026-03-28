@@ -4,6 +4,15 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [feat] — v2.7.5-pre29 — OutlinedTextView stroke outline below 10% opacity (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre29
+**Commit:** `2b9a3dd4c`  |  **CI:** queued
+**What changed:** OutlinedTextView inner class draws STROKE pass then fill pass in onDraw(). Three tiers in applyBackgroundOpacity: <10% stroke outline, 10-29% shadow 4f, ≥30% clear.
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
 ## [fix] — v2.7.5-pre28 — text outline radius 2.5f→4f (2026-03-28)
 **Branch:** `main`  |  **Tag:** v2.7.5-pre28
 **Commit:** `059dc9a7e`  |  **CI:** queued
