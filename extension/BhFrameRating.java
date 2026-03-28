@@ -42,8 +42,7 @@ import java.util.Locale;
 public class BhFrameRating extends LinearLayout implements Runnable {
 
     private final TextView tvApi, tvGpu, tvCpu, tvRam, tvBat, tvTmp, tvFps;
-    private final TextView tvTimeH; // time shown in horizontal mode (after graph)
-    private final TextView tvTimeV; // time shown in vertical mode (under API)
+    private final TextView tvTimeV; // time shown after API in both orientations
     private final FpsGraphView fpsGraph;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Activity activity;
@@ -74,16 +73,18 @@ public class BhFrameRating extends LinearLayout implements Runnable {
         setBackgroundColor(0xCC000000); // semi-transparent black
         setPadding(16, 8, 16, 8);
 
-        // API name at far left (purple)
+        // API | TIME | GPU | CPU | RAM | BAT | TMP | FPS
         tvApi = addLabel(ctx, "API", 0xFFCE93D8);
-
-        // Vertical-mode time: inserted right after tvApi (index 1), hidden in horizontal
-        tvTimeV = makeTimeLabel(ctx);
-        tvTimeV.setVisibility(GONE);
-        addView(tvTimeV, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
         sepViews.add(addSep(ctx));
+
+        // Time shown after API in both orientations
+        tvTimeV = makeTimeLabel(ctx);
+        LinearLayout.LayoutParams tvLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tvLp.gravity = Gravity.CENTER_VERTICAL;
+        addView(tvTimeV, tvLp);
+        sepViews.add(addSep(ctx));
+
         tvGpu = addLabel(ctx, "GPU --%", 0xFFFFAB91);
         sepViews.add(addSep(ctx));
         tvCpu = addLabel(ctx, "CPU --%", 0xFFFFFFFF);
@@ -103,14 +104,6 @@ public class BhFrameRating extends LinearLayout implements Runnable {
         gp.gravity = Gravity.CENTER_VERTICAL;
         gp.leftMargin = dpToPx(ctx, 6);
         addView(fpsGraph, gp);
-
-        // Horizontal-mode time: after graph, shown only in horizontal mode
-        tvTimeH = makeTimeLabel(ctx);
-        LinearLayout.LayoutParams thLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        thLp.gravity = Gravity.CENTER_VERTICAL;
-        thLp.leftMargin = dpToPx(ctx, 6);
-        addView(tvTimeH, thLp);
 
         // Extra detail group — vertical sub-layout, shown only in vertical mode when pref is on
         extraDetailGroup = new LinearLayout(ctx);
@@ -288,15 +281,11 @@ public class BhFrameRating extends LinearLayout implements Runnable {
 
         // Center labels in vertical mode
         int labelGravity = isVertical ? Gravity.CENTER_HORIZONTAL : Gravity.CENTER_VERTICAL;
-        for (TextView tv : new TextView[]{tvApi, tvTimeV, tvGpu, tvCpu, tvRam, tvBat, tvTmp, tvFps, tvTimeH}) {
+        for (TextView tv : new TextView[]{tvApi, tvTimeV, tvGpu, tvCpu, tvRam, tvBat, tvTmp, tvFps}) {
             LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) tv.getLayoutParams();
             lp.gravity = labelGravity;
             tv.setLayoutParams(lp);
         }
-
-        // Swap main-bar time label based on orientation
-        tvTimeH.setVisibility(isVertical ? GONE : VISIBLE);
-        tvTimeV.setVisibility(isVertical ? VISIBLE : GONE);
 
         // Extra detail group only visible in vertical mode when pref is on
         extraDetailGroup.setVisibility(extraDetail && isVertical ? VISIBLE : GONE);
@@ -400,7 +389,6 @@ public class BhFrameRating extends LinearLayout implements Runnable {
                         tvTmp.setText("TMP " + tmp + "\u00b0C");
                         tvFps.setText(fps > 0 ? String.format("FPS %.0f", fps) : "FPS --");
                         fpsGraph.push(fps);
-                        tvTimeH.setText(timeStr);
                         tvTimeV.setText(timeStr);
 
                         // Sync extra detail visibility if pref changed
