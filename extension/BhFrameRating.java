@@ -177,7 +177,7 @@ public class BhFrameRating extends LinearLayout implements Runnable {
         TextView tv = new TextView(ctx);
         tv.setText(text);
         tv.setTextColor(color);
-        tv.setTextSize(9f);
+        tv.setTextSize(8f);
         tv.setPadding(4, 0, 4, 0);
         tv.setTypeface(Typeface.MONOSPACE);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -193,7 +193,7 @@ public class BhFrameRating extends LinearLayout implements Runnable {
         TextView tv = new TextView(ctx);
         tv.setText(" | ");
         tv.setTextColor(0xFF555555);
-        tv.setTextSize(9f);
+        tv.setTextSize(8f);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -207,7 +207,7 @@ public class BhFrameRating extends LinearLayout implements Runnable {
         TextView tv = new TextView(ctx);
         tv.setText(text);
         tv.setTextColor(color);
-        tv.setTextSize(8f);
+        tv.setTextSize(7f);
         tv.setPadding(4, 2, 4, 2);
         tv.setTypeface(Typeface.MONOSPACE);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -244,7 +244,7 @@ public class BhFrameRating extends LinearLayout implements Runnable {
         LinearLayout.LayoutParams gp;
         if (isVertical) {
             gp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(getContext(), 40));
+                    ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(getContext(), 20));
             gp.topMargin = dpToPx(getContext(), 4);
         } else {
             gp = new LinearLayout.LayoutParams(
