@@ -4,6 +4,18 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [pre] — v2.7.5-pre9 — fix: clamp overlay to screen edges during drag (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre9
+**Commit:** `a94c37c0f`  |  **CI:** ✅ run 23690132917
+**What changed:**
+- `ACTION_MOVE` now clamps leftMargin/topMargin after each drag step using `v.getRootView()` dimensions
+- All four edges clamped: left/top ≥ 0; right: leftMargin + width ≤ screenW; bottom: topMargin + height ≤ screenH
+- Deleted pre1–pre7 releases and tags from GitHub
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
 ## [pre] — v2.7.5-pre8 — refactor: pre6 vertical layout restored, BAT%/SKN/FAN removed (2026-03-28)
 **Branch:** `main`  |  **Tag:** v2.7.5-pre8
 **Commit:** `2937d8939`  |  **CI:** ✅ run 23689895717
