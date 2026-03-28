@@ -4,6 +4,137 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [fix] — v2.7.5-pre21 — remove tvTimeH; time after API in both modes (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre21
+**Commit:** `fa3f53960`  |  **CI:** queued
+**What changed:** Removed duplicate tvTimeH field and all references. tvTimeV (placed after API | sep in constructor) now handles time display in both horizontal and vertical modes.
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
+## [feat] — v2.7.5-pre20 — time in main bar + fonts +1sp (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre20
+**Commit:** `378390d90`  |  **CI:** queued
+**What changed:** tvTimeH after graph (horizontal); tvTimeV under API (vertical); both update every second; main font 8→9sp; extra detail 7→8sp
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
+## [fix] — v2.7.5-pre19 — translationY replaces topMargin, eliminates height constraint (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre19
+**Commit:** `45c267b03`  |  **CI:** queued
+**What changed:**
+- Root fix for vertical+detailed clipping: topMargin stays 0; vertical position uses setTranslationY(). FrameLayout always measures with AT_MOST screenH. Drag and reclampPosition both updated to use translationY.
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
+## [fix] — v2.7.5-pre18 — fonts 9→8sp / 8→7sp; FPS graph 40→20dp (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre18
+**Commit:** `88fcc90f8`  |  **CI:** queued
+**What changed:** Main labels 9→8sp; extra detail 8→7sp; FPS graph vertical height 40→20dp
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
+## [fix] — v2.7.5-pre17 — remove MHz from cores, font 10→9sp / 9→8sp (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre17
+**Commit:** `fff0fd2de`  |  **CI:** queued
+**What changed:** CPU core values no longer append MHz; main labels 10→9sp; extra detail 9→8sp
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
+## [feat] — v2.7.5-pre16 — cores MHz, GPU label+value rows, remove model/temp (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre16
+**Commit:** `a6e71d4e1`  |  **CI:** queued
+**What changed:** Cores show MHz per row; GPU: label + MHz value on separate rows; removed GPU model, GPU temp, readGpuModel(), readGpuThermal(), readThermalZone()
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
+## [feat] — v2.7.5-pre15 — remove RAM detail and swap from extra detail (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre15
+**Commit:** `d2b07e051`  |  **CI:** queued
+**What changed:** Removed tvRamDetail, tvSwap, readRamDetail(), readSwap(), parseMemInfoKb(). Extra detail now: TIME, C0–C7, GPU model/MHz, GPU temp.
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
+## [fix] — v2.7.5-pre14 — CPU cores 1 per row (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre14
+**Commit:** `7770c98b8`  |  **CI:** queued
+**What changed:** CPU cores changed from 2-per-row to 1-per-row (C0–C7 each on own line)
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
+## [fix] — v2.7.5-pre13 — synchronous reclamp before layout pass (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre13
+**Commit:** `cf275a55d`  |  **CI:** queued
+**What changed:**
+- `reclampPosition()` now synchronous: measures unconstrained immediately after orientation/visibility changes, fixes topMargin before FrameLayout layout pass runs — no more clip flash
+- Pref-change path uses `handler.post` (one frame) then synchronous reclamp
+- Removed `postDelayed(32ms)`
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
+## [fix] — v2.7.5-pre12 — reclampPosition unconstrained height measure (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre12
+**Commit:** `62a577644`  |  **CI:** queued
+**What changed:**
+- `reclampPosition()` calls `measure(AT_MOST screenW, UNSPECIFIED)` to get natural height before clamping `topMargin` — fixes overlay clipping below CPU cores when positioned low on screen in vertical+extra-detail mode
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
+## [fix] — v2.7.5-pre11 — tall-narrow vertical: WRAP_CONTENT, 2-per-row cores, trimmed labels (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre11
+**Commit:** `02a31c689`  |  **CI:** queued
+**What changed:**
+- Removed 220dp fixed width; WRAP_CONTENT in both modes — vertical overlay width driven by content
+- CPU cores: 4+4 → 2+2+2+2 (C0/C1, C2/C3, C4/C5, C6/C7)
+- GPU info: model and MHz split to two lines; "GPU TMP" → "TMP"; SWAP → "SW --/--G"; RAM format tightened
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
+## [fix] — v2.7.5-pre10 — font sizes, fixed vertical width, postDelayed reclamp (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre10
+**Commit:** `656ca8a4b`  |  **CI:** queued
+**What changed:**
+- Main stat labels: 11sp → 10sp; extra detail labels: 10sp → 9sp
+- `toggleOrientation()` sets FrameLayout.LayoutParams.width = 220dp in vertical mode (WRAP_CONTENT in horizontal) — fixes extra detail rows being narrow/clipped when overlay is on left side of screen
+- `reclampPosition()` switched from OnGlobalLayoutListener to `postDelayed(32ms)` — ensures `getHeight()` reflects the fully settled vertical layout before clamping
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
+## [fix] — v2.7.5-pre9 — overlay clamp after toggle + TIME at top (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre9
+**Commit:** `5d8c8a579`  |  **CI:** ✅ run 23690564881
+**What changed:**
+- Root cause of left-side clip: clamping only ran during `ACTION_MOVE`. After tapping to toggle vertical mode (overlay grows tall) or after extra detail first appears, no re-clamp fired → overlay extended below screen bottom.
+- Fix: `reclampPosition()` method added; uses `OnGlobalLayoutListener` (one-shot, self-removing) to re-clamp after layout settles. Called from `toggleOrientation()` and after extra detail visibility change.
+- TIME row moved to first position in `extraDetailGroup` (right after divider) — immediately visible without scrolling past CPU cores / GPU stats.
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
 ## [pre] — v2.7.5-pre9 — fix: clamp overlay to screen edges during drag (2026-03-28)
 **Branch:** `main`  |  **Tag:** v2.7.5-pre9
 **Commit:** `a94c37c0f`  |  **CI:** ✅ run 23690132917
