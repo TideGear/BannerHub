@@ -4,6 +4,20 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [pre] — v2.7.5-pre8 — refactor: pre6 vertical layout restored, BAT%/SKN/FAN removed (2026-03-28)
+**Branch:** `main`  |  **Tag:** v2.7.5-pre8
+**Commit:** `2937d8939`  |  **CI:** ✅ run 23689895717
+**What changed:**
+- BhFrameRating reverted to pre6 structure (toggles H↔V on self, original MATCH_PARENT extraDetailGroup)
+- Extra detail only visible in vertical mode (`isVertical` guard restored)
+- Removed: `tvBatPct`, `tvSkn`, `tvFan` fields, constructor rows, data reads, setText calls
+- Removed methods: `readBatPercent()`, `readSkinTemp()`, `readFanSpeed()`
+- Extra detail fields remaining: CPU cores, GPU info, GPU temp, RAM GB, SWAP, TIME
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
 ## [pre] — v2.7.5-pre7 — fix: widen overlay + show extra detail in horizontal mode (2026-03-28)
 **Branch:** `main`  |  **Tag:** v2.7.5-pre7
 **Commit:** `aaeab7e32`  |  **CI:** ✅ run 23689573696
