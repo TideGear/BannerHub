@@ -3949,3 +3949,23 @@ classes6 and classes9 are both at 65535 method-ref limit — all new code in sma
 
 **Commit:** `44c53437d`  |  **Tag:** v2.7.4-pre4
 **CI:** [CI✅] run 23659625566
+
+---
+
+## Entry 122 — v2.7.6-pre — Fix offline component picker (2026-03-29)
+
+**Root cause:** `appendLocalComponents` calls `EmuComponents.e()` to get the in-memory singleton. This singleton (`EmuComponents.d`) is only set by `WinEmuServiceImpl$Companion.b(Context)` — which only runs when a game is launched via Wine. In a fresh process session where no game has been launched yet, `EmuComponents.d == null`. The method hit `if-eqz v0, :done` immediately and returned with no entries added.
+
+Online: API provides the list so this went unnoticed. Offline: API fails → fallback builds default items only → `appendLocalComponents` returns nothing → injected DXVK/Box64/etc. don't appear in the component picker.
+
+**Fix:**
+- `appendLocalComponents`: added lazy init block — if `EmuComponents.e()` returns null, call `Companion.b(Application)` using `Utils.a()` (Blankj application context) to load from `sp_winemu_all_components12` SharedPreferences before iterating.
+
+**Files changed:**
+- `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/ComponentInjectorHelper.smali`
+
+**Methods changed:**
+- `ComponentInjectorHelper.appendLocalComponents(List, int)V` — added 7-instruction lazy-init block before `if-eqz v0, :done`
+
+**Commit:** `8e0160aa9`  |  **Tag:** v2.7.6-pre
+**CI:** ✅ run 23697679345

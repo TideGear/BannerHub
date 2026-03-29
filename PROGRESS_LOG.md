@@ -4,6 +4,15 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [fix] — v2.7.6-pre — offline component picker fix (2026-03-29)
+**Branch:** `main`  |  **Tag:** v2.7.6-pre
+**Commit:** `8e0160aa9`  |  **CI:** ✅ run 23697679345 (Quick — Normal only)
+**What changed:** appendLocalComponents: lazily init EmuComponents via Companion.b(Application) if singleton is null — fixes empty component list when offline/before first game launch.
+#### Files touched
+- `patches/smali_classes16/com/xj/landscape/launcher/ui/menu/ComponentInjectorHelper.smali`
+
+---
+
 ## [stable] — v2.7.5 — Winlator HUD overlay + opacity slider (2026-03-28)
 **Branch:** `main`  |  **Tag:** v2.7.5
 **Commit:** `2a4bae8a7`  |  **CI:** ✅ run 23695765757 (9 APKs)
