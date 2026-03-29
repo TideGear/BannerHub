@@ -846,12 +846,20 @@ public class AmazonGamesActivity extends Activity {
             freeBytes = sf.getAvailableBlocksLong() * sf.getBlockSizeLong();
         } catch (Exception ignored) {}
 
+        final long freeBytesF = freeBytes;
+
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(20), dp(8), dp(20), dp(8));
 
+        TextView sizeTV = new TextView(this);
+        sizeTV.setText("Game size:  Fetching…");
+        sizeTV.setTextColor(0xFFCCCCCC);
+        sizeTV.setTextSize(14f);
+        content.addView(sizeTV);
+
         TextView freeTV = new TextView(this);
-        freeTV.setText("Available storage:  " + formatBytes(freeBytes));
+        freeTV.setText("Available storage:  " + formatBytes(freeBytesF));
         freeTV.setTextColor(0xFF88CC88);
         freeTV.setTextSize(14f);
         content.addView(freeTV);
@@ -868,6 +876,41 @@ public class AmazonGamesActivity extends Activity {
             dialog.dismiss();
             onConfirm.run();
         });
+
+        // Fetch game size in background and update label
+        if (game.installSize > 0) {
+            sizeTV.setText("Game size:  " + formatBytes(game.installSize));
+        } else {
+            new Thread(() -> {
+                long size = 0;
+                try {
+                    String token = AmazonCredentialStore.getValidAccessToken(this);
+                    if (token != null) {
+                        AmazonApiClient.GameDownloadSpec spec =
+                                AmazonApiClient.getGameDownload(token, game.entitlementId);
+                        if (spec != null && !spec.downloadUrl.isEmpty()) {
+                            String manifestUrl = AmazonApiClient.appendPath(
+                                    spec.downloadUrl, "manifest.proto");
+                            byte[] manifestBytes = AmazonApiClient.getBytes(
+                                    manifestUrl, token);
+                            if (manifestBytes != null) {
+                                AmazonManifest.ParsedManifest manifest =
+                                        AmazonManifest.parse(manifestBytes);
+                                size = manifest.totalInstallSize;
+                                game.installSize = size;
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+                final long finalSize = size;
+                uiHandler.post(() -> {
+                    if (dialog.isShowing()) {
+                        sizeTV.setText("Game size:  "
+                                + (finalSize > 0 ? formatBytes(finalSize) : "Unknown"));
+                    }
+                });
+            }, "amazon-size-" + game.productId).start();
+        }
     }
 
     private void showDetailDialog(AmazonGame game, View checkmark, Button actionBtn) {
