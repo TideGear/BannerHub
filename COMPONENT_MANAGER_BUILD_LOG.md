@@ -3969,3 +3969,37 @@ Online: API provides the list so this went unnoticed. Offline: API fails → fal
 
 **Commit:** `8e0160aa9`  |  **Tag:** v2.7.6-pre
 **CI:** ✅ run 23697679345
+
+---
+
+## Entry 123 — amazon-integration Phase 1 — Amazon auth skeleton (2026-03-29)
+
+**Root cause / motivation:** Begin Amazon Games integration on the `amazon-integration` branch. Phase 1 establishes the auth layer: PKCE device registration, credential persistence, and the entry-point Activity reachable via side menu.
+
+**What was added:**
+- `AmazonPKCEGenerator`: device serial (UUID hex uppercase), clientId (hex UTF-8 of `serial#A2UMVHOX7UP4V7`), code verifier (32 SecureRandom bytes Base64 URL_SAFE/NO_PAD/NO_WRAP), code challenge (SHA-256 S256, same Base64), sha256Upper (uppercase hex for hardwareHash)
+- `AmazonCredentialStore`: JSON file at `filesDir/amazon/credentials.json`; fields: access_token, refresh_token, device_serial, client_id, expires_at (epoch ms); getValidAccessToken() auto-refreshes 5min before expiry
+- `AmazonAuthClient`: POST https://api.amazon.com/auth/register (PKCE exchange, parses `response.success.tokens.bearer`), POST https://api.amazon.com/auth/token (refresh, reuses old refresh_token), POST https://api.amazon.com/auth/deregister (non-fatal logout)
+- `AmazonLoginActivity`: WebView loads Amazon sign-in with code_challenge; intercepts redirect to `https://www.amazon.com/?openid.assoc_handle=amzn_sonic_games_launcher`; AtomicBoolean prevents double-fire; background Thread calls registerDevice; saves creds + finish()
+- `AmazonMainActivity`: entry point (side menu ID=11/0xb); login card (Amazon orange #FF9900) / logged-in card; sign out deregisters + clears; opens AmazonGamesActivity
+- `AmazonGamesActivity`: stub placeholder (Phase 2 replaces with library list)
+- `HomeLeftMenuDialog.smali`: `:pswitch_11` → AmazonMainActivity; Amazon menu item ID=0xb; packed-switch extended with `:pswitch_11`
+- `AndroidManifest.xml`: AmazonMainActivity, AmazonLoginActivity, AmazonGamesActivity registered
+
+**Files changed:**
+- `extension/AmazonPKCEGenerator.java` (new)
+- `extension/AmazonCredentialStore.java` (new)
+- `extension/AmazonAuthClient.java` (new)
+- `extension/AmazonLoginActivity.java` (new)
+- `extension/AmazonMainActivity.java` (new)
+- `extension/AmazonGamesActivity.java` (new, stub)
+- `patches/smali_classes5/com/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog.smali`
+- `patches/AndroidManifest.xml`
+
+**Methods changed:**
+- `HomeLeftMenuDialog` pswitch handler: added `:pswitch_11` block
+- `HomeLeftMenuDialog` menu builder: added Amazon menu item (id=0xb)
+- `HomeLeftMenuDialog` packed-switch: extended from 0xa to 0xb
+
+**Commit:** (pending)  |  **Branch:** amazon-integration
+**CI:** pending first build

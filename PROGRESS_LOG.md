@@ -4,6 +4,15 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [ci] — amazon-integration branch — artifact-only workflow added (2026-03-29)
+**Branch:** `amazon-integration`  |  **Commit:** `aa7413f35`
+**CI:** run 23705798906 (in progress)
+**What changed:** Added build-amazon.yml — triggers on push to amazon-integration; builds BannerHub-amazon-{SHA}.apk; uploads as Actions artifact (30-day retention); no release created.
+#### Files touched
+- `.github/workflows/build-amazon.yml`
+
+---
+
 ## [fix] — v2.7.6-pre — offline component picker fix (2026-03-29)
 **Branch:** `main`  |  **Tag:** v2.7.6-pre
 **Commit:** `8e0160aa9`  |  **CI:** ✅ run 23697679345 (Quick — Normal only)
@@ -2625,3 +2634,25 @@ ART 14 blocks cross-dex private field access. `DialogSettingListItemEntity` is i
 - All isExternalAPI() call sites unchanged
 #### Files touched
 - `patches/smali_classes6/app/revanced/extension/gamehub/prefs/GameHubPrefs.smali`
+
+### [feat] — amazon-integration branch — Phase 1: Amazon auth skeleton (2026-03-29)
+**Commit:** (pending)  |  **Branch:** amazon-integration
+#### What changed
+- Amazon Games integration Phase 1: PKCE auth flow, credential storage, WebView login, main entry point
+- AmazonPKCEGenerator.java: device serial (UUID), clientId (hex of serial#DEVICE_TYPE), code verifier (32 random bytes), code challenge (SHA-256 S256), sha256Upper for hardwareHash
+- AmazonCredentialStore.java: persist credentials to filesDir/amazon/credentials.json, load/save/clear, isLoggedIn(), getValidAccessToken() with auto-refresh 5min before expiry
+- AmazonAuthClient.java: registerDevice (PKCE exchange → bearer tokens), refreshAccessToken (reuses refresh token), deregisterDevice (non-fatal), postJson/getRequest helpers
+- AmazonLoginActivity.java: PKCE WebView login, 3-hook redirect capture (shouldOverrideUrlLoading×2 + onPageStarted), AtomicBoolean double-fire guard, background thread for registerDevice, saves credentials on success
+- AmazonMainActivity.java: entry point (ID=11), login card / logged-in card toggle, sign out (deregister + clear), launches AmazonGamesActivity
+- AmazonGamesActivity.java: Phase 1 stub (placeholder screen)
+- HomeLeftMenuDialog.smali: added pswitch_11 (AmazonMainActivity), Amazon menu item ID=0xb, extended packed-switch to include :pswitch_11
+- AndroidManifest.xml: registered AmazonMainActivity, AmazonLoginActivity, AmazonGamesActivity
+#### Files touched
+- `extension/AmazonPKCEGenerator.java` (new)
+- `extension/AmazonCredentialStore.java` (new)
+- `extension/AmazonAuthClient.java` (new)
+- `extension/AmazonLoginActivity.java` (new)
+- `extension/AmazonMainActivity.java` (new)
+- `extension/AmazonGamesActivity.java` (new)
+- `patches/smali_classes5/.../HomeLeftMenuDialog.smali`
+- `patches/AndroidManifest.xml`
