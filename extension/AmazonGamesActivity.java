@@ -200,10 +200,6 @@ public class AmazonGamesActivity extends Activity {
     }
 
     private void syncLibrary(boolean showProgress) {
-        AmazonApiClient.sDebugCtx = this;
-        AmazonApiClient.dbg("=== BannerHub Amazon Debug ===");
-        AmazonApiClient.dbg("timestamp=" + System.currentTimeMillis());
-        AmazonApiClient.dbg("startSync thread started");
         try {
             if (showProgress) setSync("Checking credentials…");
             AmazonCredentialStore.Credentials creds =
@@ -772,9 +768,6 @@ public class AmazonGamesActivity extends Activity {
         AtomicBoolean cancelled = new AtomicBoolean(false);
 
         new Thread(() -> {
-            AmazonApiClient.dbg("startAmazonDownload: title=" + game.title
-                    + " entitlementId=" + game.entitlementId
-                    + " productId=" + game.productId);
             String token = AmazonCredentialStore.getValidAccessToken(this);
             if (token == null) { cb.onError("Login required"); return; }
 
