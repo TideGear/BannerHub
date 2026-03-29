@@ -36,45 +36,130 @@ jobs:
         run: |
           APK=$(ls base/*.apk | head -1)
           echo "Decompiling: $APK"
-          java -jar $HOME/bin/apktool.jar d "$APK" -o apktool_out --force
+          java -jar $HOME/bin/apktool.jar d "$APK" -o apktool_out -f
 
       - name: Remove uncompilable apktool artifacts
         run: |
-          rm -f apktool_out/res/raw/raws.xml
-          python3 - << 'PYEOF'
-          import re, os
-          path = "apktool_out/res/values/public.xml"
-          with open(path) as f:
-              content = f.read()
-          content = re.sub(r'\s*<public[^>]*name="firebase_common_keep"[^>]*/>', '', content)
-          content = re.sub(r'\s*<public[^>]*name="firebase_crashlytics_keep"[^>]*/>', '', content)
-          with open(path, "w") as f:
-              f.write(content)
-          PYEOF
+          rm -f apktool_out/res/values/raws.xml
+          sed -i '/firebase_common_keep\|firebase_crashlytics_keep/d' apktool_out/res/values/public.xml
+
+          # Extract original classes12.dex and skip smali reassembly (dex index limit workaround)
+          APK=$(ls base/*.apk | head -1)
+          unzip -p "$APK" classes12.dex > classes12.dex
+          rm -rf apktool_out/smali_classes12
 
       - name: Apply patches
         run: |
-          # Remove classes12 smali (over dex index limit — re-inject original after rebuild)
-          rm -rf apktool_out/smali_classes12
-
-          # Extract original classes12.dex from base APK for re-injection
-          cd base && unzip -o "$(ls *.apk | head -1)" classes12.dex && cd ..
-
-          # Copy all patch smali files
-          for dir in patches/smali*/; do
-            target="apktool_out/${dir#patches/}"
-            mkdir -p "$target"
-            cp -r "$dir"* "$target"
-          done
-
-          # Copy patched resource/manifest files
-          for f in patches/res patches/AndroidManifest.xml patches/apktool.yml; do
-            [ -e "$f" ] && cp -r "$f" apktool_out/
-          done
+          if [ -d "patches" ] && [ "$(ls -A patches)" ]; then
+            echo "Applying patches..."
+            cp -r patches/. apktool_out/
+            echo "Patches applied."
+          else
+            echo "No patches to apply."
+          fi
 
       - name: Apply Grant Root Access smali patches
         run: |
-          python3 patches/apply_root_patches.py apktool_out || true
+          python3 << 'PYEOF'
+          import sys
+
+          def patch(path, old, new, label):
+              try:
+                  content = open(path, encoding='utf-8').read()
+              except UnicodeDecodeError:
+                  content = open(path, encoding='latin-1').read()
+              if old not in content:
+                  print(f"ERROR: anchor not found in {path} for: {label}")
+                  sys.exit(1)
+              open(path, 'w', encoding='utf-8').write(content.replace(old, new, 1))
+              print(f"OK: {label}")
+
+          # Patch 1: SettingBtnHolder.w() — handle click for contentType=0x64 (Grant Root Access)
+          # Injected EARLY right after getContentType() move-result p0, while p2 is still a View.
+          patch(
+              'apktool_out/smali_classes6/com/xj/landscape/launcher/ui/setting/holder/SettingBtnHolder.smali',
+              '    move-result p0\n'
+              '\n'
+              '    .line 15\n'
+              '    sget-object p1, Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity;'
+              '->Companion:Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity$Companion;\n',
+              '    move-result p0\n'
+              '\n'
+              '    # BannerHub: Grant Root Access (contentType=0x64) — injected early while p2 is still a View\n'
+              '    const/16 v0, 0x64\n'
+              '\n'
+              '    if-ne p0, v0, :bh_skip_root_grant\n'
+              '\n'
+              '    invoke-virtual {p2}, Landroid/view/View;->getContext()Landroid/content/Context;\n'
+              '\n'
+              '    move-result-object v0\n'
+              '\n'
+              '    invoke-static {v0}, Lcom/xj/winemu/sidebar/BhRootGrantHelper;->requestRoot(Landroid/content/Context;)V\n'
+              '\n'
+              '    sget-object v0, Lkotlin/Unit;->a:Lkotlin/Unit;\n'
+              '\n'
+              '    return-object v0\n'
+              '\n'
+              '    :bh_skip_root_grant\n'
+              '\n'
+              '    .line 15\n'
+              '    sget-object p1, Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity;'
+              '->Companion:Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity$Companion;\n',
+              'SettingBtnHolder.w(): Grant Root Access click handler (contentType=0x64)'
+          )
+
+          # Patch 2: SettingItemEntity.getContentName() — return "Grant Root Access" for contentType=0x64
+          patch(
+              'apktool_out/smali_classes13/com/xj/landscape/launcher/data/model/entity/SettingItemEntity.smali',
+              '    :cond_15\n'
+              '    invoke-static {p0}, Lapp/revanced/extension/gamehub/prefs/GameHubPrefs;->getCustomSettingName(I)Ljava/lang/String;\n',
+              '    :cond_15\n'
+              '    # BannerHub: Grant Root Access (contentType=0x64)\n'
+              '    const/16 v0, 0x64\n'
+              '\n'
+              '    if-ne p0, v0, :bh_skip_grant_name\n'
+              '\n'
+              '    const-string p0, "Grant Root Access"\n'
+              '\n'
+              '    return-object p0\n'
+              '\n'
+              '    :bh_skip_grant_name\n'
+              '    invoke-static {p0}, Lapp/revanced/extension/gamehub/prefs/GameHubPrefs;->getCustomSettingName(I)Ljava/lang/String;\n',
+              'SettingItemEntity.getContentName(): return "Grant Root Access" for contentType=0x64'
+          )
+
+          # Patch 3: SettingItemViewModel.k() — add Grant Root Access TYPE_BTN below Clear Cache
+          patch(
+              'apktool_out/smali_classes3/com/xj/landscape/launcher/vm/SettingItemViewModel.smali',
+              '    invoke-interface {p0, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+              '\n'
+              '    .line 79\n'
+              '    return-object p0\n'
+              '.end method\n'
+              '\n'
+              '.method public final m()Ljava/util/List;\n',
+              '    invoke-interface {p0, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+              '\n'
+              '    # BannerHub: Grant Root Access button (contentType=0x64) below Clear Cache\n'
+              '    new-instance v0, Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity;\n'
+              '\n'
+              '    const/16 v2, 0x64\n'
+              '\n'
+              '    invoke-direct/range {v0 .. v6}, Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity;'
+              '-><init>(IILandroid/util/SparseArray;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V\n'
+              '\n'
+              '    invoke-interface {p0, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+              '\n'
+              '    .line 79\n'
+              '    return-object p0\n'
+              '.end method\n'
+              '\n'
+              '.method public final m()Ljava/util/List;\n',
+              'SettingItemViewModel.k(): add Grant Root Access TYPE_BTN after Clear Cache'
+          )
+
+          print("\nAll Grant Root Access patches applied successfully.")
+          PYEOF
 
       - name: Patch package name (amazon branch — isolated from stable)
         run: |
@@ -88,10 +173,10 @@ jobs:
           # Rebuild
           java -jar $HOME/bin/apktool.jar b apktool_out -o rebuilt-unsigned.apk
 
-          # Inject original classes12.dex
+          # Inject original classes12.dex (skipped smali reassembly due to dex index limit)
           zip rebuilt-unsigned.apk classes12.dex
 
-          # Compile and inject extension dex as classes18.dex
+          # Compile and inject GOG extension dex as classes18.dex
           ANDROID_JAR=$(ls $ANDROID_SDK_ROOT/platforms/android-*/android.jar 2>/dev/null | sort -V | tail -1)
           mkdir -p ext_classes
           javac -source 8 -target 8 -cp "$ANDROID_JAR" -d ext_classes extension/*.java
