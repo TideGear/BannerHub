@@ -31,12 +31,11 @@ public class EpicLoginActivity extends Activity {
 
     private static final String AUTH_URL =
             "https://www.epicgames.com/id/login"
-            + "?redirectUrl=https%3A%2F%2Fwww.epicgames.com%2Fid%2Fapi%2Fredirect"
-            + "%3FclientId%3D" + EpicAuthClient.CLIENT_ID
-            + "%26responseType%3Dcode";
+            + "?redirectUrl=https%3A%2F%2Flocalhost%2Flauncher%2Fauthorized";
 
     // The redirect URL we intercept to capture the auth code
-    private static final String REDIRECT_HOST = "https://www.epicgames.com/id/api/redirect";
+    // Epic redirects to https://localhost/launcher/authorized?code=XXXX
+    private static final String REDIRECT_HOST = "https://localhost/launcher/authorized";
 
     private WebView webView;
     private final AtomicBoolean codeCaptured = new AtomicBoolean(false);
