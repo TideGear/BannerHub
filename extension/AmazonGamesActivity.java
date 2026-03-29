@@ -783,8 +783,7 @@ public class AmazonGamesActivity extends Activity {
                 (dl, total, file) -> {
                     if (cancelled.get()) return;
                     int pct = (total > 0) ? (int) (dl * 100L / total) : 0;
-                    String name = (file != null)
-                            ? new File(file).getName() : "Downloading…";
+                    String name = (file != null && !file.isEmpty()) ? file : "Downloading…";
                     cb.onProgress(name, pct);
                 },
                 cancelled::get
