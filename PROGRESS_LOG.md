@@ -2709,3 +2709,10 @@ ART 14 blocks cross-dex private field access. `DialogSettingListItemEntity` is i
 #### Files touched
 - `extension/AmazonGamesActivity.java`
 - `COMPONENT_MANAGER_BUILD_LOG.md`
+
+---
+
+### [merge] — v2.7.6-pre — Amazon Games integration merged to main (2026-03-29)
+**Commit:** `2a0aee562`  |  **Tag:** v2.7.6-pre
+Merged amazon-integration branch. All 6 phases: PKCE auth, library sync,
+manifest download, install, launch, SDK cache + update checker.
