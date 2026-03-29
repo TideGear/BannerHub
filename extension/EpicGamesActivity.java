@@ -1,3 +1,11 @@
+/*
+ * Epic Games integration for BannerHub
+ *
+ * Credits: The Epic Games Store API pipeline, OAuth flow, manifest download
+ * architecture, CDN selection logic, chunk decompression, and launch arguments
+ * are based on the research and implementation of The GameNative Team.
+ * https://github.com/utkarshdalal/GameNative
+ */
 package app.revanced.extension.gamehub;
 
 import android.app.Activity;
@@ -36,41 +44,46 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Amazon Games library screen — UI mirrors GogGamesActivity.
+ * Epic Games library screen — mirrors AmazonGamesActivity structure.
  *
  * View modes: LIST (collapsible cards) · GRID · POSTER
- * Install flow: Install → progress bar → Cancel → Add to Launcher
- * Exe picker shown on install complete if multiple .exe files found.
- * Installed state stored in bh_amazon_prefs: amazon_exe_{productId}.
+ * Install: manifest fetch → chunk download → file assembly → exe scan
+ * Launch:  store pending_epic_exe → start LandscapeLauncherMainActivity
+ *
+ * Storage in bh_epic_prefs:
+ *   epic_exe_{appName}  — abs path to selected .exe
+ *   epic_dir_{appName}  — abs path to install directory
+ *   epic_cache          — JSON array of library cache
+ *   epic_view_mode      — "list" / "grid" / "poster"
  */
-public class AmazonGamesActivity extends Activity {
+public class EpicGamesActivity extends Activity {
 
-    private static final String TAG          = "BH_AMAZON";
-    private static final String PREFS_NAME   = "bh_amazon_prefs";
-    private static final String CACHE_KEY    = "amazon_library_cache";
-    private static final String VIEW_MODE_KEY = "amazon_view_mode";
+    private static final String TAG           = "BH_EPIC";
+    private static final String PREFS_NAME    = "bh_epic_prefs";
+    private static final String CACHE_KEY     = "epic_cache";
+    private static final String VIEW_MODE_KEY = "epic_view_mode";
 
-    // Amazon brand colours
-    private static final int COLOR_ACCENT   = 0xFFFF9900;   // orange — install btn / title
-    private static final int COLOR_ADD      = 0xFF2E7D32;   // green  — Add to Launcher btn
-    private static final int COLOR_CANCEL   = 0xFFCC3333;   // red    — cancel btn
-    private static final int COLOR_CARD_BG  = 0xFF1A1410;   // dark brownish card background
-    private static final int COLOR_HDR_BG   = 0xFF1A1410;
-    private static final int COLOR_ROOT_BG  = 0xFF0D0D0D;
+    // Epic brand colours
+    private static final int COLOR_ACCENT  = 0xFF0078F0;  // Epic blue — install btn / title
+    private static final int COLOR_ADD     = 0xFF2E7D32;  // green  — Add to Launcher btn
+    private static final int COLOR_CANCEL  = 0xFFCC3333;  // red    — cancel btn
+    private static final int COLOR_CARD_BG = 0xFF0F1117;  // dark card background
+    private static final int COLOR_HDR_BG  = 0xFF0F1117;
+    private static final int COLOR_ROOT_BG = 0xFF0D0D0D;
 
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
 
     private SharedPreferences prefs;
-    private TextView    syncText;
+    private TextView     syncText;
     private LinearLayout gameListLayout;
-    private ScrollView  scrollView;
-    private Button      refreshBtn;
-    private Button      viewToggleBtn;
-    private EditText    searchBar;
-    private List<AmazonGame> allGames = new ArrayList<>();
-    private View        expandedSection = null;
-    private TextView    expandedArrow   = null;
-    private String      viewMode;
+    private ScrollView   scrollView;
+    private Button       refreshBtn;
+    private Button       viewToggleBtn;
+    private EditText     searchBar;
+    private List<EpicGame> allGames    = new ArrayList<>();
+    private View         expandedSection = null;
+    private TextView     expandedArrow   = null;
+    private String       viewMode;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -80,7 +93,7 @@ public class AmazonGamesActivity extends Activity {
         prefs    = getSharedPreferences(PREFS_NAME, 0);
         viewMode = prefs.getString(VIEW_MODE_KEY, "list");
         buildUi();
-        List<AmazonGame> cached = loadCachedGames();
+        List<EpicGame> cached = loadCachedGames();
         if (cached != null && !cached.isEmpty()) {
             showGames(cached);
             setSync(cached.size() + " game(s) — cached  •  tap ↺ to refresh");
@@ -112,7 +125,7 @@ public class AmazonGamesActivity extends Activity {
         header.addView(backBtn, new LinearLayout.LayoutParams(-2, dp(40)));
 
         TextView titleTV = new TextView(this);
-        titleTV.setText("Amazon Games");
+        titleTV.setText("Epic Games");
         titleTV.setTextColor(COLOR_ACCENT);
         titleTV.setTextSize(18f);
         titleTV.setTypeface(null, Typeface.BOLD);
@@ -126,9 +139,9 @@ public class AmazonGamesActivity extends Activity {
         viewToggleBtn.setTextSize(16f);
         viewToggleBtn.setPadding(dp(12), 0, dp(12), 0);
         viewToggleBtn.setOnClickListener(v -> {
-            if ("list".equals(viewMode))        viewMode = "grid";
-            else if ("grid".equals(viewMode))   viewMode = "poster";
-            else                                viewMode = "list";
+            if ("list".equals(viewMode))       viewMode = "grid";
+            else if ("grid".equals(viewMode))  viewMode = "poster";
+            else                               viewMode = "list";
             prefs.edit().putString(VIEW_MODE_KEY, viewMode).apply();
             viewToggleBtn.setText(viewModeIcon(viewMode));
             expandedSection = null;
@@ -154,7 +167,7 @@ public class AmazonGamesActivity extends Activity {
         searchBar.setHintTextColor(0xFF666666);
         searchBar.setTextColor(0xFFFFFFFF);
         searchBar.setTextSize(14f);
-        searchBar.setBackgroundColor(0xFF221A10);
+        searchBar.setBackgroundColor(0xFF141820);
         searchBar.setPadding(dp(12), dp(8), dp(12), dp(8));
         searchBar.setSingleLine(true);
         searchBar.addTextChangedListener(new TextWatcher() {
@@ -168,7 +181,7 @@ public class AmazonGamesActivity extends Activity {
 
         // Sync status
         syncText = new TextView(this);
-        syncText.setText("Loading Amazon library…");
+        syncText.setText("Loading Epic library…");
         syncText.setTextColor(0xFFCCCCCC);
         syncText.setTextSize(13f);
         syncText.setPadding(dp(12), dp(6), dp(12), dp(6));
@@ -194,65 +207,76 @@ public class AmazonGamesActivity extends Activity {
     private void startSync(boolean showProgress) {
         uiHandler.post(() -> {
             if (refreshBtn != null) refreshBtn.setEnabled(false);
-            if (showProgress) setSync("Loading Amazon library…");
+            if (showProgress) setSync("Loading Epic library…");
         });
-        new Thread(() -> syncLibrary(showProgress), "amazon-sync").start();
+        new Thread(() -> syncLibrary(showProgress), "epic-sync").start();
     }
 
     private void syncLibrary(boolean showProgress) {
         try {
             if (showProgress) setSync("Checking credentials…");
-            AmazonCredentialStore.Credentials creds =
-                    AmazonCredentialStore.load(AmazonGamesActivity.this);
-            if (creds == null || creds.accessToken == null) {
+            String token = EpicCredentialStore.getValidAccessToken(this);
+            if (token == null) {
                 setSync("Not logged in");
                 enableRefresh();
                 uiHandler.post(() -> {
-                    Toast.makeText(this, "Please log in to Amazon Games first",
+                    Toast.makeText(this, "Please log in to Epic Games first",
                             Toast.LENGTH_SHORT).show();
                     finish();
                 });
                 return;
             }
 
-            if (showProgress) setSync("Refreshing token…");
-            String token = AmazonCredentialStore.getValidAccessToken(this);
-            if (token == null) { setSync("Token refresh failed"); enableRefresh(); return; }
-
             if (showProgress) setSync("Fetching game list…");
-            List<AmazonGame> games = AmazonApiClient.getEntitlements(token, creds.deviceSerial);
+            List<EpicGame> games = EpicApiClient.getLibraryItems(token);
 
             if (games == null || games.isEmpty()) {
-                setSync("No games found in Amazon library");
+                setSync("No games found in Epic library");
                 enableRefresh();
                 return;
             }
 
-            Collections.sort(games, (a, b) -> a.title.compareToIgnoreCase(b.title));
+            // Enrich each game with catalog details (title, art, developer)
+            if (showProgress) setSync("Loading game details…");
+            int total = games.size();
+            int done  = 0;
+            for (EpicGame game : games) {
+                EpicApiClient.enrichFromCatalog(token, game);
+                done++;
+                if (done % 5 == 0) {
+                    final int d = done;
+                    setSync("Loading game details… (" + d + "/" + total + ")");
+                }
+            }
+
+            // Filter: skip DLC from top-level display
+            List<EpicGame> mainGames = new ArrayList<>();
+            for (EpicGame g : games) {
+                if (!g.isDLC) mainGames.add(g);
+            }
+            if (mainGames.isEmpty()) mainGames = games;
+
+            Collections.sort(mainGames, (a, b) -> a.title.compareToIgnoreCase(b.title));
 
             // Restore install state from cache
-            List<AmazonGame> cached = loadCachedGames();
+            List<EpicGame> cached = loadCachedGames();
             if (cached != null) {
-                for (AmazonGame fresh : games) {
-                    for (AmazonGame old : cached) {
-                        if (old.productId.equals(fresh.productId)) {
-                            fresh.isInstalled  = old.isInstalled;
-                            fresh.installPath  = old.installPath;
-                            fresh.versionId    = old.versionId;
-                            fresh.downloadSize = old.downloadSize;
-                            fresh.installSize  = old.installSize;
+                for (EpicGame fresh : mainGames) {
+                    for (EpicGame old : cached) {
+                        if (old.appName.equals(fresh.appName)) {
+                            fresh.isInstalled = old.isInstalled;
+                            fresh.installPath = old.installPath;
+                            fresh.version     = old.version;
+                            fresh.installSize = old.installSize;
                             break;
                         }
                     }
                 }
             }
 
-            // Check for updates on installed games
-            checkForUpdates(token, games);
+            saveCachedGames(mainGames);
 
-            saveCachedGames(games);
-
-            final List<AmazonGame> finalGames = games;
+            final List<EpicGame> finalGames = mainGames;
             uiHandler.post(() -> {
                 showGames(finalGames);
                 setSync(finalGames.size() + " game(s) — tap a card to install");
@@ -265,24 +289,23 @@ public class AmazonGamesActivity extends Activity {
         }
     }
 
-    private void showGames(List<AmazonGame> games) {
+    private void showGames(List<EpicGame> games) {
         allGames = games;
-        String q = searchBar != null ? searchBar.getText().toString() : "";
-        applyFilter(q);
+        applyFilter(searchBar != null ? searchBar.getText().toString() : "");
         scrollView.setVisibility(View.VISIBLE);
     }
 
     private void applyFilter(String query) {
-        List<AmazonGame> filtered;
+        List<EpicGame> filtered;
         if (query == null || query.trim().isEmpty()) {
             filtered = allGames;
         } else {
             String q = query.trim().toLowerCase();
             filtered = new ArrayList<>();
-            for (AmazonGame g : allGames)
+            for (EpicGame g : allGames)
                 if (g.title.toLowerCase().contains(q)) filtered.add(g);
         }
-        final List<AmazonGame> result = filtered;
+        final List<EpicGame> result = filtered;
         uiHandler.post(() -> {
             gameListLayout.removeAllViews();
             if ("grid".equals(viewMode)) {
@@ -293,28 +316,10 @@ public class AmazonGamesActivity extends Activity {
                 addGamesAsGrid(result, 176, dp(10), dp(10));
             } else {
                 gameListLayout.setPadding(dp(8), dp(8), dp(8), dp(8));
-                for (AmazonGame g : result) addGameCard(g);
+                for (EpicGame g : result) addGameCard(g);
             }
             scrollView.setVisibility(View.VISIBLE);
         });
-    }
-
-    private void checkForUpdates(String token, List<AmazonGame> games) {
-        for (AmazonGame game : games) {
-            String installedExe = prefs.getString("amazon_exe_" + game.productId, null);
-            if (installedExe == null || game.productId.isEmpty()) continue;
-            try {
-                String liveVersion = AmazonApiClient.getLiveVersionId(token, game.productId);
-                if (liveVersion != null && !liveVersion.isEmpty()
-                        && !liveVersion.equals(game.versionId)) {
-                    Log.d(TAG, "Update available: " + game.title
-                            + " (" + game.versionId + " → " + liveVersion + ")");
-                    game.versionId = liveVersion + "_UPDATE_AVAILABLE";
-                }
-            } catch (Exception e) {
-                Log.w(TAG, "Update check failed for: " + game.title, e);
-            }
-        }
     }
 
     private void enableRefresh() {
@@ -323,8 +328,8 @@ public class AmazonGamesActivity extends Activity {
 
     // ── LIST view: collapsible game cards ─────────────────────────────────────
 
-    private void addGameCard(AmazonGame game) {
-        boolean isInstalled = prefs.getString("amazon_exe_" + game.productId, null) != null;
+    private void addGameCard(EpicGame game) {
+        boolean isInstalled = prefs.getString("epic_exe_" + game.appName, null) != null;
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -345,7 +350,7 @@ public class AmazonGamesActivity extends Activity {
         ImageView coverIV = new ImageView(this);
         coverIV.setScaleType(ImageView.ScaleType.CENTER_CROP);
         GradientDrawable coverBg = new GradientDrawable();
-        coverBg.setColor(0xFF221A10);
+        coverBg.setColor(0xFF141820);
         coverBg.setCornerRadius(dp(4));
         coverIV.setBackground(coverBg);
         LinearLayout.LayoutParams coverLp = new LinearLayout.LayoutParams(dp(60), dp(60));
@@ -391,12 +396,9 @@ public class AmazonGamesActivity extends Activity {
         expandSection.setOrientation(LinearLayout.VERTICAL);
         expandSection.setVisibility(View.GONE);
 
-        if (!game.developer.isEmpty() || !game.publisher.isEmpty()) {
-            String meta = game.developer.isEmpty() ? game.publisher
-                        : game.publisher.isEmpty() ? game.developer
-                        : game.developer + " · " + game.publisher;
+        if (!game.developer.isEmpty()) {
             TextView metaTV = new TextView(this);
-            metaTV.setText(meta);
+            metaTV.setText(game.developer);
             metaTV.setTextColor(0xFF888888);
             metaTV.setTextSize(11f);
             LinearLayout.LayoutParams metaLp = new LinearLayout.LayoutParams(-1, -2);
@@ -404,11 +406,9 @@ public class AmazonGamesActivity extends Activity {
             expandSection.addView(metaTV, metaLp);
         }
 
-        boolean updateAvailable = isInstalled
-                && game.versionId != null && game.versionId.endsWith("_UPDATE_AVAILABLE");
         TextView checkmark = new TextView(this);
-        checkmark.setText(updateAvailable ? "✓ Installed — Update Available" : "✓ Installed");
-        checkmark.setTextColor(updateAvailable ? 0xFFFFAA00 : 0xFF4CAF50);
+        checkmark.setText("✓ Installed");
+        checkmark.setTextColor(0xFF4CAF50);
         checkmark.setTextSize(10f);
         checkmark.setVisibility(isInstalled ? View.VISIBLE : View.GONE);
         LinearLayout.LayoutParams ckLp = new LinearLayout.LayoutParams(-1, -2);
@@ -454,17 +454,15 @@ public class AmazonGamesActivity extends Activity {
         final Runnable[] cancelRef = {null};
         actionBtn.setOnClickListener(v -> {
             String lbl = actionBtn.getText().toString();
-
             if ("Cancel".equals(lbl)) {
                 if (cancelRef[0] != null) cancelRef[0].run();
                 return;
             }
             if ("Add to Launcher".equals(lbl) || "Add Game".equals(lbl)) {
-                String exe = prefs.getString("amazon_exe_" + game.productId, null);
+                String exe = prefs.getString("epic_exe_" + game.appName, null);
                 if (exe != null) pendingLaunchExe(exe);
                 return;
             }
-
             showInstallConfirm(game, () -> {
                 cancelRef[0] = null;
                 actionBtn.setEnabled(true);
@@ -475,7 +473,7 @@ public class AmazonGamesActivity extends Activity {
                 pctTV.setText("0%");
                 pctTV.setVisibility(View.VISIBLE);
 
-                cancelRef[0] = startAmazonDownload(game, new DownloadCallback() {
+                cancelRef[0] = startEpicDownload(game, new DownloadCallback() {
                     @Override public void onProgress(String msg, int pct) {
                         uiHandler.post(() -> {
                             statusTV.setText(msg);
@@ -504,8 +502,8 @@ public class AmazonGamesActivity extends Activity {
                             actionBtn.setText("Install");
                             actionBtn.setBackgroundColor(COLOR_ACCENT);
                             actionBtn.setEnabled(true);
-                            Toast.makeText(AmazonGamesActivity.this, "Error: " + msg,
-                                    Toast.LENGTH_LONG).show();
+                            Toast.makeText(EpicGamesActivity.this,
+                                    "Error: " + msg, Toast.LENGTH_LONG).show();
                         });
                     }
                     @Override public void onCancelled() {
@@ -521,7 +519,7 @@ public class AmazonGamesActivity extends Activity {
                         });
                     }
                     @Override public void onSelectExe(List<String> candidates,
-                                                      java.util.function.Consumer<String> onSelected) {
+                                                       java.util.function.Consumer<String> onSelected) {
                         showExePicker(candidates, onSelected);
                     }
                 });
@@ -562,7 +560,7 @@ public class AmazonGamesActivity extends Activity {
 
     // ── GRID / POSTER view ────────────────────────────────────────────────────
 
-    private void addGamesAsGrid(List<AmazonGame> games, int artHeightDp,
+    private void addGamesAsGrid(List<EpicGame> games, int artHeightDp,
                                  int tileHMargin, int rowBottomMargin) {
         int cols = 5;
         int rows = (games.size() + cols - 1) / cols;
@@ -585,13 +583,13 @@ public class AmazonGamesActivity extends Activity {
         }
     }
 
-    private View makeGridTile(AmazonGame game, int artHeightDp) {
-        boolean isInstalled = prefs.getString("amazon_exe_" + game.productId, null) != null;
+    private View makeGridTile(EpicGame game, int artHeightDp) {
+        boolean isInstalled = prefs.getString("epic_exe_" + game.appName, null) != null;
 
         LinearLayout tile = new LinearLayout(this);
         tile.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable tileBg = new GradientDrawable();
-        tileBg.setColor(0xFF221A10);
+        tileBg.setColor(0xFF141820);
         tileBg.setCornerRadius(dp(5));
         tile.setBackground(tileBg);
         tile.setClipToOutline(true);
@@ -601,7 +599,7 @@ public class AmazonGamesActivity extends Activity {
 
         ImageView coverIV = new ImageView(this);
         coverIV.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        coverIV.setBackgroundColor(0xFF1A1208);
+        coverIV.setBackgroundColor(0xFF0F1117);
         artFrame.addView(coverIV, new FrameLayout.LayoutParams(-1, dp(artHeightDp)));
         loadImage(game, coverIV);
 
@@ -635,14 +633,13 @@ public class AmazonGamesActivity extends Activity {
         FrameLayout.LayoutParams titleBarLp = new FrameLayout.LayoutParams(-1, -2);
         titleBarLp.gravity = Gravity.BOTTOM;
         artFrame.addView(titleBar, titleBarLp);
-
         tile.addView(artFrame, new LinearLayout.LayoutParams(-1, -2));
 
-        // Action row (hidden until tapped)
+        // Action row (shown on tap)
         LinearLayout actionRow = new LinearLayout(this);
         actionRow.setOrientation(LinearLayout.VERTICAL);
         actionRow.setVisibility(View.GONE);
-        actionRow.setBackgroundColor(0xFF1A1208);
+        actionRow.setBackgroundColor(0xFF0F1117);
         actionRow.setPadding(dp(4), dp(3), dp(4), dp(4));
 
         ProgressBar progressBar = new ProgressBar(this, null,
@@ -661,7 +658,6 @@ public class AmazonGamesActivity extends Activity {
         LinearLayout.LayoutParams abLp = new LinearLayout.LayoutParams(-1, dp(30));
         abLp.topMargin = dp(2);
         actionRow.addView(actionBtn, abLp);
-
         tile.addView(actionRow, new LinearLayout.LayoutParams(-1, -2));
 
         final Runnable[] cancelRef = {null};
@@ -672,7 +668,7 @@ public class AmazonGamesActivity extends Activity {
                 return;
             }
             if ("Add to Launcher".equals(lbl) || "Add Game".equals(lbl)) {
-                String exe = prefs.getString("amazon_exe_" + game.productId, null);
+                String exe = prefs.getString("epic_exe_" + game.appName, null);
                 if (exe != null) pendingLaunchExe(exe);
                 return;
             }
@@ -683,7 +679,7 @@ public class AmazonGamesActivity extends Activity {
                 actionBtn.setBackgroundColor(COLOR_CANCEL);
                 progressBar.setVisibility(View.VISIBLE);
 
-                cancelRef[0] = startAmazonDownload(game, new DownloadCallback() {
+                cancelRef[0] = startEpicDownload(game, new DownloadCallback() {
                     @Override public void onProgress(String msg, int pct) {
                         uiHandler.post(() -> progressBar.setProgress(pct));
                     }
@@ -705,8 +701,8 @@ public class AmazonGamesActivity extends Activity {
                             actionBtn.setText("Install");
                             actionBtn.setBackgroundColor(COLOR_ACCENT);
                             actionBtn.setEnabled(true);
-                            Toast.makeText(AmazonGamesActivity.this, "Error: " + msg,
-                                    Toast.LENGTH_LONG).show();
+                            Toast.makeText(EpicGamesActivity.this,
+                                    "Error: " + msg, Toast.LENGTH_LONG).show();
                         });
                     }
                     @Override public void onCancelled() {
@@ -720,7 +716,7 @@ public class AmazonGamesActivity extends Activity {
                         });
                     }
                     @Override public void onSelectExe(List<String> candidates,
-                                                      java.util.function.Consumer<String> onSelected) {
+                                                       java.util.function.Consumer<String> onSelected) {
                         showExePicker(candidates, onSelected);
                     }
                 });
@@ -769,83 +765,91 @@ public class AmazonGamesActivity extends Activity {
                          java.util.function.Consumer<String> onSelected);
     }
 
-    /**
-     * Starts an Amazon game download on a background thread.
-     * Returns a Runnable cancel token (same pattern as GogDownloadManager.startDownload).
-     */
-    private Runnable startAmazonDownload(AmazonGame game, DownloadCallback cb) {
+    private Runnable startEpicDownload(EpicGame game, DownloadCallback cb) {
         AtomicBoolean cancelled = new AtomicBoolean(false);
 
         new Thread(() -> {
-            String token = AmazonCredentialStore.getValidAccessToken(this);
-            if (token == null) { cb.onError("Login required"); return; }
+            try {
+                String token = EpicCredentialStore.getValidAccessToken(this);
+                if (token == null) { cb.onError("Login required"); return; }
 
-            String sanitized = game.title.replaceAll("[^a-zA-Z0-9 \\-_]", "").trim();
-            if (sanitized.isEmpty()) sanitized = "game_" + game.productId.hashCode();
-            File installDir = new File(new File(getFilesDir(), "Amazon"), sanitized);
+                // Fetch manifest API JSON
+                cb.onProgress("Fetching manifest…", 0);
+                String manifestJson = EpicApiClient.getManifestApiJson(
+                        token, game.namespace, game.catalogItemId, game.appName);
+                if (manifestJson == null) {
+                    cb.onError("Failed to fetch manifest. If this is Fortnite, it is not supported.");
+                    return;
+                }
 
-            // Store install dir in prefs for uninstall
-            prefs.edit().putString("amazon_dir_" + game.productId,
-                    installDir.getAbsolutePath()).apply();
+                // Install directory: getFilesDir()/epic_games/{sanitized title}
+                String sanitized = game.title.replaceAll("[^a-zA-Z0-9 \\-_]", "").trim();
+                if (sanitized.isEmpty()) sanitized = "epic_" + game.appName.hashCode();
+                File installDir = new File(new File(getFilesDir(), "epic_games"), sanitized);
+                prefs.edit().putString("epic_dir_" + game.appName,
+                        installDir.getAbsolutePath()).apply();
 
-            boolean ok = AmazonDownloadManager.install(this, game, token, installDir,
-                (dl, total, file) -> {
-                    if (cancelled.get()) return;
-                    int pct = (total > 0) ? (int) (dl * 100L / total) : 0;
-                    String name = (file != null && !file.isEmpty()) ? file : "Downloading…";
-                    cb.onProgress(name, pct);
-                },
-                cancelled::get
-            );
+                // Run download pipeline
+                final String finalToken = token;
+                boolean ok = EpicDownloadManager.install(
+                        manifestJson,
+                        finalToken,
+                        installDir.getAbsolutePath(),
+                        (msg, pct) -> {
+                            if (cancelled.get()) return;
+                            cb.onProgress(msg, pct);
+                        });
 
-            if (cancelled.get()) { cb.onCancelled(); return; }
-            if (!ok) { cb.onError("Download failed"); return; }
+                if (cancelled.get()) { cb.onCancelled(); return; }
+                if (!ok) { cb.onError("Download failed"); return; }
 
-            // Scan for executables
-            List<File> exeFiles = new ArrayList<>();
-            AmazonLaunchHelper.collectExe(installDir, exeFiles);
+                // Scan for Windows .exe files
+                List<File> exeFiles = new ArrayList<>();
+                AmazonLaunchHelper.collectExe(installDir, exeFiles);
 
-            if (exeFiles.isEmpty()) {
-                cb.onError("No executable found after install");
-                return;
+                if (exeFiles.isEmpty()) {
+                    cb.onError("No executable found after install");
+                    return;
+                }
+
+                // Sort best-scored first
+                String lowerTitle = game.title.toLowerCase();
+                Collections.sort(exeFiles, (a, b) ->
+                        AmazonLaunchHelper.scoreExe(b, lowerTitle)
+                        - AmazonLaunchHelper.scoreExe(a, lowerTitle));
+
+                if (exeFiles.size() == 1) {
+                    String path = exeFiles.get(0).getAbsolutePath();
+                    prefs.edit().putString("epic_exe_" + game.appName, path).apply();
+                    cb.onComplete(path);
+                    return;
+                }
+
+                // Multiple exes → ask user
+                List<String> candidates = new ArrayList<>();
+                for (File f : exeFiles) candidates.add(f.getAbsolutePath());
+                cb.onSelectExe(candidates, selected -> {
+                    String chosen = (selected != null && !selected.isEmpty())
+                            ? selected : exeFiles.get(0).getAbsolutePath();
+                    prefs.edit().putString("epic_exe_" + game.appName, chosen).apply();
+                    cb.onComplete(chosen);
+                });
+
+            } catch (Exception e) {
+                Log.e(TAG, "startEpicDownload failed", e);
+                if (!cancelled.get()) cb.onError(e.getMessage() != null ? e.getMessage() : "Unknown error");
             }
-
-            // Sort: best scored first
-            String lowerTitle = game.title.toLowerCase();
-            Collections.sort(exeFiles, (a, b) ->
-                    AmazonLaunchHelper.scoreExe(b, lowerTitle)
-                    - AmazonLaunchHelper.scoreExe(a, lowerTitle));
-
-            if (exeFiles.size() == 1) {
-                String path = exeFiles.get(0).getAbsolutePath();
-                prefs.edit().putString("amazon_exe_" + game.productId, path).apply();
-                cb.onComplete(path);
-                return;
-            }
-
-            // Multiple exes → ask user
-            List<String> candidates = new ArrayList<>();
-            for (File f : exeFiles) candidates.add(f.getAbsolutePath());
-
-            cb.onSelectExe(candidates, selected -> {
-                String chosen = (selected != null && !selected.isEmpty())
-                        ? selected
-                        : exeFiles.get(0).getAbsolutePath(); // default: best scored
-                prefs.edit().putString("amazon_exe_" + game.productId, chosen).apply();
-                cb.onComplete(chosen);
-            });
-
-        }, "amazon-dl-" + game.productId).start();
+        }, "epic-dl-" + game.appName).start();
 
         return () -> cancelled.set(true);
     }
 
     // ── Dialogs ───────────────────────────────────────────────────────────────
 
-    private void showInstallConfirm(AmazonGame game, Runnable onConfirm) {
+    private void showInstallConfirm(EpicGame game, Runnable onConfirm) {
         long freeBytes = -1;
         try {
-            File base = new File(new File(getFilesDir(), "Amazon"), "_check");
+            File base   = new File(new File(getFilesDir(), "epic_games"), "_check");
             File parent = base.getParentFile();
             if (parent != null) parent.mkdirs();
             android.os.StatFs sf = new android.os.StatFs(
@@ -861,7 +865,7 @@ public class AmazonGamesActivity extends Activity {
         content.setPadding(dp(20), dp(8), dp(20), dp(8));
 
         TextView sizeTV = new TextView(this);
-        sizeTV.setText("Game size:  Fetching…");
+        sizeTV.setText("Download size:  Fetching…");
         sizeTV.setTextColor(0xFFCCCCCC);
         sizeTV.setTextSize(14f);
         content.addView(sizeTV);
@@ -885,59 +889,51 @@ public class AmazonGamesActivity extends Activity {
             onConfirm.run();
         });
 
-        // Fetch game size in background and update label
+        // Fetch download size in background
         if (game.installSize > 0) {
-            sizeTV.setText("Game size:  " + formatBytes(game.installSize));
+            sizeTV.setText("Download size:  " + formatBytes(game.installSize));
         } else {
             new Thread(() -> {
                 long size = 0;
                 try {
-                    String token = AmazonCredentialStore.getValidAccessToken(this);
+                    String token = EpicCredentialStore.getValidAccessToken(this);
                     if (token != null) {
-                        AmazonApiClient.GameDownloadSpec spec =
-                                AmazonApiClient.getGameDownload(token, game.entitlementId);
-                        if (spec != null && !spec.downloadUrl.isEmpty()) {
-                            String manifestUrl = AmazonApiClient.appendPath(
-                                    spec.downloadUrl, "manifest.proto");
-                            byte[] manifestBytes = AmazonApiClient.getBytes(
-                                    manifestUrl, token);
-                            if (manifestBytes != null) {
-                                AmazonManifest.ParsedManifest manifest =
-                                        AmazonManifest.parse(manifestBytes);
-                                size = manifest.totalInstallSize;
-                                game.installSize = size;
-                            }
-                        }
+                        size = EpicApiClient.getInstallSize(token, game);
+                        game.installSize = size;
                     }
                 } catch (Exception ignored) {}
                 final long finalSize = size;
                 uiHandler.post(() -> {
                     if (dialog.isShowing()) {
-                        sizeTV.setText("Game size:  "
+                        sizeTV.setText("Download size:  "
                                 + (finalSize > 0 ? formatBytes(finalSize) : "Unknown"));
                     }
                 });
-            }, "amazon-size-" + game.productId).start();
+            }, "epic-size-" + game.appName).start();
         }
     }
 
-    private void showDetailDialog(AmazonGame game, View checkmark, Button actionBtn, Runnable onUninstalled) {
+    private void showDetailDialog(EpicGame game, View checkmark, Button actionBtn, Runnable onUninstalled) {
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
         container.setPadding(dp(20), dp(8), dp(20), dp(4));
 
         StringBuilder msg = new StringBuilder();
         if (!game.developer.isEmpty()) msg.append("Developer: ").append(game.developer).append("\n");
-        if (!game.publisher.isEmpty()) msg.append("Publisher: ").append(game.publisher).append("\n");
-        msg.append("ID: ").append(game.shortId());
+        if (!game.description.isEmpty()) {
+            String desc = game.description.length() > 200
+                    ? game.description.substring(0, 200) + "…" : game.description;
+            msg.append("\n").append(desc);
+        }
+        msg.append("\nApp: ").append(game.appName);
 
         TextView msgView = new TextView(this);
         msgView.setText(msg.toString().trim());
         msgView.setTextColor(0xFFCCCCCC);
         container.addView(msgView);
 
-        String installedExe = prefs.getString("amazon_exe_" + game.productId, null);
-        String installedDir = prefs.getString("amazon_dir_" + game.productId, null);
+        String installedExe = prefs.getString("epic_exe_" + game.appName, null);
+        String installedDir = prefs.getString("epic_dir_" + game.appName, null);
 
         if (installedExe != null) {
             TextView exeView = new TextView(this);
@@ -946,7 +942,6 @@ public class AmazonGamesActivity extends Activity {
             exeView.setTextSize(12f);
             container.addView(exeView);
 
-            // Set .exe button
             Button setExeBtn = new Button(this);
             setExeBtn.setText("Set .exe…");
             setExeBtn.setTextColor(0xFFFFFFFF);
@@ -971,7 +966,7 @@ public class AmazonGamesActivity extends Activity {
                     for (File f : exeFiles) candidates.add(f.getAbsolutePath());
                     showExePicker(candidates, selected -> {
                         if (selected != null && !selected.isEmpty()) {
-                            prefs.edit().putString("amazon_exe_" + game.productId, selected).apply();
+                            prefs.edit().putString("epic_exe_" + game.appName, selected).apply();
                             uiHandler.post(() -> {
                                 exeView.setText("\n.exe: " + new File(selected).getName());
                                 Toast.makeText(this,
@@ -995,8 +990,8 @@ public class AmazonGamesActivity extends Activity {
                 new Thread(() -> {
                     deleteDir(new File(installedDir));
                     prefs.edit()
-                            .remove("amazon_exe_" + game.productId)
-                            .remove("amazon_dir_" + game.productId)
+                            .remove("epic_exe_" + game.appName)
+                            .remove("epic_dir_" + game.appName)
                             .apply();
                     uiHandler.post(() -> {
                         onUninstalled.run();
@@ -1017,7 +1012,7 @@ public class AmazonGamesActivity extends Activity {
         for (int i = 0; i < candidates.size(); i++) {
             File f      = new File(candidates.get(i));
             File parent = f.getParentFile();
-            labels[i] = (parent != null)
+            labels[i]   = (parent != null)
                     ? parent.getName() + "/" + f.getName()
                     : f.getName();
         }
@@ -1034,7 +1029,7 @@ public class AmazonGamesActivity extends Activity {
     // ── Launch ────────────────────────────────────────────────────────────────
 
     private void pendingLaunchExe(String absPath) {
-        prefs.edit().putString("pending_amazon_exe", absPath).apply();
+        prefs.edit().putString("pending_epic_exe", absPath).apply();
         android.content.Intent intent = new android.content.Intent();
         intent.setClassName(getPackageName(),
                 "com.xj.landscape.launcher.ui.main.LandscapeLauncherMainActivity");
@@ -1045,52 +1040,52 @@ public class AmazonGamesActivity extends Activity {
 
     // ── Cache ─────────────────────────────────────────────────────────────────
 
-    private void saveCachedGames(List<AmazonGame> games) {
+    private void saveCachedGames(List<EpicGame> games) {
         try {
             JSONArray arr = new JSONArray();
-            for (AmazonGame g : games) {
+            for (EpicGame g : games) {
                 JSONObject j = new JSONObject();
-                j.put("productId",     g.productId);
-                j.put("entitlementId", g.entitlementId);
+                j.put("appName",       g.appName);
+                j.put("namespace",     g.namespace);
+                j.put("catalogItemId", g.catalogItemId);
                 j.put("title",         g.title);
-                j.put("artUrl",        g.artUrl);
-                j.put("heroUrl",       g.heroUrl);
+                j.put("artCover",      g.artCover);
+                j.put("artSquare",     g.artSquare);
                 j.put("developer",     g.developer);
-                j.put("publisher",     g.publisher);
-                j.put("productSku",    g.productSku);
+                j.put("description",   g.description);
+                j.put("version",       g.version);
                 j.put("isInstalled",   g.isInstalled);
                 j.put("installPath",   g.installPath);
-                j.put("versionId",     g.versionId);
-                j.put("downloadSize",  g.downloadSize);
                 j.put("installSize",   g.installSize);
+                j.put("canRunOffline", g.canRunOffline);
                 arr.put(j);
             }
             prefs.edit().putString(CACHE_KEY, arr.toString()).apply();
         } catch (Exception e) { Log.e(TAG, "saveCachedGames failed", e); }
     }
 
-    private List<AmazonGame> loadCachedGames() {
+    private List<EpicGame> loadCachedGames() {
         try {
             String json = prefs.getString(CACHE_KEY, null);
             if (json == null) return null;
             JSONArray arr = new JSONArray(json);
-            List<AmazonGame> games = new ArrayList<>();
+            List<EpicGame> games = new ArrayList<>();
             for (int i = 0; i < arr.length(); i++) {
                 JSONObject j = arr.getJSONObject(i);
-                AmazonGame g = new AmazonGame();
-                g.productId     = j.optString("productId", "");
-                g.entitlementId = j.optString("entitlementId", "");
-                g.title         = j.optString("title", "");
-                g.artUrl        = j.optString("artUrl", "");
-                g.heroUrl       = j.optString("heroUrl", "");
-                g.developer     = j.optString("developer", "");
-                g.publisher     = j.optString("publisher", "");
-                g.productSku    = j.optString("productSku", "");
-                g.isInstalled   = j.optBoolean("isInstalled", false);
-                g.installPath   = j.optString("installPath", "");
-                g.versionId     = j.optString("versionId", "");
-                g.downloadSize  = j.optLong("downloadSize", 0L);
-                g.installSize   = j.optLong("installSize", 0L);
+                EpicGame g = new EpicGame();
+                g.appName       = j.optString("appName",       "");
+                g.namespace     = j.optString("namespace",     "");
+                g.catalogItemId = j.optString("catalogItemId", "");
+                g.title         = j.optString("title",         "");
+                g.artCover      = j.optString("artCover",      "");
+                g.artSquare     = j.optString("artSquare",     "");
+                g.developer     = j.optString("developer",     "");
+                g.description   = j.optString("description",   "");
+                g.version       = j.optString("version",       "");
+                g.isInstalled   = j.optBoolean("isInstalled",  false);
+                g.installPath   = j.optString("installPath",   "");
+                g.installSize   = j.optLong("installSize",     0L);
+                g.canRunOffline = j.optBoolean("canRunOffline", true);
                 games.add(g);
             }
             return games;
@@ -1099,9 +1094,9 @@ public class AmazonGamesActivity extends Activity {
 
     // ── Image loading ─────────────────────────────────────────────────────────
 
-    private void loadImage(AmazonGame game, ImageView iv) {
-        String url = game.artUrl;
-        if (url == null || url.isEmpty()) url = game.heroUrl;
+    private void loadImage(EpicGame game, ImageView iv) {
+        String url = game.artCover;
+        if (url == null || url.isEmpty()) url = game.artSquare;
         if (url == null || url.isEmpty()) return;
         final String finalUrl = url;
         new Thread(() -> {
@@ -1116,7 +1111,7 @@ public class AmazonGamesActivity extends Activity {
                 }
                 conn.disconnect();
             } catch (Exception ignored) {}
-        }, "amazon-cover-" + game.productId).start();
+        }, "epic-cover-" + game.appName).start();
     }
 
     // ── Utilities ─────────────────────────────────────────────────────────────

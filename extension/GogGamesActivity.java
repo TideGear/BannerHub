@@ -638,7 +638,12 @@ public class GogGamesActivity extends Activity {
 
         card.setOnClickListener(v -> {
             if (expandSection.getVisibility() == View.VISIBLE) {
-                showDetailDialog(game, checkmark, actionBtn);
+                showDetailDialog(game, checkmark, actionBtn, () -> {
+                    checkmark.setVisibility(View.GONE);
+                    collapsedCheckTV.setVisibility(View.GONE);
+                    actionBtn.setText("Install");
+                    actionBtn.setBackgroundColor(0xFF7033FF);
+                });
             } else {
                 if (expandedSection != null) {
                     expandedSection.setVisibility(View.GONE);
@@ -881,7 +886,11 @@ public class GogGamesActivity extends Activity {
         });
 
         tile.setOnLongClickListener(v -> {
-            showDetailDialog(game, checkTV, actionBtn);
+            showDetailDialog(game, checkTV, actionBtn, () -> {
+                checkTV.setVisibility(View.GONE);
+                actionBtn.setText("Install");
+                actionBtn.setBackgroundColor(0xFF5533CC);
+            });
             return true;
         });
 
@@ -1060,7 +1069,7 @@ public class GogGamesActivity extends Activity {
 
     // ── Dialogs (list view detail) ────────────────────────────────────────────
 
-    private void showDetailDialog(GogGame game, View checkmark, Button actionBtn) {
+    private void showDetailDialog(GogGame game, View checkmark, Button actionBtn, Runnable onUninstalled) {
         AlertDialog.Builder b = new AlertDialog.Builder(this);
         b.setTitle(game.title);
 
@@ -1123,7 +1132,7 @@ public class GogGamesActivity extends Activity {
             });
             container.addView(setExeBtn, lp);
 
-            b.setNegativeButton("Uninstall", (dialog, which) -> uninstall(game, checkmark, actionBtn));
+            b.setNegativeButton("Uninstall", (dialog, which) -> uninstall(game, onUninstalled));
             b.setNeutralButton("Copy to Downloads", (dialog, which) -> copyToDownloads(game));
         }
 
@@ -1132,7 +1141,7 @@ public class GogGamesActivity extends Activity {
         b.show();
     }
 
-    private void uninstall(GogGame game, View checkmark, Button actionBtn) {
+    private void uninstall(GogGame game, Runnable onUninstalled) {
         String dirName = prefs.getString("gog_dir_" + game.gameId, null);
         if (dirName != null) {
             new Thread(() -> {
@@ -1144,10 +1153,7 @@ public class GogGamesActivity extends Activity {
                         .remove("gog_cover_" + game.gameId)
                         .apply();
                 uiHandler.post(() -> {
-                    checkmark.setVisibility(View.GONE);
-                    actionBtn.setText("Install");
-                    actionBtn.setBackgroundColor(0xFF7033FF);
-                    actionBtn.setEnabled(true);
+                    onUninstalled.run();
                     Toast.makeText(this, game.title + " uninstalled", Toast.LENGTH_SHORT).show();
                 });
             }).start();
