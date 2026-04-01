@@ -366,7 +366,7 @@ public class GogGamesActivity extends Activity {
                 TextView emptyTV = new TextView(GogGamesActivity.this);
                 String q2 = query == null ? "" : query.trim();
                 emptyTV.setText(q2.isEmpty() ? "Your GOG library is empty"
-                                             : "No results for "" + q2 + """);
+                                             : "No results for \u201c" + q2 + "\u201d");
                 emptyTV.setTextColor(0xFF666666);
                 emptyTV.setTextSize(14f);
                 emptyTV.setGravity(Gravity.CENTER);
