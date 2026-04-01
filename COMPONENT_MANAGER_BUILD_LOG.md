@@ -4069,6 +4069,21 @@ Online: API provides the list so this went unnoticed. Offline: API fails → fal
 **CI Phase 4:** ✅ run 23707604129  |  **CI Phase 5:** ✅ run 23707686644
 
 ---
+## Entry 128 — perf: parallel GOG downloads, fix Amazon batch stall, 128KB buffer (v2.8.2-pre, 2026-04-01)
+
+**Branch:** main | **Commit:** `3d51b5c47` | **Tag:** v2.8.2-pre | **CI:** queued
+
+**Root cause / motivation:** GOG Gen2 pipeline was downloading all files sequentially on a single thread — one file at a time, one chunk at a time. Amazon used batched parallelism (invokeAll on groups of 6), which left all threads idle waiting for the slowest file in each batch before starting the next group. GOG installer fallback used a 32KB read buffer, well below what modern Android I/O handles efficiently.
+
+**Files changed:**
+- `extension/GogDownloadManager.java` — Gen2 download loop replaced with 6-thread ExecutorService; each file task fetches its own chunks independently; thread-safe AtomicLong progress + speed tracking; 32KB → 128KB buffer in `downloadWithProgress`; added imports: Callable, ExecutorService, Executors, Future, AtomicInteger, AtomicLong
+- `extension/AmazonDownloadManager.java` — replaced batch-invokeAll loop with submit-all-then-collect; all files submitted to pool at once; pool stays fully saturated throughout the download; explicit Exception catch on `f.get()` for cleaner error propagation
+
+**Methods changed:**
+- `GogDownloadManager.runGen2()` — sequential for-loop → parallel submit/collect
+- `GogDownloadManager.downloadWithProgress()` — 32KB → 128KB buffer
+- `AmazonDownloadManager.install()` — batch loop → single submit-all
+
 ## Entry 127 — epic-integration — Full Epic Games Store integration (2026-03-29)
 
 **Branch:** epic-integration | **Commit:** `ae57801a9`

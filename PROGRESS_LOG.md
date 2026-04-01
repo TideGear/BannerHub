@@ -4,6 +4,16 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [perf] — v2.8.2-pre — Parallel GOG downloads, fix Amazon batch stall, 128KB buffer (2026-04-01)
+**Branch:** `main`  |  **Tag:** v2.8.2-pre
+**Commit:** `3d51b5c47`  |  **CI:** queued
+**What changed:**
+- GOG Gen2: 6-thread parallel file download replaces sequential single-thread loop
+- Amazon: submit-all replaces batched invokeAll — pool stays fully used throughout
+- GOG installer: 32KB → 128KB read buffer
+
+---
+
 ## [fix] — epic-integration — uninstall hides both checkmarks immediately (2026-03-29)
 **Branch:** `epic-integration`  |  **Commit:** `026d9d2ec`
 **CI:** run 23721449352 (in progress)
