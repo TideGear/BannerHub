@@ -11,7 +11,7 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - name: Checkout
@@ -203,20 +203,9 @@ jobs:
 
           echo "Done: $APK_NAME ($(du -sh "$APK_NAME" | cut -f1))"
 
-      - name: Get tag name
-        id: tag
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            echo "name=manual-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Upload release
-        run: |
-          TAG="${{ steps.tag.outputs.name }}"
-          APK=$(ls BannerHub-*.apk | head -1)
-          gh release delete "$TAG" --yes 2>/dev/null || true
-          gh release create "$TAG" --title "BannerHub $TAG" --prerelease "$APK"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BannerHub-pre-${{ github.ref_name }}
+          path: BannerHub-*.apk
+          retention-days: 30
