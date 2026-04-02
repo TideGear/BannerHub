@@ -817,8 +817,10 @@ public class BhKonkrHud extends LinearLayout implements Runnable {
     private int readGpuTemp() {
         String v = readSysfsLine("/sys/class/kgsl/kgsl-3d0/temp");
         if (v != null) { try { int t = Integer.parseInt(v.trim()); return t > 1000 ? t / 1000 : t; } catch (NumberFormatException ignored) {} }
+        v = readSysfsLine("/sys/kernel/gpu/gpu_tmu");
+        if (v != null) { try { int t = Integer.parseInt(v.trim()); return t > 1000 ? t / 1000 : t; } catch (NumberFormatException ignored) {} }
         String[] types = {"gpuss-0", "gpuss", "gpu-thermal", "gpu"};
-        for (int z = 0; z < 20; z++) {
+        for (int z = 0; z < 80; z++) {
             String type = readSysfsLine("/sys/class/thermal/thermal_zone" + z + "/type");
             if (type == null) continue;
             String tl = type.trim().toLowerCase();
