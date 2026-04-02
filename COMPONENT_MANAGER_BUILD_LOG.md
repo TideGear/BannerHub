@@ -4181,3 +4181,16 @@ Online: API provides the list so this went unnoticed. Offline: API fails → fal
 - `patches/smali_classes16/.../BhPerfSetupDelegate.smali` — inline injection replaced with injectOrUpdate call; checkbox restore logic
 
 **CI:** ✅ run 23894058893 — 9 APKs
+
+### [476] — v2.8.4-pre — orphaned virtual container fix (2026-04-02)
+**Commit:** `984421bb4`  |  **Tag:** v2.8.4-pre
+
+**Root-cause:** GameHub creates `virtual_containers/{gameId}/` on game install/launch via EmuContainerImpl. UninstallGameHelper.h() calls IWinEmuService.d() (deletes pc_g_setting SP) but never calls IWinEmuService.e() or deletes the directory. Container accumulated indefinitely.
+
+**Fix:** BhContainerCleanup.cleanup(gameId) called at top of h() — builds path directly from gameId, recursively deletes. ActivityThread accessed via reflection (not in public android.jar SDK). Try/catch so failure is silent.
+
+**Files:**
+- `extension/BhContainerCleanup.java` — static cleanup; reflection-based context; recursive delete
+- `patches/smali_classes3/com/xj/game/UninstallGameHelper.smali` — invoke-static BhContainerCleanup.cleanup(p1) before existing d() call
+
+**CI:** ✅ run 23904490412

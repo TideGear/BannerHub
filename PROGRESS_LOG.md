@@ -2956,3 +2956,14 @@ manifest download, install, launch, SDK cache + update checker.
 - patches/smali_classes16/com/xj/winemu/sidebar/BhHudOpacityListener.smali
 - patches/smali_classes16/com/xj/winemu/sidebar/BhPerfSetupDelegate.smali
 - README.md
+
+### [fix] — v2.8.4-pre — orphaned virtual container cleanup on uninstall (2026-04-02)
+**Commit:** `984421bb4`  |  **Tag:** v2.8.4-pre
+#### What changed
+- BhContainerCleanup.java: static helper that deletes `virtual_containers/{gameId}/` on uninstall
+- UninstallGameHelper.h() patched to call BhContainerCleanup.cleanup(gameId) before existing logic
+- Covers all game types: Steam, imported, downloaded, GOG, Epic, Amazon
+- Uses reflection for ActivityThread.currentApplication() (not in public SDK jar)
+#### Files touched
+- extension/BhContainerCleanup.java (new)
+- patches/smali_classes3/com/xj/game/UninstallGameHelper.smali
