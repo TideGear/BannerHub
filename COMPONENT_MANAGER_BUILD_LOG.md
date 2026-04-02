@@ -4194,3 +4194,15 @@ Online: API provides the list so this went unnoticed. Offline: API fails → fal
 - `patches/smali_classes3/com/xj/game/UninstallGameHelper.smali` — invoke-static BhContainerCleanup.cleanup(p1) before existing d() call
 
 **CI:** ✅ run 23904490412
+
+### [477] — v2.8.5-pre — touch button scale cap raised to 300% (2026-04-02)
+**Commit:** `a6b41664a`  |  **Tag:** v2.8.5-pre
+
+**Root-cause:** Issue #35 — NiftySlider `android:valueTo="150"` in `control_element_settings.xml` artificially capped button scale at 150%. The underlying system already handles values beyond 150% (users confirmed via manual JSON edit + re-import). Cap was purely a UI constraint.
+
+**Fix:** Copy `control_element_settings.xml` to patches/, change `android:valueTo="150"` → `android:valueTo="300"`.
+
+**Files:**
+- `patches/res/layout/control_element_settings.xml` — SBScale slider: valueTo 150→300
+
+**CI:** ⏳ run 23926822469

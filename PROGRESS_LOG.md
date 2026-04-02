@@ -4,6 +4,35 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [feat] — v2.8.4-pre — Konkr HUD overlay (BhKonkrHud) (2026-04-02)
+**Branch:** `main`  |  **Tag:** v2.8.4-pre (retagged)
+**Commit:** `876140872`  |  **CI:** ✅ run 23917514999 (includes layout fixes)
+**What changed:**
+- New `BhKonkrHud.java`: Konkr-style HUD overlay reproducing the reference layout
+  - Vertical (default): 2-column table — FPS (16sp large), CPU%+temp, per-core MHz
+    (CPU0-7), GPU%+temp+name+freq+res, MODE/FAN/SKN/PWR, RAM (brown label bg),
+    SWAP (gray label bg), BAT (blue proportional fill progress bar), TIME
+  - Horizontal (tap to toggle): compact multi-column strip — FPS block
+    (current/min FPS/cpuTemp), CPU 8-core 2×4 grid, GPU block, thermal/power
+    2-column block, memory block with colored label backgrounds
+  - New data sources: readGpuName() (/sys kgsl gpu_model), readFanSpeed()
+    (cooling devices scan), readSkinTemp() (thermal zone scan),
+    readRamGb()/readSwapGb() (GB used/total), readBatPct(), readPwr(),
+    readMode() (MAX/SUST/NORM from bh_prefs)
+  - BAT: blue fill proportional to battery % via LinearLayout weight update
+  - FPS min tracking (reset every 60 samples)
+  - Pref keys: konkr_hud_vertical, konkr_hud_pos_x/y — tag: bh_konkr_hud
+- New `BhHudKonkrListener.smali`: OnCheckedChangeListener for Konkr checkbox;
+  when checked clears hud_extra_detail + unchecks Extra Detail cb in UI
+- `BhHudInjector.smali`: added 3rd HUD block; priority = konkr > detail > basic;
+  BhFrameRating only when hud&&!extra&&!konkr; BhDetailedHud when hud&&extra&&!konkr
+- `BhPerfSetupDelegate.smali`: adds "Konkr Style" CheckBox below "Extra Detailed"
+  with same enable/disable/alpha logic tied to winlator_hud state
+- `BhHudExtraDetailListener.smali`: when checked clears hud_konkr_style and
+  unchecks Konkr cb in UI (mutual exclusivity); 7 locals
+
+---
+
 ## [fix] — v2.8.3-pre — HUD toggle not showing + Extra Detail guard + opacity rebuild (2026-04-02)
 **Branch:** `main`  |  **Tag:** v2.8.3-pre (retagged)
 **Commit:** `b903a74c4`  |  **CI:** ✅
@@ -2976,3 +3005,50 @@ manifest download, install, launch, SDK cache + update checker.
 - v2.8.4-pre release description updated
 #### Files touched
 - README.md
+
+---
+### 2026-04-02 — v2.8.4-pre (commit 8d5fa95e1) — Fix KonkrHud BAT gap + width
+**Root cause:** `makeBatRowView()` used `LinearLayout.LayoutParams(width=0, weight=0)` for the BAT label. With `setClipChildren(false)` on the batRow, the label rendered outside its bounds at the wrong Y position — causing a ~150px visual gap between SWAP and BAT rows. Also `dp(200)` was too wide (350px vs reference ~190px).
+**Fix:** Replaced weighted batRow with solid blue full-row (same as RAM/SWAP). Reduced width: dp(200) → dp(120).
+**Files:** `extension/BhKonkrHud.java`
+**CI:** ✅ run 23920120008
+
+---
+### 2026-04-02 — v2.8.4-pre (commit 96cf0c658) — Fix KonkrHud opacity slider
+**Root cause:** `BhHudOpacityListener.onProgressChanged()` iterated BhFrameRating + BhDetailedHud calling `applyBackgroundOpacity()` but BhKonkrHud was never added to the list — opacity changes had no effect until a layout rebuild (orientation toggle).
+**Fix:** Added `:try_konkr` block after `:try_detailed` in BhHudOpacityListener — findViewWithTag("bh_konkr_hud") → cast → applyBackgroundOpacity(progress). No new locals needed.
+**Files:** `patches/smali_classes16/com/xj/winemu/sidebar/BhHudOpacityListener.smali`
+**CI:** ✅ run 23921454575
+
+---
+### 2026-04-02 — v2.8.4-pre (commit a4e386766) — Fix KonkrHud SKN zone scan range
+**Root cause:** `readSkinTemp()` scanned zones 0-29. On this device (Snapdragon 8 Gen 3 / PM8550), skin thermal zones are at zone53 (`xo-therm`) and zone55 (`skin-msm-therm`) — both outside the old limit. Type names already matched search patterns. FAN "---" is correct (no physical fan on device).
+**Fix:** `z < 30` → `z < 80`
+**Files:** `extension/BhKonkrHud.java`
+**CI:** ✅ run 23921860855
+
+---
+### 2026-04-02 — v2.8.4-pre (commit f7c2734ae) — Fix KonkrHud fan RPM reading
+**Root cause:** `readFanSpeed()` scanned `i < 10`. AYANEO Konkr's `pwm-fan` is at cooling_device38 (type="pwm-fan"). RPM is at `/sys/devices/platform/soc/soc:pwm-fan/hwmon/hwmon0/fan1_input` (currently 4042 RPM).
+**Fix:** Read hwmon fan1_input directly first; fallback scan expanded to i<50.
+**Files:** `extension/BhKonkrHud.java`
+**CI:** ✅ run 23922246076
+
+---
+### 2026-04-02 — v2.8.4-pre (commit ff674099e) — Fix GPU% fallback path
+**Root cause:** All 3 GPU% paths use `vendor_sysfs_kgsl` SELinux context — enforcing-denied on some devices → returns 0. `/sys/kernel/gpu/gpu_busy` has less restricted context on many devices (Exynos + others).
+**Fix:** Added `/sys/kernel/gpu/gpu_busy` fallback before Mali path. CPU% has no alternative to `/proc/stat` without root.
+**Files:** `extension/BhKonkrHud.java`
+**CI:** ✅ run 23924627987
+
+---
+### 2026-04-02 — v2.8.4-pre (commit af8598845) — Fix GPU temp fallback paths
+**Root cause:** GPU thermal zones (gpuss-0..7) at zones 41-48, beyond old z<20 scan. kgsl/kgsl-3d0/temp works on Qualcomm but fails on other devices. CPU temp fine (cpuss-0 at zone 10, within z<20).
+**Fix:** Add /sys/kernel/gpu/gpu_tmu as secondary fallback; expand thermal zone scan z<20→z<80.
+**Files:** `extension/BhKonkrHud.java`
+**CI:** ✅ run 23925038629
+
+### 2026-04-02 — v2.8.5-pre (commit a6b41664a) — Touch button scale cap raised to 300%
+**Issue:** #35 — scale slider capped at 150% despite system supporting higher values.
+**Fix:** `patches/res/layout/control_element_settings.xml` — SBScale `valueTo` 150→300.
+**CI:** ⏳ run 23926822469
