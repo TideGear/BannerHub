@@ -76,6 +76,9 @@ public class BhDetailedHud extends LinearLayout implements Runnable {
         this.activity = ctx instanceof Activity ? (Activity) ctx : null;
         setBackgroundColor(0xCC000000);
         setPadding(6, 4, 6, 4);
+        // Allow shadow layers on child TextViews to draw beyond their own bounds
+        setClipChildren(false);
+        setClipToPadding(false);
         buildLayout();
         setOnTouchListener(makeDragListener());
     }
@@ -167,6 +170,8 @@ public class BhDetailedHud extends LinearLayout implements Runnable {
     private void addColGroup(View top, View bottom) {
         LinearLayout col = new LinearLayout(getContext());
         col.setOrientation(VERTICAL);
+        col.setClipChildren(false);
+        col.setClipToPadding(false);
         col.addView(top,    new LinearLayout.LayoutParams(-2, -2));
         col.addView(bottom, new LinearLayout.LayoutParams(-2, -2));
         addView(col, new LinearLayout.LayoutParams(-2, -2));
@@ -176,6 +181,7 @@ public class BhDetailedHud extends LinearLayout implements Runnable {
     private void addSepCol() {
         LinearLayout col = new LinearLayout(getContext());
         col.setOrientation(VERTICAL);
+        col.setClipChildren(false);
         col.addView(sep(), new LinearLayout.LayoutParams(-2, -2));
         col.addView(sep(), new LinearLayout.LayoutParams(-2, -2));
         addView(col, new LinearLayout.LayoutParams(-2, -2));
@@ -185,6 +191,8 @@ public class BhDetailedHud extends LinearLayout implements Runnable {
     private LinearLayout inlineRow(View a, View b) {
         LinearLayout ll = new LinearLayout(getContext());
         ll.setOrientation(HORIZONTAL);
+        ll.setClipChildren(false);
+        ll.setClipToPadding(false);
         ll.addView(a, new LinearLayout.LayoutParams(-2, -2));
         ll.addView(b, new LinearLayout.LayoutParams(-2, -2));
         return ll;
@@ -286,6 +294,8 @@ public class BhDetailedHud extends LinearLayout implements Runnable {
     private LinearLayout row() {
         LinearLayout ll = new LinearLayout(getContext());
         ll.setOrientation(LinearLayout.HORIZONTAL);
+        ll.setClipChildren(false);
+        ll.setClipToPadding(false);
         return ll;
     }
 
