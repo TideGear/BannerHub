@@ -754,11 +754,18 @@ public class GogGamesActivity extends Activity {
         tileBg.setCornerRadius(dp(5));
         tile.setBackground(tileBg);
         tile.setClipToOutline(true);
-        tile.setFocusable(true);
-        tile.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
-        tile.setOnFocusChangeListener((v, hasFocus) -> {
+
+        // Wrapper handles focus border — no clipToOutline so stroke isn't clipped
+        FrameLayout focusWrapper = new FrameLayout(this);
+        GradientDrawable wrapperBg = new GradientDrawable();
+        wrapperBg.setColor(0x00000000);
+        wrapperBg.setCornerRadius(dp(5));
+        focusWrapper.setBackground(wrapperBg);
+        focusWrapper.setFocusable(true);
+        focusWrapper.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        focusWrapper.setOnFocusChangeListener((v, hasFocus) -> {
             tileBg.setColor(hasFocus ? 0xFF1D1D3A : 0xFF111122);
-            tileBg.setStroke(hasFocus ? dp(3) : 0, hasFocus ? 0xFFFFD700 : 0x00000000);
+            wrapperBg.setStroke(hasFocus ? dp(3) : 0, hasFocus ? 0xFFFFD700 : 0x00000000);
         });
 
         // ── Art area (FrameLayout so badges/title can overlay) ─────────────────
@@ -937,7 +944,8 @@ public class GogGamesActivity extends Activity {
             return true;
         });
 
-        return tile;
+        focusWrapper.addView(tile, new FrameLayout.LayoutParams(-1, -1));
+        return focusWrapper;
     }
 
     private LinearLayout.LayoutParams makeGridTileLp() { return makeGridTileLp(dp(3)); }
