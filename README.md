@@ -308,6 +308,10 @@ Available in both **horizontal** (metrics displayed side-by-side in two aligned 
 
 The *Extra Detailed* checkbox is automatically grayed out and disabled when the Winlator HUD toggle is off.
 
+The Extra Detail HUD is a continuation and extension of the **Winlator HUD by Stevenmxz**. The additional metrics and layout were inspired by the performance HUD built into my personal device — no credit is claimed from any external project.
+
+> **Note:** Not all data collected and displayed will always be correct. Each device detects and reads data differently. Values are read directly from sysfs/proc and may vary in accuracy depending on your device, kernel, and thermal zone mapping.
+
 #### Configuration (both modes)
 
 - **Opacity slider** — adjusts transparency of the active HUD overlay from fully opaque to nearly invisible
@@ -531,6 +535,7 @@ Yes. BannerHub detects the authorization code directly in the redirect URL regar
 - **Japanese translations** — [reindex-ot](https://github.com/reindex-ot) via Crowdin
 - **RTS Touch Controls** — [@Nightwalker743](https://github.com/Nightwalker743)
 - **GameHub ReVanced patches** — [@playday3008](https://github.com/playday3008/gamehub-patches)
+- **Winlator HUD** — [StevenMXZ](https://github.com/StevenMXZ). The Extra Detail HUD is a continuation and extension of the original Winlator HUD. Additional metrics were inspired by the built-in performance HUD of my personal device.
 - **Component sources** — [Arihany WCPHub](https://github.com/Arihany/WinlatorWCPHub), [The412Banner Nightlies](https://github.com/The412Banner/Nightlies), Kimchi, StevenMXZ, MaxesTechReview, Whitebelyash
 
 ---
