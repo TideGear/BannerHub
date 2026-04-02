@@ -4,6 +4,15 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [fix] — v2.8.3-pre — BhDetailedHud column alignment + opacity slider (2026-04-02)
+**Branch:** `main`  |  **Tag:** v2.8.3-pre (retagged)
+**Commit:** `cbea54e68`  |  **CI:** ✅ run 23883928447
+**What changed:**
+- buildHorizontal() rewritten as column groups — separators now form solid vertical dividers between rows
+- BhHudOpacityListener also calls applyBackgroundOpacity on BhDetailedHud
+
+---
+
 ## [feat] — v2.8.3-pre — Extra Detailed HUD overlay (2026-04-02)
 **Branch:** `main`  |  **Tag:** v2.8.3-pre
 **Commit:** `5ab0566be`  |  **CI:** ✅ run 23882828021
