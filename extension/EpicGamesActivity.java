@@ -119,9 +119,16 @@ public class EpicGamesActivity extends Activity {
         Button backBtn = new Button(this);
         backBtn.setText("←");
         backBtn.setTextColor(0xFFFFFFFF);
-        backBtn.setBackgroundColor(0xFF333333);
+        GradientDrawable backBtnBg = new GradientDrawable();
+        backBtnBg.setColor(0xFF333333);
+        backBtnBg.setCornerRadius(dp(4));
+        backBtn.setBackground(backBtnBg);
         backBtn.setTextSize(16f);
         backBtn.setPadding(dp(12), 0, dp(12), 0);
+        backBtn.setOnFocusChangeListener((v, hasFocus) -> {
+            backBtnBg.setColor(hasFocus ? 0xFF555555 : 0xFF333333);
+            backBtnBg.setStroke(hasFocus ? dp(2) : 0, hasFocus ? 0xFFFFD700 : 0x00000000);
+        });
         backBtn.setOnClickListener(v -> finish());
         header.addView(backBtn, new LinearLayout.LayoutParams(-2, dp(40)));
 
@@ -136,9 +143,16 @@ public class EpicGamesActivity extends Activity {
         viewToggleBtn = new Button(this);
         viewToggleBtn.setText(viewModeIcon(viewMode));
         viewToggleBtn.setTextColor(0xFFFFFFFF);
-        viewToggleBtn.setBackgroundColor(0xFF333333);
+        GradientDrawable viewToggleBtnBg = new GradientDrawable();
+        viewToggleBtnBg.setColor(0xFF333333);
+        viewToggleBtnBg.setCornerRadius(dp(4));
+        viewToggleBtn.setBackground(viewToggleBtnBg);
         viewToggleBtn.setTextSize(16f);
         viewToggleBtn.setPadding(dp(12), 0, dp(12), 0);
+        viewToggleBtn.setOnFocusChangeListener((v, hasFocus) -> {
+            viewToggleBtnBg.setColor(hasFocus ? 0xFF555555 : 0xFF333333);
+            viewToggleBtnBg.setStroke(hasFocus ? dp(2) : 0, hasFocus ? 0xFFFFD700 : 0x00000000);
+        });
         viewToggleBtn.setOnClickListener(v -> {
             if ("list".equals(viewMode))       viewMode = "grid";
             else if ("grid".equals(viewMode))  viewMode = "poster";
@@ -154,9 +168,16 @@ public class EpicGamesActivity extends Activity {
         refreshBtn = new Button(this);
         refreshBtn.setText("↺");
         refreshBtn.setTextColor(0xFFFFFFFF);
-        refreshBtn.setBackgroundColor(0xFF333333);
+        GradientDrawable refreshBtnBg = new GradientDrawable();
+        refreshBtnBg.setColor(0xFF333333);
+        refreshBtnBg.setCornerRadius(dp(4));
+        refreshBtn.setBackground(refreshBtnBg);
         refreshBtn.setTextSize(16f);
         refreshBtn.setPadding(dp(12), 0, dp(12), 0);
+        refreshBtn.setOnFocusChangeListener((v, hasFocus) -> {
+            refreshBtnBg.setColor(hasFocus ? 0xFF555555 : 0xFF333333);
+            refreshBtnBg.setStroke(hasFocus ? dp(2) : 0, hasFocus ? 0xFFFFD700 : 0x00000000);
+        });
         refreshBtn.setOnClickListener(v -> startSync(true));
         header.addView(refreshBtn, new LinearLayout.LayoutParams(-2, dp(40)));
 
@@ -641,6 +662,8 @@ public class EpicGamesActivity extends Activity {
             tileBg.setColor(hasFocus ? 0xFF1E2330 : 0xFF141820);
             focusBorder.setStroke(hasFocus ? dp(3) : 0, hasFocus ? 0xFFFFD700 : 0x00000000);
         });
+        focusWrapper.setOnClickListener(v -> tile.performClick());
+        focusWrapper.setOnLongClickListener(v -> tile.performLongClick());
 
         FrameLayout artFrame = new FrameLayout(this);
 
