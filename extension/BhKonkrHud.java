@@ -516,7 +516,7 @@ public class BhKonkrHud extends LinearLayout implements Runnable {
         // Cap vertical mode width at 200dp so MATCH_PARENT rows don't snap to full screen width.
         // Horizontal mode uses natural width (the strip spans content columns).
         if (isVertical) {
-            widthMeasureSpec = MeasureSpec.makeMeasureSpec(dp(200), MeasureSpec.AT_MOST);
+            widthMeasureSpec = MeasureSpec.makeMeasureSpec(dp(200), MeasureSpec.EXACTLY);
         }
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
