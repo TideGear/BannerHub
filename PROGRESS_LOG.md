@@ -4,6 +4,18 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [stable] — v2.8.4 — Konkr HUD + orphaned container cleanup (2026-04-03)
+**Branch:** `main`  |  **Tag:** v2.8.4
+**Commit:** `4127e4ee7`  |  **CI:** ✅ run 23943875147 (9 APKs)
+**What changed since v2.8.3:**
+- Orphaned virtual container auto-delete on game uninstall
+- Konkr HUD overlay (vertical 2-col table + horizontal compact strip, tap to toggle, mutual exclusion with Extra Detailed HUD)
+- Touch button scale cap raised to 500%
+- HUD CPU fallback (GameHub process CPU%) for both Extra Detailed + Konkr HUDs
+- Opacity slider applies to Konkr HUD
+
+---
+
 ## [feat] — v2.8.4-pre — Konkr HUD overlay (BhKonkrHud) (2026-04-02)
 **Branch:** `main`  |  **Tag:** v2.8.4-pre (retagged)
 **Commit:** `876140872`  |  **CI:** ✅ run 23917514999 (includes layout fixes)
@@ -3052,3 +3064,10 @@ manifest download, install, launch, SDK cache + update checker.
 **Issue:** #35 — scale slider capped at 150% despite system supporting higher values.
 **Fix:** `patches/res/layout/control_element_settings.xml` — SBScale `valueTo` 150→300.
 **CI:** ⏳ run 23926822469
+
+---
+### 2026-04-03 — v2.8.7-pre1 — Per-game settings Export/Import Config
+**Feature:** Users can share game configs via JSON. "Export Config" saves `pc_g_setting<id>` SP to `/sdcard/BannerHub/configs/<gamename>-<devicename>.json`. "Import Config" lists available files and applies selected one's settings to the current game.
+**Access:** Two new options in the game "..." settings menu (My Games → long-press → settings).
+**Files:** `extension/BhSettingsExporter.java`, `patches/smali/…/BhExportLambda.smali`, `patches/smali/…/BhImportLambda.smali`, both CI workflows (new smali patch step).
+**CI:** ⏳

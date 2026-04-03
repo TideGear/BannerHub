@@ -4206,3 +4206,23 @@ Online: API provides the list so this went unnoticed. Offline: API fails → fal
 - `patches/res/layout/control_element_settings.xml` — SBScale slider: valueTo 150→300
 
 **CI:** ⏳ run 23926822469
+
+### [478] — v2.8.7-pre1 — Per-game Export Config + Import Config (2026-04-03)
+**Commit:** `(pending)`  |  **Tag:** v2.8.7-pre1
+
+**Root-cause / motivation:** Users want to share working per-game configs with others. The entire game config is stored in `SharedPreferences` file `pc_g_setting<gameId>` (52 keys: `pc_d_*` components, `pc_ls_*` settings, `pc_Enable_*` toggles). Exporting to JSON lets any user import that baseline on their device.
+
+**Fix:** 
+- Added `BhSettingsExporter.java` (classes18.dex) with `exportConfig(Context, int, String)` and `showImportDialog(Context, int, String)` + `applyConfig()`. Writes to `/sdcard/BannerHub/configs/` with filename `<gameName>-<Build.MODEL>.json`. Import shows AlertDialog listing files, applies all typed keys (Boolean/Integer/Long/Float/String) to target game's SP.
+- `BhExportLambda.smali` + `BhImportLambda.smali` in `patches/smali/com/xj/landscape/launcher/ui/gamedetail/` implement `kotlin.jvm.functions.Function1`. Export lambda holds `GameDetailEntity`; calls `Utils.a()` for context. Import lambda holds `GameDetailSettingMenu` + `GameDetailEntity`; calls `menu.z()` for Activity context (needed for AlertDialog).
+- CI smali patch (both `build-quick.yml` + `build.yml`) injects two `Option` items into `getPcGamesOptions()` (method `W`, line ~4902) via unique anchor `XjLog.c(v8, v0)` before `return-object v1`. Uses `move-object/from16 v2, p0` and `move-object/from16 v3, p1` to bring parameters into 4-bit register range for `invoke-direct`.
+- Register layout: v9=Option, v10=title-String, v11-v14=0 (defaulted by mask 0x1e), v15=lambda, v16=mask 0x1e, v17=null (DefaultConstructorMarker).
+
+**Files:**
+- `extension/BhSettingsExporter.java` — export/import logic, JSON serialization, AlertDialog
+- `patches/smali/com/xj/landscape/launcher/ui/gamedetail/BhExportLambda.smali` — Function1 for Export
+- `patches/smali/com/xj/landscape/launcher/ui/gamedetail/BhImportLambda.smali` — Function1 for Import (uses menu.z() for Activity context)
+- `.github/workflows/build-quick.yml` — new "Apply Settings Import/Export smali patch" step
+- `.github/workflows/build.yml` — same step in prepare job
+
+**CI:** ⏳
