@@ -30,9 +30,37 @@ Each entry covers one logical change unit (commit or closely related set of comm
 
 ---
 
+## Entry 131 — feat: Game Configs side menu — browse, vote, comment (v2.8.8-pre1, main)
+**Date:** 2026-04-03
+**Branch:** main  |  **Tag:** v2.8.8-pre1  |  **Commit:** TBD
+
+### Root cause analysis
+Community config sharing (v2.8.7) had no in-app browse UX — users had to already be inside a game's settings to Import. There was no way to discover configs for games, vote on quality, or discuss configs with other users.
+
+### Changes
+- **[NEW]** `extension/BhGameConfigsActivity.java` — full Activity, three-screen flow (games list → configs list → detail). Games screen: search EditText + ListView filtered by TextWatcher. Configs screen: sorted by vote count desc. Detail: device/SOC/date/meta info card (fetched by downloading config JSON), upvote button (local SP dedup + server IP rate limit), download to BannerHub/configs/, comments view + post EditText.
+- **[MOD]** `extension/BhSettingsExporter.java` — `doExport()` now writes a `meta` block: device, soc, bh_version, settings_count, components_count. Displayed in detail view without needing to parse all settings.
+- **[MOD]** `patches/AndroidManifest.xml` — added `BhGameConfigsActivity` with `sensorLandscape` + `adjustResize`
+- **[MOD]** `patches/smali_classes5/.../HomeLeftMenuDialog.smali` — added "Game Configs" MenuItem id=0xd (13); added `:pswitch_13` handler launching `BhGameConfigsActivity`; added `:pswitch_13` to packed-switch table
+- **[WORKER]** `/tmp/bannerhub-configs-worker.js` redeployed with 4 new endpoints: `GET /games` (GitHub Contents API on configs/ root), `POST /vote` (KV increment + IP TTL dedup), `GET /comments`, `POST /comment` (KV JSON array, 500-char limit, 200-comment cap). KV namespace `bannerhub-config-social` (id: 84a4729c49694cf9b25507a8bc59dec7) created + bound as CONFIG_KV.
+
+### Methods added
+- `BhGameConfigsActivity.fetchGames()` — GET /games → populates allGames list
+- `BhGameConfigsActivity.fetchConfigs(game)` — GET /list?game=X → currentConfigs with vote counts
+- `BhGameConfigsActivity.fetchMeta(config, metaCard)` — GET /download → parse meta block → fill info rows
+- `BhGameConfigsActivity.doVote(config)` — POST /vote; local SP check before request; updates label + button
+- `BhGameConfigsActivity.downloadConfig(config)` — GET /download → save to BannerHub/configs/
+- `BhGameConfigsActivity.fetchComments(config)` — GET /comments → renderComments()
+- `BhGameConfigsActivity.postComment(config, text, box)` — POST /comment
+
+### CI result
+- Workflow: build-quick.yml | Run: ⏳ | Result: pending
+
+---
+
 ## Entry 130 — feat: SOC type in community config filenames (v2.8.8-pre1, main)
 **Date:** 2026-04-03
-**Branch:** main  |  **Tag:** v2.8.8-pre1  |  **Commit:** (pending)
+**Branch:** main  |  **Tag:** v2.8.8-pre1  |  **Commit:** `0fbcb97f7`
 
 ### Root cause analysis
 Community config filenames were `GameName-Manufacturer-Model-Timestamp.json`. Users browsing the community list couldn't tell which configs were made on the same SOC family (e.g. Snapdragon 8 Gen 3 vs Snapdragon 8 Gen 2). Settings like VRAM limit, GPU tile size, and renderer backend can vary significantly between SOC generations, so SOC filtering is valuable.

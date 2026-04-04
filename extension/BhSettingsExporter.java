@@ -78,7 +78,16 @@ public class BhSettingsExporter {
             // Installed custom components (those that have a download URL tracked)
             JSONArray components = buildComponentsArray(ctx);
 
+            // Meta block — parsed and shown in BhGameConfigsActivity detail view
+            JSONObject meta = new JSONObject();
+            meta.put("device",           Build.MANUFACTURER + " " + Build.MODEL);
+            meta.put("soc",              Build.VERSION.SDK_INT >= 31 ? Build.SOC_MODEL : Build.HARDWARE);
+            meta.put("bh_version",       "2.8.8");
+            meta.put("settings_count",   settings.length());
+            meta.put("components_count", components.length());
+
             JSONObject json = new JSONObject();
+            json.put("meta", meta);
             json.put("settings", settings);
             json.put("components", components);
 

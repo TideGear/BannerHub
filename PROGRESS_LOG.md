@@ -4,9 +4,22 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [feat] — v2.8.8-pre1 — Game Configs side menu: browse, vote, comment (2026-04-03)
+**Branch:** `main`  |  **Tag:** v2.8.8-pre1
+**Commit:** TBD  |  **CI:** ⏳
+**What changed:**
+- New "Game Configs" side menu entry (ID=13) → BhGameConfigsActivity
+- Browse all games with community configs (search filter); tap game → see all its configs ranked by votes
+- Config detail: device/SOC/date/meta info, upvote button (IP-rate-limited), download to BannerHub/configs/, comments section (view + post)
+- Export now includes a `meta` block: device, SOC, bh_version, settings_count, components_count
+- Cloudflare worker updated: GET /games, POST /vote (KV), GET /comments, POST /comment; CONFIG_KV namespace deployed
+**Files touched:** extension/BhGameConfigsActivity.java [NEW], extension/BhSettingsExporter.java, patches/AndroidManifest.xml, patches/smali_classes5/.../HomeLeftMenuDialog.smali, /tmp/bannerhub-configs-worker.js (redeployed)
+
+---
+
 ## [feat] — v2.8.8-pre1 — SOC type in community config filenames (2026-04-03)
 **Branch:** `main`  |  **Tag:** v2.8.8-pre1
-**Commit:** (pending)  |  **CI:** ⏳
+**Commit:** `0fbcb97f7`  |  **CI:** ⏳
 **What changed:**
 - Config filename now includes SOC: `GameName-Manufacturer-Model-SOC-Timestamp.json`
   - Uses `Build.SOC_MODEL` on API 31+, falls back to `Build.HARDWARE` on older Android
