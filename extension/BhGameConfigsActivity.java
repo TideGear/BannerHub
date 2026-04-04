@@ -84,6 +84,7 @@ public class BhGameConfigsActivity extends Activity {
     private LinearLayout commentsContainer;
     private TextView     votesLabel;
     private Button       voteBtn;
+    private Button       refreshBtn;
 
     // ── State ────────────────────────────────────────────────────────────────
     private List<String>     allGames      = new ArrayList<>();
@@ -126,7 +127,7 @@ public class BhGameConfigsActivity extends Activity {
         setContentView(root);
 
         showScreen(1);
-        fetchGames();
+        fetchGames(false);
     }
 
     @Override
@@ -158,9 +159,23 @@ public class BhGameConfigsActivity extends Activity {
         headerTitle.setTextColor(WHITE);
         headerTitle.setTextSize(18f);
         headerTitle.setTypeface(null, Typeface.BOLD);
+        LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, -2, 1f);
+        headerTitle.setLayoutParams(titleLp);
+
+        refreshBtn = new Button(this);
+        refreshBtn.setText("↻");
+        refreshBtn.setTextColor(WHITE);
+        refreshBtn.setBackgroundColor(0x00000000);
+        refreshBtn.setTextSize(20f);
+        refreshBtn.setPadding(dp(8), 0, 0, 0);
+        refreshBtn.setOnClickListener(v -> {
+            if (currentScreen == 1) fetchGames(true);
+            else if (currentScreen == 2) fetchConfigs(selectedGame, true);
+        });
 
         h.addView(back);
         h.addView(headerTitle);
+        h.addView(refreshBtn);
         return h;
     }
 
@@ -245,7 +260,7 @@ public class BhGameConfigsActivity extends Activity {
         gamesListView.setOnItemClickListener((parent, view, pos, id) -> {
             selectedGame = snapshot.get(pos);
             showScreen(2);
-            fetchConfigs(selectedGame);
+            fetchConfigs(selectedGame, false);
         });
     }
 
@@ -531,11 +546,13 @@ public class BhGameConfigsActivity extends Activity {
 
     // ── Network: Games ────────────────────────────────────────────────────────
 
-    private void fetchGames() {
+    private void fetchGames(boolean refresh) {
         headerTitle.setText("Game Configs");
+        if (refreshBtn != null) refreshBtn.setEnabled(false);
         new Thread(() -> {
             try {
-                HttpURLConnection conn = openGet(WORKER + "/games");
+                String url = WORKER + "/games" + (refresh ? "?refresh=1" : "");
+                HttpURLConnection conn = openGet(url);
                 String body = readResponse(conn);
                 JSONArray arr = new JSONArray(body);
                 List<String> games = new ArrayList<>();
@@ -546,26 +563,32 @@ public class BhGameConfigsActivity extends Activity {
                     filteredGames.clear();
                     filteredGames.addAll(games);
                     refreshGamesList();
+                    if (refreshBtn != null) refreshBtn.setEnabled(true);
                     if (games.isEmpty()) {
                         Toast.makeText(this, "No community configs yet", Toast.LENGTH_SHORT).show();
                     }
                 });
             } catch (Exception e) {
-                ui.post(() -> Toast.makeText(this, "Error loading games: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                ui.post(() -> {
+                    if (refreshBtn != null) refreshBtn.setEnabled(true);
+                    Toast.makeText(this, "Error loading games: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
             }
         }).start();
     }
 
     // ── Network: Configs ──────────────────────────────────────────────────────
 
-    private void fetchConfigs(String game) {
+    private void fetchConfigs(String game, boolean refresh) {
         String displayName = game.replace("_", " ");
         headerTitle.setText(displayName);
+        if (refreshBtn != null) refreshBtn.setEnabled(false);
         currentConfigs.clear();
         refreshConfigsList();
         new Thread(() -> {
             try {
-                HttpURLConnection conn = openGet(WORKER + "/list?game=" + urlEncode(game));
+                String url = WORKER + "/list?game=" + urlEncode(game) + (refresh ? "&refresh=1" : "");
+                HttpURLConnection conn = openGet(url);
                 String body = readResponse(conn);
                 JSONArray arr = new JSONArray(body);
                 List<JSONObject> configs = new ArrayList<>();
@@ -574,12 +597,16 @@ public class BhGameConfigsActivity extends Activity {
                     currentConfigs.clear();
                     currentConfigs.addAll(configs);
                     refreshConfigsList();
+                    if (refreshBtn != null) refreshBtn.setEnabled(true);
                     if (configs.isEmpty()) {
                         Toast.makeText(this, "No configs shared yet for " + displayName, Toast.LENGTH_SHORT).show();
                     }
                 });
             } catch (Exception e) {
-                ui.post(() -> Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                ui.post(() -> {
+                    if (refreshBtn != null) refreshBtn.setEnabled(true);
+                    Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
             }
         }).start();
     }
@@ -805,6 +832,8 @@ public class BhGameConfigsActivity extends Activity {
         screenGames.setVisibility(n == 1 ? View.VISIBLE : View.GONE);
         screenConfigs.setVisibility(n == 2 ? View.VISIBLE : View.GONE);
         screenDetail.setVisibility(n == 3 ? View.VISIBLE : View.GONE);
+        // Refresh button only meaningful on games/configs screens
+        if (refreshBtn != null) refreshBtn.setVisibility(n == 3 ? View.GONE : View.VISIBLE);
         if (n == 1) headerTitle.setText("Game Configs");
     }
 
