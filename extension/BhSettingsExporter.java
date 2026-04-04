@@ -82,7 +82,7 @@ public class BhSettingsExporter {
             // Meta block — parsed and shown in BhGameConfigsActivity detail view
             JSONObject meta = new JSONObject();
             meta.put("device",           Build.MANUFACTURER + " " + Build.MODEL);
-            meta.put("soc",              Build.VERSION.SDK_INT >= 31 ? Build.SOC_MODEL : Build.HARDWARE);
+            meta.put("soc",              Build.VERSION.SDK_INT >= 31 && !Build.SOC_MODEL.equals("unknown") ? Build.SOC_MODEL : Build.HARDWARE);
             meta.put("bh_version",       "2.8.8");
             meta.put("settings_count",   settings.length());
             meta.put("components_count", components.length());
@@ -95,7 +95,7 @@ public class BhSettingsExporter {
             String safeName     = gameName.replaceAll("[^a-zA-Z0-9_\\-]", "_");
             String manufacturer = Build.MANUFACTURER.replaceAll("[^a-zA-Z0-9_\\-]", "_");
             String deviceName   = Build.MODEL.replaceAll("[^a-zA-Z0-9_\\-]", "_");
-            String socModel     = (Build.VERSION.SDK_INT >= 31
+            String socModel     = (Build.VERSION.SDK_INT >= 31 && !Build.SOC_MODEL.equals("unknown")
                     ? Build.SOC_MODEL
                     : Build.HARDWARE)
                     .replaceAll("[^a-zA-Z0-9_\\-]", "_");
