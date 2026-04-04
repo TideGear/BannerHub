@@ -4,6 +4,17 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+## [feat] — v2.8.8-pre1 — Game Configs: download count, My Uploads, uploader description (2026-04-04)
+**Branch:** `main`  |  **Tag:** v2.8.8-pre1
+**Commit:** `f5caaa410`  |  **CI:** ✅ run 23969283672
+**What changed:**
+- Download count: worker /download increments downloads:<sha> KV when sha passed; /list returns downloads field; shown as "↓ N" on rows and detail
+- My Uploads (screen 4): header button; ListView from bh_config_uploads SP; tap fetches /list to get live data then opens detail; back returns to screen 4
+- Uploader description: BhSettingsExporter generates random token at upload; worker stores token:<sha>, returns sha; app saves {sha,game,filename,date,token} to bh_config_uploads SP; detail screen shows description (from GET /desc); if my upload: editable field + Save (POST /describe validates token)
+**Files touched:** extension/BhGameConfigsActivity.java, extension/BhSettingsExporter.java (+ /tmp/bannerhub-configs-worker.js deployed separately)
+
+---
+
 ## [fix] — v2.8.8-pre1 — Game Configs: remove My Device filter (2026-04-04)
 **Branch:** `main`  |  **Tag:** v2.8.8-pre1
 **Commit:** `bea4b3727`  |  **CI:** ⏳ run 23969070601
