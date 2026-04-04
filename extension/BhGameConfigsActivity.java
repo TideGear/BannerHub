@@ -38,7 +38,9 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -97,7 +99,9 @@ public class BhGameConfigsActivity extends Activity {
     private int        currentScreen = 1; // 1=games, 2=configs, 3=detail
 
     // Cover art: in-memory Bitmap cache (game folder name → Bitmap)
-    private final Map<String, Bitmap> coverCache = new HashMap<>();
+    private final Map<String, Bitmap>     coverCache     = new HashMap<>();
+    // Full config JSON cache (filename → JSONObject) — populated by fetchMeta
+    private final Map<String, JSONObject> configJsonCache = new HashMap<>();
 
     private Handler ui = new Handler(Looper.getMainLooper());
 
@@ -526,6 +530,41 @@ public class BhGameConfigsActivity extends Activity {
         downloadBtn.setOnClickListener(v -> downloadConfig(config));
         content.addView(downloadBtn, marginParams(0, 0, 0, dp(8)));
 
+        Button contentsBtn = new Button(this);
+        contentsBtn.setText("View Settings & Components");
+        contentsBtn.setBackgroundColor(0xFF37474F);
+        contentsBtn.setTextColor(WHITE);
+        contentsBtn.setOnClickListener(v -> {
+            JSONObject cached = configJsonCache.get(filename);
+            if (cached != null) {
+                showConfigContents(cached, filename);
+            } else {
+                // fetchMeta hasn't finished yet — download on demand
+                contentsBtn.setEnabled(false);
+                contentsBtn.setText("Loading...");
+                String game2 = config.optString("game_folder", selectedGame);
+                new Thread(() -> {
+                    try {
+                        HttpURLConnection c = openGet(WORKER + "/download?game=" + urlEncode(game2) + "&file=" + urlEncode(filename));
+                        JSONObject json = new JSONObject(readResponse(c));
+                        configJsonCache.put(filename, json);
+                        ui.post(() -> {
+                            contentsBtn.setEnabled(true);
+                            contentsBtn.setText("View Settings & Components");
+                            showConfigContents(json, filename);
+                        });
+                    } catch (Exception e) {
+                        ui.post(() -> {
+                            contentsBtn.setEnabled(true);
+                            contentsBtn.setText("View Settings & Components");
+                            Toast.makeText(this, "Failed to load: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }).start();
+            }
+        });
+        content.addView(contentsBtn, marginParams(0, 0, 0, dp(8)));
+
         TextView applyNote = new TextView(this);
         applyNote.setText("After downloading, use Import Config from a game's settings to apply.");
         applyNote.setTextColor(GREY);
@@ -681,6 +720,8 @@ public class BhGameConfigsActivity extends Activity {
                 HttpURLConnection conn = openGet(WORKER + "/download?game=" + urlEncode(game) + "&file=" + urlEncode(filename));
                 String body = readResponse(conn);
                 JSONObject json = new JSONObject(body);
+                // Cache for "View Settings & Components" button
+                configJsonCache.put(filename, json);
                 JSONObject meta = json.optJSONObject("meta");
                 int settingsCount  = meta != null ? 0 : json.optJSONObject("settings") != null ? json.getJSONObject("settings").length() : json.length();
                 if (json.has("settings")) settingsCount = json.getJSONObject("settings").length();
@@ -714,6 +755,150 @@ public class BhGameConfigsActivity extends Activity {
                 });
             }
         }).start();
+    }
+
+    // ── Config contents dialog ────────────────────────────────────────────────
+
+    private void showConfigContents(JSONObject json, String filename) {
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setPadding(dp(4), dp(8), dp(4), dp(8));
+        scroll.addView(body);
+
+        // ── Components ──────────────────────────────────────────────────
+        JSONArray components = json.optJSONArray("components");
+        if (components != null && components.length() > 0) {
+            body.addView(sectionHeader("Components (" + components.length() + ")"));
+            for (int i = 0; i < components.length(); i++) {
+                JSONObject c = components.optJSONObject(i);
+                if (c == null) continue;
+                String name = c.optString("name", "");
+                String type = c.optString("type", "");
+                String url  = c.optString("url",  "");
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.VERTICAL);
+                row.setPadding(dp(8), dp(6), dp(8), dp(6));
+                row.setBackgroundColor(SURFACE);
+                LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1, -2);
+                rp.setMargins(0, 0, 0, dp(4));
+
+                TextView nameTv = new TextView(this);
+                nameTv.setText(name.isEmpty() ? "(unnamed)" : name);
+                nameTv.setTextColor(WHITE);
+                nameTv.setTextSize(13f);
+                nameTv.setTypeface(null, Typeface.BOLD);
+                row.addView(nameTv);
+
+                if (!type.isEmpty()) {
+                    TextView typeTv = new TextView(this);
+                    typeTv.setText("Type: " + type);
+                    typeTv.setTextColor(GREY);
+                    typeTv.setTextSize(12f);
+                    row.addView(typeTv);
+                }
+                if (!url.isEmpty()) {
+                    TextView urlTv = new TextView(this);
+                    // Show just the filename part of the URL
+                    String urlShort = url.contains("/") ? url.substring(url.lastIndexOf('/') + 1) : url;
+                    urlTv.setText(urlShort);
+                    urlTv.setTextColor(0xFF7B8CFF);
+                    urlTv.setTextSize(11f);
+                    row.addView(urlTv);
+                }
+                body.addView(row, rp);
+            }
+        } else {
+            body.addView(sectionHeader("Components (none bundled)"));
+        }
+
+        // ── Settings ───────────────────────────────────────────────────
+        JSONObject settings = json.optJSONObject("settings");
+        if (settings == null) {
+            // Old flat format — the whole JSON is settings minus meta/components
+            settings = new JSONObject();
+            try {
+                Iterator<String> it = json.keys();
+                while (it.hasNext()) {
+                    String k = it.next();
+                    if (!k.equals("meta") && !k.equals("components")) settings.put(k, json.get(k));
+                }
+            } catch (Exception ignored) {}
+        }
+
+        int settingsCount = settings.length();
+        body.addView(sectionHeader("Settings (" + settingsCount + " keys)"));
+
+        if (settingsCount == 0) {
+            TextView empty = new TextView(this);
+            empty.setText("(no settings)");
+            empty.setTextColor(GREY);
+            empty.setTextSize(12f);
+            empty.setPadding(dp(8), dp(4), dp(8), dp(4));
+            body.addView(empty);
+        } else {
+            // Sort keys alphabetically
+            List<String> keys = new ArrayList<>();
+            Iterator<String> it = settings.keys();
+            while (it.hasNext()) keys.add(it.next());
+            Collections.sort(keys);
+
+            final JSONObject finalSettings = settings;
+            for (String key : keys) {
+                String value;
+                try { value = String.valueOf(finalSettings.get(key)); }
+                catch (Exception e) { value = "?"; }
+
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setPadding(dp(8), dp(5), dp(8), dp(5));
+                LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1, -2);
+                rp.setMargins(0, 0, 0, dp(1));
+                row.setBackgroundColor(SURFACE);
+
+                TextView keyTv = new TextView(this);
+                keyTv.setText(key);
+                keyTv.setTextColor(GREY);
+                keyTv.setTextSize(12f);
+                keyTv.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+                keyTv.setSingleLine(false);
+
+                TextView valTv = new TextView(this);
+                valTv.setText(value);
+                valTv.setTextColor(WHITE);
+                valTv.setTextSize(12f);
+                valTv.setMaxWidth(dp(160));
+                valTv.setSingleLine(true);
+                valTv.setEllipsize(android.text.TextUtils.TruncateAt.END);
+
+                row.addView(keyTv);
+                row.addView(valTv);
+                body.addView(row, rp);
+            }
+        }
+
+        // Limit dialog height so it doesn't overflow screen
+        scroll.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
+        int maxH = (int) (getResources().getDisplayMetrics().heightPixels * 0.7f);
+        scroll.setLayoutParams(new android.widget.FrameLayout.LayoutParams(-1, maxH));
+
+        new AlertDialog.Builder(this)
+                .setTitle(filename.length() > 35 ? filename.substring(0, 33) + "…" : filename)
+                .setView(scroll)
+                .setPositiveButton("Close", null)
+                .show();
+    }
+
+    private TextView sectionHeader(String text) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextColor(ACCENT);
+        tv.setTextSize(13f);
+        tv.setTypeface(null, Typeface.BOLD);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+        lp.setMargins(dp(4), dp(12), dp(4), dp(6));
+        tv.setLayoutParams(lp);
+        return tv;
     }
 
     // ── Network: Vote ─────────────────────────────────────────────────────────
