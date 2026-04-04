@@ -904,7 +904,18 @@ public class BhGameConfigsActivity extends Activity {
                 JSONObject json = new JSONObject(body);
                 configJsonCache.put(filename, json);
                 JSONObject meta = json.optJSONObject("meta");
-                int sc = json.has("settings") ? json.getJSONObject("settings").length() : 0;
+                int sc;
+                if (json.has("settings")) {
+                    sc = json.getJSONObject("settings").length();
+                } else {
+                    // Old flat format: settings are root-level keys minus meta/components
+                    sc = 0;
+                    Iterator<String> kit = json.keys();
+                    while (kit.hasNext()) {
+                        String k = kit.next();
+                        if (!k.equals("meta") && !k.equals("components")) sc++;
+                    }
+                }
                 int cc = json.has("components") ? json.getJSONArray("components").length() : 0;
                 ui.post(() -> {
                     metaCard.removeAllViews();

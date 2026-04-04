@@ -279,14 +279,18 @@ public class BhSettingsExporter {
                 String[] fnames = new String[arr.length()];
                 for (int i = 0; i < arr.length(); i++) {
                     JSONObject entry = arr.getJSONObject(i);
-                    String device = entry.optString("device", "Unknown");
-                    String soc    = entry.optString("soc", "");
-                    String date   = entry.optString("date", "");
+                    String device   = entry.optString("device", "Unknown");
+                    String soc      = entry.optString("soc", "");
+                    String date     = entry.optString("date", "");
+                    String gameFld  = entry.optString("game_folder", safeName);
+                    String fname    = entry.optString("filename", "config.json");
                     labels[i] = device
                             + (soc.isEmpty() ? "" : " [" + soc + "]")
                             + (date.isEmpty() ? "" : "  (" + date + ")");
-                    dlUrls[i] = entry.optString("download_url", "");
-                    fnames[i] = entry.optString("filename", "config.json");
+                    dlUrls[i] = WORKER_BASE + "/download?game="
+                            + android.net.Uri.encode(gameFld)
+                            + "&file=" + android.net.Uri.encode(fname);
+                    fnames[i] = fname;
                 }
 
                 ui.post(() -> new AlertDialog.Builder(ctx)
