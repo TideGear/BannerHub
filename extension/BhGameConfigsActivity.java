@@ -917,6 +917,7 @@ public class BhGameConfigsActivity extends Activity {
                     }
                 }
                 int cc = json.has("components") ? json.getJSONArray("components").length() : 0;
+                final int finalSc = sc, finalCc = cc;
                 ui.post(() -> {
                     metaCard.removeAllViews();
                     metaCard.setPadding(dp(16), dp(14), dp(16), dp(14));
@@ -930,8 +931,8 @@ public class BhGameConfigsActivity extends Activity {
                         if (!fps.isEmpty())      addInfoRow(metaCard, "FPS Cap", fps);
                         if (!bhVer.isEmpty())    addInfoRow(metaCard, "BH Version", bhVer);
                     }
-                    addInfoRow(metaCard, "Settings", sc + " keys");
-                    addInfoRow(metaCard, "Components", cc + " bundled");
+                    addInfoRow(metaCard, "Settings", finalSc + " keys");
+                    addInfoRow(metaCard, "Components", finalCc + " bundled");
                 });
             } catch (Exception e) {
                 ui.post(() -> {
