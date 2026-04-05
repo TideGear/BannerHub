@@ -30,6 +30,32 @@ Each entry covers one logical change unit (commit or closely related set of comm
 
 ---
 
+## Entry 136 — feat: My Uploads delete own configs (v2.9.1-pre, main)
+**Date:** 2026-04-04
+**Branch:** main  |  **Tag:** v2.9.1-pre  |  **Commit:** TBD
+
+### Root cause analysis
+No way for users to remove their own shared configs — only admin delete existed. Upload token
+is already stored in `bh_config_uploads` SP at upload time (`token` field), so client-side
+auth is trivially available without any new login flow.
+
+### Changes
+
+**[MOD]** `extension/BhGameConfigsActivity.java`
+- `refreshUploadsList()`: added `setOnItemLongClickListener` → AlertDialog "Delete Upload?" with game/filename in message
+- New method `doDeleteUpload(sha, game, filename, uploadToken)`: background thread → POST WORKER+"/delete" with all 4 fields → on success: remove `sha` key from `UPLOADS_SP`, post Toast + call `refreshUploadsList()`
+
+**[MOD]** `/tmp/bannerhub-configs-worker.js` (needs CF redeploy)
+- Route: `POST /delete` → `handleUserDelete(request, env)`
+- Auth: reads `token:<sha>` from KV, rejects if mismatch (403)
+- GitHub: GET file by `configs/{game}/{filename}` → DELETE with commit message
+- KV cleanup: deletes `token:`, `votes:`, `downloads:`, `reports:`, `desc:`, `comments:{game}/{filename}`, `cache:list:{game}`, `cache:games`; decrements `counts:{game}` (deletes key if would go to 0)
+
+### CI
+- **[CI⏳]** v2.9.1-pre queued
+
+---
+
 ## Entry 135 — fix: game configs worker KV write limit crash + app JSON hardening (v2.8.9-pre3 retag, main)
 **Date:** 2026-04-04
 **Branch:** main  |  **Tag:** v2.8.9-pre3 (retagged)  |  **Commit:** b839c7c1e

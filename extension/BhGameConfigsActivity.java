@@ -1631,6 +1631,49 @@ public class BhGameConfigsActivity extends Activity {
         uploadsListView.setAdapter(adapter);
         uploadsListView.setOnItemClickListener((parent, view, pos, id) ->
                 openUploadDetail(uploads.get(pos)));
+        uploadsListView.setOnItemLongClickListener((parent, view, pos, id) -> {
+            JSONObject rec = uploads.get(pos);
+            String sha      = rec.optString("sha", "");
+            String game     = rec.optString("game", "");
+            String filename = rec.optString("filename", "");
+            String token    = rec.optString("token", "");
+            if (sha.isEmpty() || token.isEmpty()) return true;
+            new android.app.AlertDialog.Builder(this)
+                .setTitle("Delete Upload")
+                .setMessage("Remove \"" + filename.replace("_", " ") + "\" from the community list?")
+                .setPositiveButton("Delete", (d, w) -> doDeleteUpload(sha, game, filename, token))
+                .setNegativeButton("Cancel", null)
+                .show();
+            return true;
+        });
+    }
+
+    private void doDeleteUpload(String sha, String game, String filename, String uploadToken) {
+        new Thread(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("sha",          sha);
+                body.put("game",         game);
+                body.put("filename",     filename);
+                body.put("upload_token", uploadToken);
+                HttpURLConnection conn = openPost(WORKER + "/delete", body.toString());
+                int code = conn.getResponseCode();
+                String resp = readResponse(code >= 200 && code < 300 ? conn.getInputStream() : conn.getErrorStream());
+                JSONObject r = new JSONObject(resp);
+                if (r.optBoolean("success", false)) {
+                    getSharedPreferences(UPLOADS_SP, 0).edit().remove(sha).apply();
+                    ui.post(() -> {
+                        Toast.makeText(this, "Deleted from community list", Toast.LENGTH_SHORT).show();
+                        refreshUploadsList();
+                    });
+                } else {
+                    String err = r.optString("error", "Unknown error");
+                    ui.post(() -> Toast.makeText(this, "Delete failed: " + err, Toast.LENGTH_LONG).show());
+                }
+            } catch (Exception e) {
+                ui.post(() -> Toast.makeText(this, "Delete error: " + e.getMessage(), Toast.LENGTH_LONG).show());
+            }
+        }).start();
     }
 
     /** Fetch live config entry from /list and open its detail screen. */
