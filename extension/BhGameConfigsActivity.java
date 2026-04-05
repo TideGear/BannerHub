@@ -99,7 +99,7 @@ public class BhGameConfigsActivity extends Activity {
     private EditText     searchBox;
     private ListView     gamesListView, configsListView, uploadsListView;
     private Button       myUploadsBtn;
-    private TextView     gamesTotalLabel;
+    private String       deviceSubtitleBase = "";
     private LinearLayout socFilterBar;
 
     // Screen 3 dynamic views
@@ -244,7 +244,8 @@ public class BhGameConfigsActivity extends Activity {
         String mfr   = android.os.Build.MANUFACTURER;
         String model = android.os.Build.MODEL;
         String socLabel = currentSoc.isEmpty() ? android.os.Build.HARDWARE : currentSoc;
-        deviceSubtitle.setText(mfr + " " + model + "  •  " + socLabel);
+        deviceSubtitleBase = mfr + " " + model + "  •  " + socLabel;
+        deviceSubtitle.setText(deviceSubtitleBase);
         deviceSubtitle.setTextColor(GREY);
         deviceSubtitle.setTextSize(10f);
         deviceSubtitle.setSingleLine(true);
@@ -318,12 +319,6 @@ public class BhGameConfigsActivity extends Activity {
         View searchDivider = new View(this);
         searchDivider.setBackgroundColor(DIVIDER);
 
-        gamesTotalLabel = new TextView(this);
-        gamesTotalLabel.setTextColor(GREY);
-        gamesTotalLabel.setTextSize(11f);
-        gamesTotalLabel.setPadding(dp(16), dp(6), dp(16), dp(4));
-        gamesTotalLabel.setVisibility(View.GONE);
-
         gamesListView = new ListView(this);
         gamesListView.setBackgroundColor(BG);
         gamesListView.setDivider(null);
@@ -333,7 +328,6 @@ public class BhGameConfigsActivity extends Activity {
 
         s.addView(searchBox, new LinearLayout.LayoutParams(-1, -2));
         s.addView(searchDivider, new LinearLayout.LayoutParams(-1, dp(1)));
-        s.addView(gamesTotalLabel, new LinearLayout.LayoutParams(-1, -2));
         s.addView(gamesListView, new LinearLayout.LayoutParams(-1, 0, 1f));
         return s;
     }
@@ -376,13 +370,11 @@ public class BhGameConfigsActivity extends Activity {
         for (String g : allGames) {
             if (q.isEmpty() || g.toLowerCase().contains(q)) filteredGames.add(g);
         }
-        if (gamesTotalLabel != null && !allGames.isEmpty()) {
-            if (q.isEmpty()) {
-                gamesTotalLabel.setText(allGames.size() + " games");
-            } else {
-                gamesTotalLabel.setText(filteredGames.size() + " of " + allGames.size() + " games");
-            }
-            gamesTotalLabel.setVisibility(View.VISIBLE);
+        if (deviceSubtitle != null && !allGames.isEmpty()) {
+            String count = q.isEmpty()
+                    ? allGames.size() + " games"
+                    : filteredGames.size() + " of " + allGames.size() + " games";
+            deviceSubtitle.setText(deviceSubtitleBase + "  •  " + count);
         }
         refreshGamesList();
     }
@@ -1047,10 +1039,8 @@ public class BhGameConfigsActivity extends Activity {
                     allGames.clear(); allGames.addAll(games);
                     filteredGames.clear(); filteredGames.addAll(games);
                     gameCounts.clear(); gameCounts.putAll(counts);
-                    if (gamesTotalLabel != null) {
-                        gamesTotalLabel.setText(games.size() + " games");
-                        gamesTotalLabel.setVisibility(games.isEmpty() ? View.GONE : View.VISIBLE);
-                    }
+                    if (deviceSubtitle != null && !games.isEmpty())
+                        deviceSubtitle.setText(deviceSubtitleBase + "  •  " + games.size() + " games");
                     refreshGamesList();
                     if (refreshBtn != null) refreshBtn.setEnabled(true);
                     if (games.isEmpty())
@@ -1883,6 +1873,7 @@ public class BhGameConfigsActivity extends Activity {
         if (myUploadsBtn != null) myUploadsBtn.setVisibility(n == 1 ? View.VISIBLE : View.GONE);
         if (n == 1) headerTitle.setText("Game Configs");
         if (n == 4) headerTitle.setText("My Uploads");
+        if (n != 1 && deviceSubtitle != null) deviceSubtitle.setText(deviceSubtitleBase);
     }
 
     // ── HTTP helpers ──────────────────────────────────────────────────────────
