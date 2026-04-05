@@ -1663,13 +1663,14 @@ public class BhGameConfigsActivity extends Activity {
             String sha      = rec.optString("sha", "");
             String game     = rec.optString("game", "");
             String filename = rec.optString("filename", "");
-            String token    = rec.optString("token", "");
+            String tokenRaw = rec.optString("token", "");
             // Fallback: recover token from local config file if SP record lost it
-            if (token.isEmpty() && !filename.isEmpty()) {
+            if (tokenRaw.isEmpty() && !filename.isEmpty()) {
                 String recovered = BhSettingsExporter.recoverTokenFromFile(BhGameConfigsActivity.this, filename);
-                if (recovered != null) token = recovered;
+                if (recovered != null) tokenRaw = recovered;
             }
-            if (sha.isEmpty() || token.isEmpty()) return true;
+            if (sha.isEmpty() || tokenRaw.isEmpty()) return true;
+            final String token = tokenRaw;
             new android.app.AlertDialog.Builder(this)
                 .setTitle("Delete Upload")
                 .setMessage("Remove \"" + filename.replace("_", " ") + "\" from the community list?")
