@@ -34,15 +34,15 @@
     # v2 = GameDetailEntity
     iget-object v2, p0, Lcom/xj/landscape/launcher/ui/gamedetail/BhExportLambda;->b:Lcom/xj/common/service/bean/GameDetailEntity;
 
-    # v3 = gameId (int)
-    invoke-virtual {v2}, Lcom/xj/common/service/bean/GameDetailEntity;->getId()I
-    move-result v3
+    # v3 = localGameId (String) — e.g. "local_5f129d63-..." for locally-added games
+    invoke-virtual {v2}, Lcom/xj/common/service/bean/GameDetailEntity;->getLocalGameId()Ljava/lang/String;
+    move-result-object v3
 
     # v4 = gameName (String)
     invoke-virtual {v2}, Lcom/xj/common/service/bean/GameDetailEntity;->getName()Ljava/lang/String;
     move-result-object v4
 
-    invoke-static {v1, v3, v4}, Lapp/revanced/extension/gamehub/BhSettingsExporter;->exportConfig(Landroid/content/Context;ILjava/lang/String;)V
+    invoke-static {v1, v3, v4}, Lapp/revanced/extension/gamehub/BhSettingsExporter;->exportConfig(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)V
 
     const/4 v0, 0x0
     return-object v0

@@ -52,7 +52,7 @@ public class BhSettingsExporter {
 
     // ─── Export entry point ──────────────────────────────────────────────────
 
-    public static void showExportDialog(Context ctx, int gameId, String gameName) {
+    public static void showExportDialog(Context ctx, String gameId, String gameName) {
         // Build preview counts synchronously (just reading, not saving)
         int settingsCount = 0;
         int componentsCount = 0;
@@ -79,11 +79,11 @@ public class BhSettingsExporter {
     }
 
     // kept for backward compatibility (called from existing smali injection)
-    public static void exportConfig(Context ctx, int gameId, String gameName) {
+    public static void exportConfig(Context ctx, String gameId, String gameName) {
         showExportDialog(ctx, gameId, gameName);
     }
 
-    private static void doExport(Context ctx, int gameId, String gameName, boolean share) {
+    private static void doExport(Context ctx, String gameId, String gameName, boolean share) {
         try {
             // Generate token early so it's embedded in both local file and upload
             // This enables token recovery from local file if SP is lost (reinstall/clear data)
@@ -209,7 +209,7 @@ public class BhSettingsExporter {
      * Stock GameHub components (no URL in banners_sources) are intentionally excluded
      * since they need no download; their selection is already captured in the settings block.
      */
-    private static JSONArray buildComponentsArray(Context ctx, int gameId) throws Exception {
+    private static JSONArray buildComponentsArray(Context ctx, String gameId) throws Exception {
         SharedPreferences gameSp    = ctx.getSharedPreferences(SP_PREFIX + gameId, Context.MODE_PRIVATE);
         SharedPreferences sourcesSp = ctx.getSharedPreferences(SOURCES_SP, Context.MODE_PRIVATE);
         JSONArray arr = new JSONArray();
@@ -251,7 +251,7 @@ public class BhSettingsExporter {
 
     // ─── Import entry point ──────────────────────────────────────────────────
 
-    public static void showImportDialog(final Context ctx, final int gameId, final String gameName) {
+    public static void showImportDialog(final Context ctx, final String gameId, final String gameName) {
         new AlertDialog.Builder(ctx)
                 .setTitle("Import Config — " + gameName)
                 .setItems(new String[]{"My Device", "Browse Community"},
@@ -265,7 +265,7 @@ public class BhSettingsExporter {
 
     // ─── Local import ────────────────────────────────────────────────────────
 
-    private static void showLocalImportDialog(Context ctx, int gameId, String gameName) {
+    private static void showLocalImportDialog(Context ctx, String gameId, String gameName) {
         try {
             File dir = new File(Environment.getExternalStorageDirectory(), EXPORT_DIR);
             if (!dir.exists()) {
@@ -292,7 +292,7 @@ public class BhSettingsExporter {
         }
     }
 
-    private static void showLocalImportPreview(Context ctx, int gameId, String gameName, File configFile) {
+    private static void showLocalImportPreview(Context ctx, String gameId, String gameName, File configFile) {
         try {
             char[] buf = new char[(int) configFile.length()];
             FileReader fr = new FileReader(configFile);
@@ -335,7 +335,7 @@ public class BhSettingsExporter {
 
     // ─── Community import ────────────────────────────────────────────────────
 
-    private static void showCommunityImportDialog(Context ctx, int gameId, String gameName) {
+    private static void showCommunityImportDialog(Context ctx, String gameId, String gameName) {
         Toast.makeText(ctx, "Fetching community configs...", Toast.LENGTH_SHORT).show();
         String safeName = gameName.replaceAll("[^a-zA-Z0-9_\\-]", "_");
 
@@ -393,7 +393,7 @@ public class BhSettingsExporter {
         }).start();
     }
 
-    private static void downloadAndImport(Context ctx, int gameId, String gameName,
+    private static void downloadAndImport(Context ctx, String gameId, String gameName,
                                           String downloadUrl, String filename) {
         Toast.makeText(ctx, "Downloading config...", Toast.LENGTH_SHORT).show();
         new Thread(() -> {
@@ -426,7 +426,7 @@ public class BhSettingsExporter {
 
     // ─── Apply config ────────────────────────────────────────────────────────
 
-    static void applyConfig(Context ctx, int gameId, String gameName, File configFile) {
+    static void applyConfig(Context ctx, String gameId, String gameName, File configFile) {
         try {
             char[] buf = new char[(int) configFile.length()];
             FileReader fr = new FileReader(configFile);
@@ -513,7 +513,7 @@ public class BhSettingsExporter {
     // ─── Download + Inject ───────────────────────────────────────────────────
 
     private static void downloadMissingComponents(Context ctx, List<String[]> components,
-                                                   Runnable onComplete, int gameId) {
+                                                   Runnable onComplete, String gameId) {
         Toast.makeText(ctx, "Downloading " + components.size() + " component(s)...", Toast.LENGTH_LONG).show();
         // Captures the actual EmuComponents-registered name for the GPU driver if it
         // differs from the (potentially display-label-polluted) name in the config file.
@@ -571,7 +571,7 @@ public class BhSettingsExporter {
                 // Apply settings first (may write broken GPU driver name from config file)
                 onComplete.run();
                 // Then overwrite pc_ls_GPU_DRIVER_ with the actual registered name
-                if (gpuActualName[0] != null && gameId > 0) {
+                if (gpuActualName[0] != null && gameId != null && !gameId.isEmpty()) {
                     fixGpuDriverName(ctx, gameId, gpuActualName[0]);
                 }
             });
@@ -631,7 +631,7 @@ public class BhSettingsExporter {
      * EmuComponents registry key. Called after applySettings to fix any display-label
      * pollution copied verbatim from the imported config file.
      */
-    private static void fixGpuDriverName(Context ctx, int gameId, String actualName) {
+    private static void fixGpuDriverName(Context ctx, String gameId, String actualName) {
         SharedPreferences gameSp = ctx.getSharedPreferences(SP_PREFIX + gameId, Context.MODE_PRIVATE);
         String current = gameSp.getString("pc_ls_GPU_DRIVER_", "");
         if (current.isEmpty()) return;

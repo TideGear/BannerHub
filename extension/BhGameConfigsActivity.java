@@ -1350,35 +1350,39 @@ public class BhGameConfigsActivity extends Activity {
                 in.close(); fos.close();
 
                 // Find games that have a pc_g_setting SP file (i.e. actually configured in GameHub)
-                final List<Integer> gameIds   = new ArrayList<>();
-                final List<String>  gameNames = new ArrayList<>();
+                final List<String> gameIds   = new ArrayList<>();
+                final List<String> gameNames = new ArrayList<>();
                 try {
                     File spDir = new File(getApplicationInfo().dataDir, "shared_prefs");
                     File[] spFiles = spDir.listFiles();
                     if (spFiles != null) {
-                        // Collect gameIds from pc_g_setting*.xml filenames
-                        java.util.Set<Integer> foundIds = new java.util.TreeSet<>();
+                        // Collect gameId strings from pc_g_setting*.xml filenames.
+                        // Suffix is an integer for server/store games, or "local_<uuid>" for locally-added games.
+                        java.util.Set<Integer> foundIntIds  = new java.util.TreeSet<>();
+                        java.util.List<String> foundLocalIds = new java.util.ArrayList<>();
                         for (File f : spFiles) {
                             String fn = f.getName();
                             if (fn.startsWith("pc_g_setting") && fn.endsWith(".xml")) {
+                                String suffix = fn.substring("pc_g_setting".length(), fn.length() - 4);
+                                if (suffix.isEmpty()) continue;
                                 try {
-                                    int id = Integer.parseInt(fn.substring("pc_g_setting".length(), fn.length() - 4));
-                                    foundIds.add(id);
-                                } catch (NumberFormatException ignored2) {}
+                                    foundIntIds.add(Integer.parseInt(suffix));
+                                } catch (NumberFormatException ignored2) {
+                                    // local_<uuid> or other non-integer suffix
+                                    foundLocalIds.add(suffix);
+                                }
                             }
                         }
-                        if (!foundIds.isEmpty()) {
-                            // Look up names from ux_db.
-                            // SP key = server gameId for server games, Room id (PK) for locally-added games.
-                            // Strategy: first pass queries by gameId; second pass queries by id for unmatched.
-                            String placeholders = android.text.TextUtils.join(",", java.util.Collections.nCopies(foundIds.size(), "?"));
-                            String[] args = new String[foundIds.size()];
+                        if (!foundIntIds.isEmpty()) {
+                            // Look up names from ux_db for server/store games.
+                            // SP key = server gameId for server games, Room id (PK) for some locally-added games.
+                            String placeholders = android.text.TextUtils.join(",", java.util.Collections.nCopies(foundIntIds.size(), "?"));
+                            String[] args = new String[foundIntIds.size()];
                             int i = 0;
-                            for (int id : foundIds) args[i++] = String.valueOf(id);
+                            for (int id : foundIntIds) args[i++] = String.valueOf(id);
                             SQLiteDatabase db = SQLiteDatabase.openDatabase(
                                     getDatabasePath("ux_db").getAbsolutePath(), null,
                                     SQLiteDatabase.OPEN_READONLY);
-                            // Map: SP-key integer → display name (filled by both passes)
                             java.util.Map<Integer,String> nameMap = new java.util.LinkedHashMap<>();
                             // Pass 1: match by gameId (server games)
                             Cursor cur = db.query("StarterGame",
@@ -1391,9 +1395,9 @@ public class BhGameConfigsActivity extends Activity {
                                 nameMap.put(gid, gname);
                             }
                             cur.close();
-                            // Pass 2: for IDs not yet found, try matching by Room PK id (locally-added games)
+                            // Pass 2: for IDs not yet found, try matching by Room PK id
                             java.util.Set<Integer> unmatched = new java.util.TreeSet<>();
-                            for (int id : foundIds) if (!nameMap.containsKey(id)) unmatched.add(id);
+                            for (int id : foundIntIds) if (!nameMap.containsKey(id)) unmatched.add(id);
                             if (!unmatched.isEmpty()) {
                                 String ph2 = android.text.TextUtils.join(",", java.util.Collections.nCopies(unmatched.size(), "?"));
                                 String[] args2 = new String[unmatched.size()];
@@ -1413,23 +1417,31 @@ public class BhGameConfigsActivity extends Activity {
                             db.close();
                             java.util.Set<Integer> namedIds = nameMap.keySet();
                             for (java.util.Map.Entry<Integer,String> e : nameMap.entrySet()) {
-                                gameIds.add(e.getKey());
+                                gameIds.add(String.valueOf(e.getKey()));
                                 gameNames.add(e.getValue());
                             }
-                            // Fall back to "Game #id" for any SP file still unresolved
-                            for (int id : foundIds) {
+                            for (int id : foundIntIds) {
                                 if (!namedIds.contains(id)) {
-                                    gameIds.add(id);
+                                    gameIds.add(String.valueOf(id));
                                     gameNames.add("Game #" + id);
                                 }
                             }
-                            // Re-sort by name
+                        }
+                        // local_<uuid> games: no DB lookup needed; use short UUID as display label
+                        for (String localId : foundLocalIds) {
+                            gameIds.add(localId);
+                            // Show last 8 chars of the UUID for identification
+                            String shortId = localId.length() > 8 ? localId.substring(localId.length() - 8) : localId;
+                            gameNames.add("Local Game (..." + shortId + ")");
+                        }
+                        // Re-sort by name
+                        if (!gameIds.isEmpty()) {
                             java.util.List<int[]> pairs = new java.util.ArrayList<>();
-                            for (int j = 0; j < gameIds.size(); j++) pairs.add(new int[]{gameIds.get(j), j});
-                            pairs.sort((a2, b2) -> gameNames.get(a2[1]).compareToIgnoreCase(gameNames.get(b2[1])));
-                            List<Integer> sortedIds   = new ArrayList<>();
-                            List<String>  sortedNames = new ArrayList<>();
-                            for (int[] p : pairs) { sortedIds.add(gameIds.get(p[1])); sortedNames.add(gameNames.get(p[1])); }
+                            for (int j = 0; j < gameIds.size(); j++) pairs.add(new int[]{j, j});
+                            pairs.sort((a2, b2) -> gameNames.get(a2[0]).compareToIgnoreCase(gameNames.get(b2[0])));
+                            List<String> sortedIds   = new ArrayList<>();
+                            List<String> sortedNames = new ArrayList<>();
+                            for (int[] p : pairs) { sortedIds.add(gameIds.get(p[0])); sortedNames.add(gameNames.get(p[0])); }
                             gameIds.clear();   gameIds.addAll(sortedIds);
                             gameNames.clear(); gameNames.addAll(sortedNames);
                         }
