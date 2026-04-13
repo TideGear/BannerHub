@@ -69,7 +69,7 @@ Download the APK that matches your existing GameHub package name from the [lates
 
 **Which APK do I need?**
 
-If you do not already have any GameHub variant installed, use the **Normal APK** (`banner.hub`). It installs as a completely separate app alongside the official GameHub Lite — both can coexist. If you already have the official GameHub Lite (`gamehub.lite`) installed and want BannerHub to replace it, use **Normal.GHL**. If you use a specific GameHub variant for a particular game (e.g. PuBG or Genshin), pick the matching APK so BannerHub replaces that variant's slot.
+If you do not already have any GameHub variant installed, use the **Normal APK** (`banner.hub`). It installs as a completely separate app alongside the official GameHub Lite — both can coexist. If you want BannerHub to take over the `gamehub.lite` package slot (e.g. so apps that launch GameHub Lite by package name launch BannerHub instead), use **Normal.GHL** — but you must **uninstall the official GameHub Lite first** since they share the same package name and have different signing certificates. If you use a specific GameHub variant for a particular game (e.g. PuBG or Genshin), pick the matching APK — uninstall the existing variant first, then install BannerHub in its place.
 
 All 9 variants can be installed simultaneously. All APKs are signed with AOSP testkey (v1/v2/v3).
 
