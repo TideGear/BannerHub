@@ -4,6 +4,18 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [fix] — v2.9.3-pre — Export/import 0/0 for catalog games with getId() > 0 (2026-04-13)
+**Commit:** `498548946`  |  **Tag:** v2.9.3-pre (retagged)
+**CI:** triggered
+#### What changed
+- Previous fix (check `getLocalGameId().isEmpty()` → fall back to `getId()`) was backwards. Found GameHub's actual gameId resolution in `GameDetailActivity` lines 6363-6406: `if getId() > 0 → String.valueOf(getId())`, `else → getLocalGameId()`. Replicated this exact `if-gtz` branch in both `BhExportLambda` and `BhImportLambda`.
+- Catalog games (GTA IV CE, GTA V Enhanced, REANIMAL, Titanfall 2) have `getId() > 0`; their SP is `"pc_g_setting271590"` etc. Local-only games (CS:S, L4D2, God of War, Planet of Lana 2) have `getId() == 0` so `getLocalGameId()` applies.
+#### Files touched
+- `patches/smali/.../BhExportLambda.smali`
+- `patches/smali/.../BhImportLambda.smali`
+
+---
+
 ### [fix] — v2.9.3-pre — Export/import still 0/0 for catalog games (2026-04-13)
 **Commit:** `e1ef76c6d`  |  **Tag:** v2.9.3-pre (retagged)
 **CI:** triggered

@@ -4670,6 +4670,18 @@ GameHub catalog/server games have `GameDetailEntity.localGameId = ""` — the `l
 
 ---
 
+### Entry 057 — Export/import 0/0 for catalog games with getId() > 0 (2026-04-13)
+**Commit:** `498548946`  |  **Tag:** v2.9.3-pre  |  **CI:** triggered
+
+**Files changed:**
+- `patches/smali/.../BhExportLambda.smali` — replaced isEmpty/fallback logic with if-gtz matching GameHub's own resolution
+- `patches/smali/.../BhImportLambda.smali` — same
+
+**Root cause / design:**
+Prior fix checked `getLocalGameId().isEmpty()` → fallback to `String.valueOf(getId())`. This was backwards. GameHub's real resolution (found in `GameDetailActivity` lines 6363-6406): `if getId() > 0 → String.valueOf(getId())` (catalog game), `else → getLocalGameId()` (locally-added). GTA IV CE, GTA V Enhanced, REANIMAL, Titanfall 2 all have `getId() > 0` (they're in GameHub's catalog), so their SP keys are integers (e.g. `"pc_g_setting271590"`). CS:S, L4D2, God of War, Planet of Lana 2 have `getId() == 0` (not in catalog) so `getLocalGameId()` applies. Both lambdas now use `if-gtz` to branch exactly as GameHub does.
+
+---
+
 ### Entry #[next] — v2.8.10-pre — SOC badge detection fix (2026-04-04)
 **Files:** `extension/BhGameConfigsActivity.java`
 **Root cause:** `BhGameConfigsActivity` used `Build.SOC_MODEL` (e.g. `SM8750`) for SOC matching, while `BhSettingsExporter` used `device_info` → `gpu_renderer` (EGL-queried, e.g. `Adreno (TM) 750`). The mismatch meant "✓ My SOC" badges never fired for configs with `meta.soc = "Adreno (TM) 750"`.
