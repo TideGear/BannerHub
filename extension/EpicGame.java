@@ -31,4 +31,5 @@ public class EpicGame {
     public long   installSize   = 0L;
     public boolean canRunOffline = true;
     public boolean isDLC        = false;
+    public String  releaseDate  = "";   // ISO date from catalog viewableDate / effectiveDate
 }

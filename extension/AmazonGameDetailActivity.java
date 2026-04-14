@@ -52,6 +52,10 @@ public class AmazonGameDetailActivity extends Activity {
     private TextView progressLabel;
     private Runnable cancelDownload;
 
+    // Updates section views
+    private TextView updateStatusTV;
+    private Button checkUpdatesBtn, updateBtn;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -128,9 +132,9 @@ public class AmazonGameDetailActivity extends Activity {
         body.addView(makeSectionHeader("ACTIONS"), new LinearLayout.LayoutParams(-1, -2));
         body.addView(makeActionsCard(), new LinearLayout.LayoutParams(-1, -2));
 
-        // Stubs
+        // Updates
         body.addView(makeSectionHeader("UPDATES"), new LinearLayout.LayoutParams(-1, -2));
-        body.addView(makeStubCard("Update checker coming soon"), new LinearLayout.LayoutParams(-1, -2));
+        body.addView(makeUpdatesCard(), new LinearLayout.LayoutParams(-1, -2));
 
         body.addView(makeSectionHeader("DLC"), new LinearLayout.LayoutParams(-1, -2));
         body.addView(makeStubCard("DLC management coming soon"), new LinearLayout.LayoutParams(-1, -2));
@@ -455,6 +459,96 @@ public class AmazonGameDetailActivity extends Activity {
     private static String formatBytes(long bytes) {
         if (bytes >= 1_073_741_824L) return String.format("%.1f GB", bytes / 1_073_741_824.0);
         return String.format("%.0f MB", bytes / 1_048_576.0);
+    }
+
+    // ── Updates card (AMAZON-1) ───────────────────────────────────────────────
+
+    private View makeUpdatesCard() {
+        LinearLayout card = makeCard();
+
+        boolean installed = prefs.getString("amazon_exe_" + productId, null) != null;
+        if (!installed) {
+            TextView tv = new TextView(this);
+            tv.setText("Install the game first to check for updates.");
+            tv.setTextColor(0xFF554400);
+            tv.setTextSize(13f);
+            card.addView(tv);
+            return card;
+        }
+
+        updateStatusTV = new TextView(this);
+        updateStatusTV.setTextColor(0xFFCCCCCC);
+        updateStatusTV.setTextSize(13f);
+        String storedVer = prefs.getString("amazon_manifest_version_" + productId, null);
+        updateStatusTV.setText(storedVer != null
+                ? "Installed: v" + storedVer.substring(0, Math.min(12, storedVer.length())) + "…"
+                : "Version not recorded — tap Check to verify");
+        LinearLayout.LayoutParams stLp = new LinearLayout.LayoutParams(-1, -2);
+        stLp.bottomMargin = dp(8);
+        card.addView(updateStatusTV, stLp);
+
+        updateBtn = makeBtn("Update Now", 0xFFCC7700);
+        updateBtn.setVisibility(View.GONE);
+        updateBtn.setOnClickListener(v -> {
+            updateBtn.setVisibility(View.GONE);
+            updateStatusTV.setText("Updating…");
+            startInstall();
+        });
+        card.addView(updateBtn, btnLp());
+
+        checkUpdatesBtn = makeBtn("Check for Updates", 0xFF332200);
+        checkUpdatesBtn.setOnClickListener(v -> doCheckUpdate());
+        card.addView(checkUpdatesBtn, btnLp());
+
+        return card;
+    }
+
+    private void doCheckUpdate() {
+        if (updateStatusTV == null) return;
+        updateStatusTV.setText("Checking…");
+        if (checkUpdatesBtn != null) checkUpdatesBtn.setEnabled(false);
+
+        new Thread(() -> {
+            try {
+                String token = AmazonCredentialStore.getValidAccessToken(this);
+                if (token == null) {
+                    uiHandler.post(() -> {
+                        if (checkUpdatesBtn != null) checkUpdatesBtn.setEnabled(true);
+                        if (updateStatusTV != null) updateStatusTV.setText("Login required.");
+                    });
+                    return;
+                }
+                String latestVer = AmazonApiClient.getLiveVersionId(token, productId);
+                uiHandler.post(() -> {
+                    if (checkUpdatesBtn != null) checkUpdatesBtn.setEnabled(true);
+                    if (updateStatusTV == null) return;
+                    if (latestVer == null || latestVer.isEmpty()) {
+                        updateStatusTV.setText("Could not reach update server.");
+                        return;
+                    }
+                    String stored = prefs.getString("amazon_manifest_version_" + productId, null);
+                    if (stored == null) {
+                        prefs.edit().putString("amazon_manifest_version_" + productId, latestVer).apply();
+                        updateStatusTV.setText("Up to date ✓");
+                        if (updateBtn != null) updateBtn.setVisibility(View.GONE);
+                    } else if (stored.equals(latestVer)) {
+                        updateStatusTV.setText("Up to date ✓");
+                        if (updateBtn != null) updateBtn.setVisibility(View.GONE);
+                    } else {
+                        updateStatusTV.setText("Update available!\nInstalled: v"
+                                + stored.substring(0, Math.min(12, stored.length()))
+                                + "…  →  Latest: v"
+                                + latestVer.substring(0, Math.min(12, latestVer.length())) + "…");
+                        if (updateBtn != null) updateBtn.setVisibility(View.VISIBLE);
+                    }
+                });
+            } catch (Exception e) {
+                uiHandler.post(() -> {
+                    if (checkUpdatesBtn != null) checkUpdatesBtn.setEnabled(true);
+                    if (updateStatusTV != null) updateStatusTV.setText("Check failed: " + e.getMessage());
+                });
+            }
+        }, "amazon-update-check-" + productId).start();
     }
 
     private View makeInfoRowWithRef(String label, TextView valueTV) {

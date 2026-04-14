@@ -24,7 +24,9 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -57,6 +59,10 @@ public class GogGameDetailActivity extends Activity {
     private ProgressBar progressBar;
     private TextView progressLabel;
     private Runnable cancelDownload;
+
+    // Updates section views
+    private TextView updateStatusTV;
+    private Button checkUpdatesBtn, updateBtn;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -134,9 +140,9 @@ public class GogGameDetailActivity extends Activity {
         body.addView(makeSectionHeader("ACTIONS"), sectionHeaderLp());
         body.addView(makeActionsCard(), new LinearLayout.LayoutParams(-1, -2));
 
-        // Updates stub
+        // Updates
         body.addView(makeSectionHeader("UPDATES"), sectionHeaderLp());
-        body.addView(makeStubCard("Update checker coming soon"), new LinearLayout.LayoutParams(-1, -2));
+        body.addView(makeUpdatesCard(), new LinearLayout.LayoutParams(-1, -2));
 
         // DLC stub
         body.addView(makeSectionHeader("DLC"), sectionHeaderLp());
@@ -177,6 +183,10 @@ public class GogGameDetailActivity extends Activity {
         }
         if (category != null && !category.isEmpty()) {
             card.addView(makeInfoRow("Genre", category));
+        }
+        String releaseDate = prefs.getString("gog_release_" + gameId, null);
+        if (releaseDate != null && !releaseDate.isEmpty()) {
+            card.addView(makeInfoRow("Released", formatDate(releaseDate)));
         }
         // Install size row (value updated async)
         sizeTV = new TextView(this);
@@ -469,6 +479,145 @@ public class GogGameDetailActivity extends Activity {
     private static String formatBytes(long bytes) {
         if (bytes >= 1_073_741_824L) return String.format("%.1f GB", bytes / 1_073_741_824.0);
         return String.format("%.0f MB", bytes / 1_048_576.0);
+    }
+
+    // ── Updates card (GOG-2) ──────────────────────────────────────────────────
+
+    private View makeUpdatesCard() {
+        LinearLayout card = makeCard();
+
+        boolean installed = prefs.getString("gog_exe_" + gameId, null) != null;
+
+        if (!installed) {
+            TextView tv = new TextView(this);
+            tv.setText("Install the game first to check for updates.");
+            tv.setTextColor(0xFF555577);
+            tv.setTextSize(13f);
+            card.addView(tv);
+            return card;
+        }
+
+        // Status text
+        updateStatusTV = new TextView(this);
+        updateStatusTV.setTextColor(0xFFCCCCCC);
+        updateStatusTV.setTextSize(13f);
+        String storedBuild = prefs.getString("gog_build_" + gameId, null);
+        updateStatusTV.setText(storedBuild != null
+                ? "Installed build: " + storedBuild.substring(0, Math.min(12, storedBuild.length())) + "…"
+                : "Build ID not recorded — tap Check to verify");
+        LinearLayout.LayoutParams stLp = new LinearLayout.LayoutParams(-1, -2);
+        stLp.bottomMargin = dp(8);
+        card.addView(updateStatusTV, stLp);
+
+        // "Update available" button (hidden initially)
+        updateBtn = makeBtn("Update Now", 0xFF0277BD);
+        updateBtn.setVisibility(View.GONE);
+        updateBtn.setOnClickListener(v -> {
+            updateBtn.setVisibility(View.GONE);
+            updateStatusTV.setText("Updating…");
+            startInstall();
+        });
+        card.addView(updateBtn, btnLp());
+
+        // Check button
+        checkUpdatesBtn = makeBtn("Check for Updates", 0xFF333355);
+        checkUpdatesBtn.setOnClickListener(v -> doCheckUpdate());
+        card.addView(checkUpdatesBtn, btnLp());
+
+        return card;
+    }
+
+    private void doCheckUpdate() {
+        if (updateStatusTV == null) return;
+        updateStatusTV.setText("Checking…");
+        if (checkUpdatesBtn != null) checkUpdatesBtn.setEnabled(false);
+
+        new Thread(() -> {
+            try {
+                String token = prefs.getString("access_token", null);
+                String url = "https://content-system.gog.com/products/" + gameId
+                        + "/os/windows/builds?generation=2";
+                java.net.HttpURLConnection conn =
+                        (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(15000);
+                conn.setRequestProperty("User-Agent", "GOG Galaxy");
+                if (token != null) conn.setRequestProperty("Authorization", "Bearer " + token);
+
+                String body = "";
+                if (conn.getResponseCode() == 200) {
+                    java.io.BufferedReader br = new java.io.BufferedReader(
+                            new java.io.InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) sb.append(line);
+                    body = sb.toString();
+                }
+                conn.disconnect();
+
+                String latestBuild = null;
+                if (!body.isEmpty()) {
+                    org.json.JSONObject j = new org.json.JSONObject(body);
+                    org.json.JSONArray items = j.optJSONArray("items");
+                    if (items != null) {
+                        for (int i = 0; i < items.length(); i++) {
+                            org.json.JSONObject item = items.getJSONObject(i);
+                            if ("windows".equals(item.optString("os"))) {
+                                latestBuild = item.optString("build_id");
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                final String latest = latestBuild;
+                uiHandler.post(() -> {
+                    if (checkUpdatesBtn != null) checkUpdatesBtn.setEnabled(true);
+                    if (updateStatusTV == null) return;
+                    if (latest == null) {
+                        updateStatusTV.setText("Could not reach update server.");
+                        return;
+                    }
+                    String stored = prefs.getString("gog_build_" + gameId, null);
+                    if (stored == null) {
+                        // First check — store as baseline
+                        prefs.edit().putString("gog_build_" + gameId, latest).apply();
+                        updateStatusTV.setText("Up to date (build " + latest.substring(0, Math.min(12, latest.length())) + "…)");
+                        if (updateBtn != null) updateBtn.setVisibility(View.GONE);
+                    } else if (stored.equals(latest)) {
+                        updateStatusTV.setText("Up to date ✓");
+                        if (updateBtn != null) updateBtn.setVisibility(View.GONE);
+                    } else {
+                        updateStatusTV.setText("Update available!\nInstalled: "
+                                + stored.substring(0, Math.min(10, stored.length())) + "…"
+                                + "  →  Latest: " + latest.substring(0, Math.min(10, latest.length())) + "…");
+                        if (updateBtn != null) updateBtn.setVisibility(View.VISIBLE);
+                    }
+                });
+            } catch (Exception e) {
+                uiHandler.post(() -> {
+                    if (checkUpdatesBtn != null) checkUpdatesBtn.setEnabled(true);
+                    if (updateStatusTV != null) updateStatusTV.setText("Check failed: " + e.getMessage());
+                });
+            }
+        }, "gog-update-check-" + gameId).start();
+    }
+
+    private static String formatDate(String iso) {
+        if (iso == null || iso.length() < 10) return iso != null ? iso : "";
+        String[] parts = iso.substring(0, 10).split("-");
+        if (parts.length != 3) return iso.substring(0, 10);
+        try {
+            int year  = Integer.parseInt(parts[0]);
+            int month = Integer.parseInt(parts[1]);
+            int day   = Integer.parseInt(parts[2]);
+            String[] months = {"Jan","Feb","Mar","Apr","May","Jun",
+                               "Jul","Aug","Sep","Oct","Nov","Dec"};
+            if (month < 1 || month > 12) return iso.substring(0, 10);
+            return months[month - 1] + " " + day + ", " + year;
+        } catch (Exception e) {
+            return iso.substring(0, 10);
+        }
     }
 
     private View makeInfoRowWithRef(String label, TextView valueTV) {

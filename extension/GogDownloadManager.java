@@ -436,9 +436,12 @@ public final class GogDownloadManager {
 
             cb.onProgress("Install complete!", 100);
 
-            // Save install dir before exe resolution (needed if onSelectExe is async)
+            // Save install dir + build ID before exe resolution
             SharedPreferences.Editor ed0 = ctx.getSharedPreferences("bh_gog_prefs", 0).edit();
             ed0.putString("gog_dir_" + game.gameId, installDir);
+            if (buildId != null && !buildId.isEmpty()) {
+                ed0.putString("gog_build_" + game.gameId, buildId);
+            }
             ed0.apply();
 
             // Find exe — prefer temp_executable hint from manifest

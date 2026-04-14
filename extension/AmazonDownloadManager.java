@@ -188,6 +188,13 @@ public class AmazonDownloadManager {
             // Step 5: Cache manifest and mark installed
             cacheManifest(ctx, game.productId, manifestBytes);
 
+            // Store versionId for update checker
+            if (spec.versionId != null && !spec.versionId.isEmpty()) {
+                ctx.getSharedPreferences("bh_amazon_prefs", 0).edit()
+                        .putString("amazon_manifest_version_" + game.productId, spec.versionId)
+                        .apply();
+            }
+
             new File(installDir, IN_PROGRESS_MARKER).delete();
             new File(installDir, COMPLETE_MARKER).createNewFile();
 

@@ -165,6 +165,11 @@ public class EpicApiClient {
                 }
             }
 
+            // Release date
+            String rd = item.optString("viewableDate", "");
+            if (rd.isEmpty()) rd = item.optString("effectiveDate", "");
+            if (!rd.isEmpty()) game.releaseDate = rd;
+
             return true;
 
         } catch (Exception e) {
@@ -203,6 +208,7 @@ public class EpicApiClient {
             // Return as a wrapper with top-level "manifests" key that EpicDownloadManager expects
             JSONObject wrapper = new JSONObject();
             wrapper.put("manifests", firstElement.optJSONArray("manifests"));
+            wrapper.put("versionId", firstElement.optString("versionId", ""));
             return wrapper.toString();
 
         } catch (Exception e) {

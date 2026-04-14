@@ -266,6 +266,10 @@ public class EpicGamesActivity extends Activity {
             int done  = 0;
             for (EpicGame game : games) {
                 EpicApiClient.enrichFromCatalog(token, game);
+                // Cache release date
+                if (!game.releaseDate.isEmpty()) {
+                    prefs.edit().putString("epic_release_" + game.appName, game.releaseDate).apply();
+                }
                 done++;
                 if (done % 5 == 0) {
                     final int d = done;

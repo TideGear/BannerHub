@@ -53,6 +53,10 @@ public class EpicGameDetailActivity extends Activity {
     private TextView progressLabel;
     private Runnable cancelDownload;
 
+    // Updates section views
+    private TextView updateStatusTV;
+    private Button checkUpdatesBtn, updateBtn;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -129,9 +133,9 @@ public class EpicGameDetailActivity extends Activity {
         body.addView(makeSectionHeader("ACTIONS"), new LinearLayout.LayoutParams(-1, -2));
         body.addView(makeActionsCard(), new LinearLayout.LayoutParams(-1, -2));
 
-        // Stubs
+        // Updates
         body.addView(makeSectionHeader("UPDATES"), new LinearLayout.LayoutParams(-1, -2));
-        body.addView(makeStubCard("Update checker coming soon"), new LinearLayout.LayoutParams(-1, -2));
+        body.addView(makeUpdatesCard(), new LinearLayout.LayoutParams(-1, -2));
 
         body.addView(makeSectionHeader("DLC"), new LinearLayout.LayoutParams(-1, -2));
         body.addView(makeStubCard("DLC management coming soon"), new LinearLayout.LayoutParams(-1, -2));
@@ -151,6 +155,10 @@ public class EpicGameDetailActivity extends Activity {
         LinearLayout card = makeCard();
         if (developer != null && !developer.isEmpty()) card.addView(makeInfoRow("Developer", developer));
         if (appName != null && !appName.isEmpty())     card.addView(makeInfoRow("App", appName));
+        String releaseDate = prefs.getString("epic_release_" + appName, null);
+        if (releaseDate != null && !releaseDate.isEmpty()) {
+            card.addView(makeInfoRow("Released", formatDate(releaseDate)));
+        }
         // Install size row (value updated async)
         sizeTV = new TextView(this);
         sizeTV.setTextColor(0xFFCCCCCC);
@@ -292,6 +300,14 @@ public class EpicGameDetailActivity extends Activity {
 
                 if (cancelled.get()) { onInstallCancelled(); return; }
                 if (!ok) { onInstallError("Download failed"); return; }
+
+                // Store manifest version for update checker
+                try {
+                    String vid = new org.json.JSONObject(manifestJson).optString("versionId", "");
+                    if (!vid.isEmpty()) {
+                        prefs.edit().putString("epic_manifest_version_" + appName, vid).apply();
+                    }
+                } catch (Exception ignored) {}
 
                 List<File> exeFiles = new ArrayList<>();
                 AmazonLaunchHelper.collectExe(installDir, exeFiles);
@@ -468,6 +484,121 @@ public class EpicGameDetailActivity extends Activity {
     private static String formatBytes(long bytes) {
         if (bytes >= 1_073_741_824L) return String.format("%.1f GB", bytes / 1_073_741_824.0);
         return String.format("%.0f MB", bytes / 1_048_576.0);
+    }
+
+    // ── Updates card (EPIC-3) ─────────────────────────────────────────────────
+
+    private View makeUpdatesCard() {
+        LinearLayout card = makeCard();
+
+        boolean installed = prefs.getString("epic_exe_" + appName, null) != null;
+        if (!installed) {
+            TextView tv = new TextView(this);
+            tv.setText("Install the game first to check for updates.");
+            tv.setTextColor(0xFF445566);
+            tv.setTextSize(13f);
+            card.addView(tv);
+            return card;
+        }
+
+        updateStatusTV = new TextView(this);
+        updateStatusTV.setTextColor(0xFFCCCCCC);
+        updateStatusTV.setTextSize(13f);
+        String storedVer = prefs.getString("epic_manifest_version_" + appName, null);
+        updateStatusTV.setText(storedVer != null
+                ? "Installed: " + storedVer.substring(0, Math.min(14, storedVer.length())) + "…"
+                : "Version not recorded — tap Check to verify");
+        LinearLayout.LayoutParams stLp = new LinearLayout.LayoutParams(-1, -2);
+        stLp.bottomMargin = dp(8);
+        card.addView(updateStatusTV, stLp);
+
+        updateBtn = makeBtn("Update Now", 0xFF0D5CA8);
+        updateBtn.setVisibility(View.GONE);
+        updateBtn.setOnClickListener(v -> {
+            updateBtn.setVisibility(View.GONE);
+            updateStatusTV.setText("Updating…");
+            startInstall();
+        });
+        card.addView(updateBtn, btnLp());
+
+        checkUpdatesBtn = makeBtn("Check for Updates", 0xFF1A2A3A);
+        checkUpdatesBtn.setOnClickListener(v -> doCheckUpdate());
+        card.addView(checkUpdatesBtn, btnLp());
+
+        return card;
+    }
+
+    private void doCheckUpdate() {
+        if (updateStatusTV == null) return;
+        updateStatusTV.setText("Checking…");
+        if (checkUpdatesBtn != null) checkUpdatesBtn.setEnabled(false);
+
+        new Thread(() -> {
+            try {
+                String token = EpicCredentialStore.getValidAccessToken(this);
+                if (token == null) {
+                    uiHandler.post(() -> {
+                        if (checkUpdatesBtn != null) checkUpdatesBtn.setEnabled(true);
+                        if (updateStatusTV != null) updateStatusTV.setText("Login required.");
+                    });
+                    return;
+                }
+                String manifestJson = EpicApiClient.getManifestApiJson(
+                        token, namespace, catalogItemId, appName);
+                String latestVer = null;
+                if (manifestJson != null) {
+                    try {
+                        latestVer = new org.json.JSONObject(manifestJson).optString("versionId", null);
+                    } catch (Exception ignored) {}
+                }
+                final String latest = latestVer;
+                uiHandler.post(() -> {
+                    if (checkUpdatesBtn != null) checkUpdatesBtn.setEnabled(true);
+                    if (updateStatusTV == null) return;
+                    if (latest == null || latest.isEmpty()) {
+                        updateStatusTV.setText("Could not reach update server.");
+                        return;
+                    }
+                    String stored = prefs.getString("epic_manifest_version_" + appName, null);
+                    if (stored == null) {
+                        prefs.edit().putString("epic_manifest_version_" + appName, latest).apply();
+                        updateStatusTV.setText("Up to date ✓");
+                        if (updateBtn != null) updateBtn.setVisibility(View.GONE);
+                    } else if (stored.equals(latest)) {
+                        updateStatusTV.setText("Up to date ✓");
+                        if (updateBtn != null) updateBtn.setVisibility(View.GONE);
+                    } else {
+                        updateStatusTV.setText("Update available!\nInstalled: "
+                                + stored.substring(0, Math.min(12, stored.length()))
+                                + "…  →  Latest: "
+                                + latest.substring(0, Math.min(12, latest.length())) + "…");
+                        if (updateBtn != null) updateBtn.setVisibility(View.VISIBLE);
+                    }
+                });
+            } catch (Exception e) {
+                uiHandler.post(() -> {
+                    if (checkUpdatesBtn != null) checkUpdatesBtn.setEnabled(true);
+                    if (updateStatusTV != null) updateStatusTV.setText("Check failed: " + e.getMessage());
+                });
+            }
+        }, "epic-update-check-" + appName).start();
+    }
+
+    private static String formatDate(String iso) {
+        if (iso == null || iso.length() < 10) return iso != null ? iso : "";
+        String[] parts = iso.substring(0, 10).split("-");
+        if (parts.length != 3) return iso.substring(0, 10);
+        try {
+            int year  = Integer.parseInt(parts[0]);
+            int month = Integer.parseInt(parts[1]);
+            int day   = Integer.parseInt(parts[2]);
+            String[] months = {"Jan","Feb","Mar","Apr","May","Jun",
+                               "Jul","Aug","Sep","Oct","Nov","Dec"};
+            if (month < 1 || month > 12) return iso.substring(0, 10);
+            return months[month - 1] + " " + day + ", " + year;
+        } catch (Exception e) {
+            return iso.substring(0, 10);
+        }
     }
 
     private View makeInfoRowWithRef(String label, TextView valueTV) {
