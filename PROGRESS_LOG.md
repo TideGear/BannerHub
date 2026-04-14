@@ -4,6 +4,27 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [stable] — v3.0.0 — Stable release (2026-04-14)
+**Commit:** `19c6092d8`  |  **Tag:** v3.0.0
+**CI:** run 24378413220 ✅
+#### What changed
+- Bump BH_VERSION to 3.0.0; stable release published
+- app_source="bannerhub" tag in all exported configs
+#### Files touched
+- extension/BhSettingsExporter.java
+
+---
+
+### [stable] — v2.9.3 — Stable release (2026-04-13)
+**Commit:** `e276ee485`  |  **Tag:** v2.9.3
+**CI:** run 24344672044 ✅
+#### What changed
+- Bump BH_VERSION to 2.9.3; stable release published
+#### Files touched
+- `extension/BhSettingsExporter.java`
+
+---
+
 ### [fix] — v2.9.3-pre — Export/import 0/0 for catalog games with getId() > 0 (2026-04-13)
 **Commit:** `498548946`  |  **Tag:** v2.9.3-pre (retagged)
 **CI:** triggered
@@ -3403,3 +3424,12 @@ manifest download, install, launch, SDK cache + update checker.
 **Access:** Two new options in the game "..." settings menu (My Games → long-press → settings).
 **Files:** `extension/BhSettingsExporter.java`, `patches/smali/…/BhExportLambda.smali`, `patches/smali/…/BhImportLambda.smali`, both CI workflows (new smali patch step).
 **CI:** ⏳ run 23953526581
+
+### [pre] — v2.9.4-pre — app_source tagging in exported configs (2026-04-14)
+**Commit:** `72fd37b16`  |  **Tag:** v2.9.4-pre  |  **CI:** run 24376232793 ✅
+#### What changed
+- `BhSettingsExporter.java`: added `meta.put("app_source", "bannerhub")` to every exported config JSON
+- Allows community backend to filter/purge BannerHub vs BannerHub Lite configs
+- Companion change in BH-Lite exports `"bannerhub_lite"` — same field, different value
+#### Files touched
+- extension/BhSettingsExporter.java
