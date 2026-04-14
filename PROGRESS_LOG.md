@@ -4,6 +4,26 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [pre] — v3.0.1-pre — Game detail full-screen (GOG/Epic/Amazon) (2026-04-14)
+**Commit:** pending  |  **Tag:** v3.0.1-pre
+**CI:** pending
+#### What changed
+- Replace showDetailDialog() AlertDialog in all 3 stores with full-screen GogGameDetailActivity / EpicGameDetailActivity / AmazonGameDetailActivity
+- Full-screen layout: fixed header bar, scrollable body with cover art, info section, actions section, stub sections for Updates/DLC/Cloud Saves
+- startActivityForResult() + onActivityResult() in each store activity to refresh card state on return
+- 3 new activities registered in patches/AndroidManifest.xml
+- Quick build: pre-release uses com.tencent.ig package + "BannerHub PuBG" label
+#### Files touched
+- extension/GogGameDetailActivity.java (new)
+- extension/EpicGameDetailActivity.java (new)
+- extension/AmazonGameDetailActivity.java (new)
+- extension/GogGamesActivity.java
+- extension/EpicGamesActivity.java
+- extension/AmazonGamesActivity.java
+- patches/AndroidManifest.xml
+
+---
+
 ### [stable] — v3.0.0 — Stable release (2026-04-14)
 **Commit:** `19c6092d8`  |  **Tag:** v3.0.0
 **CI:** run 24378413220 ✅

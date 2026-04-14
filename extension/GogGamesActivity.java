@@ -3,6 +3,7 @@ package app.revanced.extension.gamehub;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -62,6 +63,7 @@ public class GogGamesActivity extends Activity {
     private static final String TAG = "BH_GOG";
     private static final String CACHE_KEY = "gog_library_cache";
     private static final String VIEW_MODE_KEY = "view_mode";
+    private static final int REQ_GAME_DETAIL = 1001;
 
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
     private TextView syncText;
@@ -697,12 +699,7 @@ public class GogGamesActivity extends Activity {
 
         card.setOnClickListener(v -> {
             if (expandSection.getVisibility() == View.VISIBLE) {
-                showDetailDialog(game, checkmark, actionBtn, () -> {
-                    checkmark.setVisibility(View.GONE);
-                    collapsedCheckTV.setVisibility(View.GONE);
-                    actionBtn.setText("Install");
-                    actionBtn.setBackgroundColor(0xFF7033FF);
-                });
+                openDetailScreen(game);
             } else {
                 if (expandedSection != null) {
                     expandedSection.setVisibility(View.GONE);
@@ -959,11 +956,7 @@ public class GogGamesActivity extends Activity {
         });
 
         tile.setOnLongClickListener(v -> {
-            showDetailDialog(game, checkTV, actionBtn, () -> {
-                checkTV.setVisibility(View.GONE);
-                actionBtn.setText("Install");
-                actionBtn.setBackgroundColor(0xFF5533CC);
-            });
+            openDetailScreen(game);
             return true;
         });
 
@@ -1139,6 +1132,28 @@ public class GogGamesActivity extends Activity {
         }
 
         b.show();
+    }
+
+    // ── Full-screen detail ────────────────────────────────────────────────────
+
+    private void openDetailScreen(GogGame game) {
+        Intent intent = new Intent(this, GogGameDetailActivity.class);
+        intent.putExtra("game_id",     game.gameId);
+        intent.putExtra("title",       game.title);
+        intent.putExtra("image_url",   game.imageUrl);
+        intent.putExtra("description", game.description);
+        intent.putExtra("developer",   game.developer);
+        intent.putExtra("category",    game.category);
+        intent.putExtra("generation",  game.generation);
+        startActivityForResult(intent, REQ_GAME_DETAIL);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_GAME_DETAIL && resultCode == GogGameDetailActivity.RESULT_REFRESH) {
+            applyFilter(searchBar != null ? searchBar.getText().toString() : "");
+        }
     }
 
     // ── Dialogs (list view detail) ────────────────────────────────────────────

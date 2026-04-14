@@ -10,6 +10,7 @@ package app.revanced.extension.gamehub;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -63,6 +64,7 @@ public class EpicGamesActivity extends Activity {
     private static final String PREFS_NAME    = "bh_epic_prefs";
     private static final String CACHE_KEY     = "epic_cache";
     private static final String VIEW_MODE_KEY = "epic_view_mode";
+    private static final int REQ_GAME_DETAIL  = 1001;
 
     // Epic brand colours
     private static final int COLOR_ACCENT  = 0xFF0078F0;  // Epic blue — install btn / title
@@ -593,12 +595,7 @@ public class EpicGamesActivity extends Activity {
 
         card.setOnClickListener(v -> {
             if (expandSection.getVisibility() == View.VISIBLE) {
-                showDetailDialog(game, checkmark, actionBtn, () -> {
-                    checkmark.setVisibility(View.GONE);
-                    collapsedCheckTV.setVisibility(View.GONE);
-                    actionBtn.setText("Install");
-                    actionBtn.setBackgroundColor(COLOR_ACCENT);
-                });
+                openDetailScreen(game);
             } else {
                 if (expandedSection != null) {
                     expandedSection.setVisibility(View.GONE);
@@ -806,11 +803,7 @@ public class EpicGamesActivity extends Activity {
         });
 
         tile.setOnLongClickListener(v -> {
-            showDetailDialog(game, checkTV, actionBtn, () -> {
-                checkTV.setVisibility(View.GONE);
-                actionBtn.setText("Install");
-                actionBtn.setBackgroundColor(COLOR_ACCENT);
-            });
+            openDetailScreen(game);
             return true;
         });
 
@@ -982,6 +975,28 @@ public class EpicGamesActivity extends Activity {
                     }
                 });
             }, "epic-size-" + game.appName).start();
+        }
+    }
+
+    // ── Full-screen detail ────────────────────────────────────────────────────
+
+    private void openDetailScreen(EpicGame game) {
+        Intent intent = new Intent(this, EpicGameDetailActivity.class);
+        intent.putExtra("app_name",        game.appName);
+        intent.putExtra("title",           game.title);
+        intent.putExtra("description",     game.description);
+        intent.putExtra("developer",       game.developer);
+        intent.putExtra("art_cover",       game.artCover);
+        intent.putExtra("namespace",       game.namespace);
+        intent.putExtra("catalog_item_id", game.catalogItemId);
+        startActivityForResult(intent, REQ_GAME_DETAIL);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_GAME_DETAIL && resultCode == EpicGameDetailActivity.RESULT_REFRESH) {
+            applyFilter(searchBar != null ? searchBar.getText().toString() : "");
         }
     }
 

@@ -2,6 +2,7 @@ package app.revanced.extension.gamehub;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -50,6 +51,7 @@ public class AmazonGamesActivity extends Activity {
     private static final String PREFS_NAME   = "bh_amazon_prefs";
     private static final String CACHE_KEY    = "amazon_library_cache";
     private static final String VIEW_MODE_KEY = "amazon_view_mode";
+    private static final int REQ_GAME_DETAIL  = 1001;
 
     // Amazon brand colours
     private static final int COLOR_ACCENT   = 0xFFFF9900;   // orange — install btn / title
@@ -598,12 +600,7 @@ public class AmazonGamesActivity extends Activity {
 
         card.setOnClickListener(v -> {
             if (expandSection.getVisibility() == View.VISIBLE) {
-                showDetailDialog(game, checkmark, actionBtn, () -> {
-                    checkmark.setVisibility(View.GONE);
-                    collapsedCheckTV.setVisibility(View.GONE);
-                    actionBtn.setText("Install");
-                    actionBtn.setBackgroundColor(COLOR_ACCENT);
-                });
+                openDetailScreen(game);
             } else {
                 if (expandedSection != null) {
                     expandedSection.setVisibility(View.GONE);
@@ -813,11 +810,7 @@ public class AmazonGamesActivity extends Activity {
         });
 
         tile.setOnLongClickListener(v -> {
-            showDetailDialog(game, checkTV, actionBtn, () -> {
-                checkTV.setVisibility(View.GONE);
-                actionBtn.setText("Install");
-                actionBtn.setBackgroundColor(COLOR_ACCENT);
-            });
+            openDetailScreen(game);
             return true;
         });
 
@@ -992,6 +985,28 @@ public class AmazonGamesActivity extends Activity {
                     }
                 });
             }, "amazon-size-" + game.productId).start();
+        }
+    }
+
+    // ── Full-screen detail ────────────────────────────────────────────────────
+
+    private void openDetailScreen(AmazonGame game) {
+        Intent intent = new Intent(this, AmazonGameDetailActivity.class);
+        intent.putExtra("product_id",    game.productId);
+        intent.putExtra("entitlement_id", game.entitlementId);
+        intent.putExtra("title",         game.title);
+        intent.putExtra("developer",     game.developer);
+        intent.putExtra("publisher",     game.publisher);
+        intent.putExtra("art_url",       game.artUrl);
+        intent.putExtra("product_sku",   game.productSku);
+        startActivityForResult(intent, REQ_GAME_DETAIL);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_GAME_DETAIL && resultCode == AmazonGameDetailActivity.RESULT_REFRESH) {
+            applyFilter(searchBar != null ? searchBar.getText().toString() : "");
         }
     }
 
