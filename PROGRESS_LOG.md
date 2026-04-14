@@ -4,6 +4,60 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [feat] — v3.0.1-pre — D-5 release dates + GOG-2/EPIC-3/AMAZON-1 update checkers (2026-04-14)
+**Commit:** `d9d595f37`  |  **Tag:** v3.0.1-pre (retagged)
+**CI:** triggered
+#### What changed
+- D-5 (Release date in GAME INFO): GOG syncs `release_date` from product JSON as `gog_release_{id}`; Epic syncs `viewableDate`/`effectiveDate` from catalog enrichment as `epic_release_{appName}`; Both GOG+Epic detail pages show "Released: MMM D, YYYY" row in GAME INFO card. Amazon skipped (no API source).
+- GOG-2 (Update Checker): `GogDownloadManager.runGen2()` now stores `gog_build_{gameId}` in bh_gog_prefs at install time. `GogGameDetailActivity` UPDATES section replaced with real card: shows installed build ID, "Check for Updates" button hits content-system.gog.com builds endpoint, compares build_id, shows "Up to date ✓" or "Update available!" + "Update Now" button.
+- EPIC-3 (Update Checker): `EpicApiClient.getManifestApiJson()` now includes `versionId` from `elements[0]` in wrapper JSON. `EpicGameDetailActivity.startInstall()` stores `epic_manifest_version_{appName}` after successful install. UPDATES section replaced with real card: "Check for Updates" re-fetches manifest, compares versionId.
+- AMAZON-1 (Update Checker): `AmazonDownloadManager.install()` stores `amazon_manifest_version_{productId}` from `spec.versionId` after install. `AmazonGameDetailActivity` UPDATES replaced with real card using `AmazonApiClient.getLiveVersionId()` for version check.
+- All 3 update checkers: first-check baseline auto-sets if version was never stored; "Update Now" button re-runs the existing install pipeline.
+#### Files touched
+- extension/EpicGame.java (releaseDate field)
+- extension/EpicApiClient.java (viewableDate in enrichFromCatalog; versionId in manifest wrapper)
+- extension/GogDownloadManager.java (store gog_build_ in runGen2)
+- extension/AmazonDownloadManager.java (store amazon_manifest_version_ after install)
+- extension/GogGamesActivity.java (store gog_release_ during fetchGame)
+- extension/EpicGamesActivity.java (store epic_release_ during sync)
+- extension/GogGameDetailActivity.java (Released row; makeUpdatesCard; doCheckUpdate; formatDate)
+- extension/EpicGameDetailActivity.java (Released row; store version after install; makeUpdatesCard; doCheckUpdate; formatDate)
+- extension/AmazonGameDetailActivity.java (makeUpdatesCard; doCheckUpdate using getLiveVersionId)
+
+---
+
+### [feat] — v3.0.1-pre — Install size on game detail pages (GOG/Epic/Amazon) (2026-04-14)
+**Commit:** `57b04441f`  |  **Tag:** v3.0.1-pre (retagged)
+**CI:** triggered
+#### What changed
+- GOG: `GogDownloadManager.fetchInstallSizeBytes()` — fetches Gen2 builds + top-level manifest, sums `depot.size` for en/all depots. Called during library sync, cached as `gog_size_{gameId}`. Detail page shows size instantly from cache.
+- Epic: `EpicDownloadManager.fetchInstallSizeBytes()` — fetches manifest API JSON + binary manifest, sums `chunk.windowSize`. Lazy on first detail page open, cached as `epic_size_{appName}`.
+- Amazon: `AmazonDownloadManager.fetchInstallSizeBytes()` — fetches GetGameDownload spec + manifest.proto, reads `totalInstallSize`. Lazy on first detail page open, cached as `amazon_size_{productId}`.
+- All 3 detail pages: "Install size: X.X GB" in GAME INFO card. Shows "Fetching…" while loading, instant on subsequent opens.
+#### Files touched
+- extension/GogDownloadManager.java (fetchInstallSizeBytes)
+- extension/GogGamesActivity.java (fetchGame: cache size during sync)
+- extension/GogGameDetailActivity.java (sizeTV, loadInstallSize, formatBytes, makeInfoRowWithRef)
+- extension/EpicDownloadManager.java (fetchInstallSizeBytes)
+- extension/EpicGameDetailActivity.java (sizeTV, loadInstallSize, formatBytes, makeInfoRowWithRef)
+- extension/AmazonDownloadManager.java (fetchInstallSizeBytes)
+- extension/AmazonGameDetailActivity.java (sizeTV, loadInstallSize, formatBytes, makeInfoRowWithRef)
+
+---
+
+### [fix] — v3.0.1-pre — Strip HTML from game descriptions in detail pages (2026-04-14)
+**Commit:** `0edb2f9ca`  |  **Tag:** v3.0.1-pre (retagged)
+**CI:** triggered
+#### What changed
+- GOG API returns HTML-formatted descriptions (`<h4>`, `<br>`, `<strong>` etc.) — were rendering as raw tags
+- GogGameDetailActivity: `Html.fromHtml(description, FROM_HTML_MODE_COMPACT)` on description TextView
+- EpicGameDetailActivity: strip HTML via `fromHtml().toString()` before truncating (so truncation never cuts mid-tag); char limit raised 300→400 to compensate for stripped tag overhead
+#### Files touched
+- extension/GogGameDetailActivity.java
+- extension/EpicGameDetailActivity.java
+
+---
+
 ### [pre] — v3.0.1-pre — Game detail full-screen (GOG/Epic/Amazon) (2026-04-14)
 **Commit:** `53a38f663`  |  **Tag:** v3.0.1-pre
 **CI:** run 24398601017 ✅
