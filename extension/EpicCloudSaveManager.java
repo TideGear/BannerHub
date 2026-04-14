@@ -1,7 +1,6 @@
 package app.revanced.extension.gamehub;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -47,11 +46,11 @@ public final class EpicCloudSaveManager {
     public static void uploadSaves(Context ctx, String appName, File localFolder, Callback cb) {
         new Thread(() -> {
             try {
-                SharedPreferences prefs = ctx.getSharedPreferences("bh_epic_prefs", 0);
-                String token = getValidToken(ctx, prefs);
+                String token = EpicCredentialStore.getValidAccessToken(ctx);
                 if (token == null) { cb.onError("Not logged in to Epic"); return; }
-                String accountId = prefs.getString("account_id", null);
-                if (accountId == null) { cb.onError("Epic account ID not found — please sign in again"); return; }
+                EpicCredentialStore.Credentials creds = EpicCredentialStore.load(ctx);
+                String accountId = creds != null ? creds.accountId : null;
+                if (accountId == null || accountId.isEmpty()) { cb.onError("Epic account ID not found — please sign in again"); return; }
 
                 cb.onStatus("Fetching cloud file list…");
                 List<CloudFile> cloudFiles = listCloudFiles(accountId, appName, token);
@@ -104,11 +103,11 @@ public final class EpicCloudSaveManager {
     public static void downloadSaves(Context ctx, String appName, File localFolder, Callback cb) {
         new Thread(() -> {
             try {
-                SharedPreferences prefs = ctx.getSharedPreferences("bh_epic_prefs", 0);
-                String token = getValidToken(ctx, prefs);
+                String token = EpicCredentialStore.getValidAccessToken(ctx);
                 if (token == null) { cb.onError("Not logged in to Epic"); return; }
-                String accountId = prefs.getString("account_id", null);
-                if (accountId == null) { cb.onError("Epic account ID not found — please sign in again"); return; }
+                EpicCredentialStore.Credentials creds = EpicCredentialStore.load(ctx);
+                String accountId = creds != null ? creds.accountId : null;
+                if (accountId == null || accountId.isEmpty()) { cb.onError("Epic account ID not found — please sign in again"); return; }
 
                 cb.onStatus("Fetching cloud file list…");
                 List<CloudFile> cloudFiles = listCloudFiles(accountId, appName, token);
@@ -140,28 +139,6 @@ public final class EpicCloudSaveManager {
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
-
-    private static String getValidToken(Context ctx, SharedPreferences prefs) {
-        String token = prefs.getString("access_token", null);
-        if (token == null) return null;
-        long expiresAt = prefs.getLong("expires_at", 0L);
-        if (System.currentTimeMillis() > expiresAt - 300_000L) {
-            String refreshToken = prefs.getString("refresh_token", null);
-            if (refreshToken != null) {
-                EpicAuthClient.TokenResult tr = EpicAuthClient.refreshToken(refreshToken);
-                if (tr != null) {
-                    prefs.edit()
-                        .putString("access_token",  tr.accessToken)
-                        .putString("refresh_token", tr.refreshToken)
-                        .putString("account_id",    tr.accountId)
-                        .putLong("epic_expires_at", tr.expiresAt)
-                        .apply();
-                    return tr.accessToken;
-                }
-            }
-        }
-        return token;
-    }
 
     private static class CloudFile {
         String name;

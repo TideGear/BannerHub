@@ -238,6 +238,7 @@ public final class GogDownloadManager {
 
             JSONObject manifest = new JSONObject(manifestStr);
             String installDir = manifest.optString("installDirectory", game.title);
+            String manifestClientId = manifest.optString("clientId", null);
             JSONArray depots  = manifest.optJSONArray("depots");
             if (depots == null)
                 return "no depots in manifest; keys=" + manifest.keys().toString();
@@ -436,11 +437,14 @@ public final class GogDownloadManager {
 
             cb.onProgress("Install complete!", 100);
 
-            // Save install dir + build ID before exe resolution
+            // Save install dir + build ID + client ID before exe resolution
             SharedPreferences.Editor ed0 = ctx.getSharedPreferences("bh_gog_prefs", 0).edit();
             ed0.putString("gog_dir_" + game.gameId, installDir);
             if (buildId != null && !buildId.isEmpty()) {
                 ed0.putString("gog_build_" + game.gameId, buildId);
+            }
+            if (manifestClientId != null && !manifestClientId.isEmpty()) {
+                ed0.putString("gog_client_id_" + game.gameId, manifestClientId);
             }
             ed0.apply();
 

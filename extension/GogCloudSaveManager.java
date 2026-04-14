@@ -50,9 +50,10 @@ public final class GogCloudSaveManager {
                 if (token == null) { cb.onError("Not logged in to GOG"); return; }
                 String userId = prefs.getString("user_id", null);
                 if (userId == null) { cb.onError("GOG user ID not found — please sign in again"); return; }
+                String clientId = prefs.getString("gog_client_id_" + gameId, gameId);
 
                 cb.onStatus("Fetching cloud file list…");
-                List<CloudFile> cloudFiles = listCloudFiles(userId, gameId, token);
+                List<CloudFile> cloudFiles = listCloudFiles(userId, clientId, token);
 
                 File[] localFiles = localFolder.listFiles();
                 if (localFiles == null || localFiles.length == 0) {
@@ -77,7 +78,7 @@ public final class GogCloudSaveManager {
                     byte[] data = readFile(local);
                     if (data == null) { cb.onError("Failed to read: " + name); return; }
 
-                    boolean ok = putFile(userId, gameId, token, name, data);
+                    boolean ok = putFile(userId, clientId, token, name, data);
                     if (!ok) { cb.onError("Upload failed for: " + name); return; }
                     uploaded++;
                 }
@@ -106,9 +107,10 @@ public final class GogCloudSaveManager {
                 if (token == null) { cb.onError("Not logged in to GOG"); return; }
                 String userId = prefs.getString("user_id", null);
                 if (userId == null) { cb.onError("GOG user ID not found — please sign in again"); return; }
+                String clientId = prefs.getString("gog_client_id_" + gameId, gameId);
 
                 cb.onStatus("Fetching cloud file list…");
-                List<CloudFile> cloudFiles = listCloudFiles(userId, gameId, token);
+                List<CloudFile> cloudFiles = listCloudFiles(userId, clientId, token);
 
                 if (cloudFiles.isEmpty()) {
                     cb.onDone("No cloud saves found");
@@ -120,7 +122,7 @@ public final class GogCloudSaveManager {
                 int downloaded = 0;
                 for (CloudFile cf : cloudFiles) {
                     cb.onStatus("Downloading: " + cf.name);
-                    byte[] data = getFile(userId, gameId, token, cf.name);
+                    byte[] data = getFile(userId, clientId, token, cf.name);
                     if (data == null) { cb.onError("Download failed for: " + cf.name); return; }
                     File dest = new File(localFolder, cf.name);
                     writeFile(dest, data);
