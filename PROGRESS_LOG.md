@@ -4,6 +4,14 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [pre] — v3.1.1-pre — Epic chunk silent truncation fix (2026-04-16)
+**Commit:** `2a02996f4`  |  **Tag:** v3.1.1-pre
+**CI:** pending
+#### What changed
+- Fix: Epic downloads could silently write partial chunk files when HTTP connection dropped mid-stream. The `n<=0` break in `downloadChunkStreaming` exited without error, chunk was counted as OK, then assembly crashed with `ArrayIndexOutOfBoundsException: length=<partial>; regionLength=1048576`. Now tracks `writtenBytes` during inflation and validates against `chunk.windowSize`; mismatch deletes partial file and retries next CDN.
+#### Files touched
+- extension/EpicDownloadManager.java (downloadChunkStreaming)
+
 ### [stable] — v3.1.0 — Full-screen detail pages, update checkers, DLC, cloud saves (2026-04-14)
 **Commit:** `d29f5fb4c`  |  **Tag:** v3.1.0
 **CI:** ✅ run 24422975293
