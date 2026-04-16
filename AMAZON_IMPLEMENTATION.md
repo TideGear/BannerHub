@@ -2,6 +2,8 @@
 
 > **Credit:** This document and the BannerHub Amazon Games integration would not exist without the hard work of [The GameNative Team](https://github.com/utkarshdalal/GameNative). All API research, PKCE authentication flow design, manifest.proto format documentation, FuelPump environment variables, SDK DLL deployment, and download pipeline architecture documented here is derived from their open-source work. Thank you.
 
+> **Also ported to:** The Amazon integration documented here was also ported to the [Star Bionic project](https://github.com/jacojayy/star) beginning April 14, 2026.
+
 > Source: https://github.com/utkarshdalal/GameNative
 > Updated: 2026-04-16
 > Purpose: BannerHub smali integration reference

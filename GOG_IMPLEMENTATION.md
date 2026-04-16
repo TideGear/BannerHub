@@ -2,6 +2,8 @@
 
 > **Credit:** This document and the BannerHub GOG Games integration would not exist without the hard work of [The GameNative Team](https://github.com/utkarshdalal/GameNative). All API research, authentication flow design, depot manifest format documentation, and download pipeline architecture documented here is derived from their open-source work. Thank you.
 
+> **Also ported to:** The GOG integration documented here was also ported to the [Star Bionic project](https://github.com/jacojayy/star) beginning April 14, 2026.
+
 Source repository: https://github.com/utkarshdalal/GameNative
 Report date: 2026-04-16 (updated)
 
