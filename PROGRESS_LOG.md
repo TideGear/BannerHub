@@ -4,6 +4,19 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [feat] — v3.1.1-pre1 — Expanded config detail screen (2026-04-24)
+**Commit:** `c48dbb1`  |  **Tag:** v3.1.1-pre1  |  **CI:** run 24895537793 ⏳
+#### What changed
+- `BhGameConfigsActivity.fetchMeta()`: expanded meta card from 4 rows to up to 11
+- Now shows: Wine / Proton, DXVK, VKD3D, GPU Driver, FEXCore, Box64, Resolution, Command Line, Env Vars — in addition to existing Renderer, CPU, FPS Cap, BH Version, Settings count, Components count
+- Added `parseSettingName()` helper — parses nested JSON strings in settings values, prefers `name` field with fallback to `displayName`
+- Resolution key has a game-id suffix so it's found via prefix scan (`pc_s_resolution_w*`)
+- All new rows are conditional — only shown if the field is present and non-empty in the config
+#### Files touched
+- `extension/BhGameConfigsActivity.java`
+
+---
+
 ### [docs] — GameHub 6.0 migration prep docs (2026-04-23)
 **Commit:** `1689aa7`  |  **Tag:** none
 **CI:** n/a (docs only, no build)
