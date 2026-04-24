@@ -22,7 +22,7 @@
 
 # virtual methods
 .method public final invoke(Ljava/lang/Object;)Ljava/lang/Object;
-    .locals 6
+    .locals 5
 
     # v0 = GameDetailSettingMenu
     iget-object v0, p0, Lcom/xj/landscape/launcher/ui/gamedetail/BhFrontendExportLambda;->a:Lcom/xj/landscape/launcher/ui/gamedetail/GameDetailSettingMenu;
@@ -34,33 +34,33 @@
     # v2 = GameDetailEntity
     iget-object v2, p0, Lcom/xj/landscape/launcher/ui/gamedetail/BhFrontendExportLambda;->b:Lcom/xj/common/service/bean/GameDetailEntity;
 
-    # Resolve gameId for Beacon: prefer localGameId (imported games can also have a
-    # server catalog ID, so checking getId() > 0 is not reliable here). Only fall back
-    # to the Steam ID if localGameId is null or empty.
+    # Resolve gameId for Beacon:
+    #   1. localGameId if present  → imported game (UUID e.g. local_f40e9be1-...)
+    #   2. getSteamAppId() if present → catalog Steam game (actual Steam App ID string)
+    # Note: getId() is BannerHub's internal server ID, NOT the Steam App ID — don't use it.
+
     invoke-virtual {v2}, Lcom/xj/common/service/bean/GameDetailEntity;->getLocalGameId()Ljava/lang/String;
     move-result-object v3
 
-    if-eqz v3, :use_server_id
+    if-eqz v3, :try_steam_appid
 
     invoke-virtual {v3}, Ljava/lang/String;->isEmpty()Z
     move-result v4
-    if-nez v4, :use_server_id
+    if-nez v4, :try_steam_appid
 
     goto :resolve_done
 
-    :use_server_id
-    invoke-virtual {v2}, Lcom/xj/common/service/bean/GameDetailEntity;->getId()I
-    move-result v4
-    invoke-static {v4}, Ljava/lang/String;->valueOf(I)Ljava/lang/String;
+    :try_steam_appid
+    invoke-virtual {v2}, Lcom/xj/common/service/bean/GameDetailEntity;->getSteamAppId()Ljava/lang/String;
     move-result-object v3
 
     :resolve_done
 
-    # v5 = gameName (String)
+    # v4 = gameName (String)
     invoke-virtual {v2}, Lcom/xj/common/service/bean/GameDetailEntity;->getName()Ljava/lang/String;
-    move-result-object v5
+    move-result-object v4
 
-    invoke-static {v1, v3, v5}, Lapp/revanced/extension/gamehub/BhSettingsExporter;->showFrontendExportDialog(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)V
+    invoke-static {v1, v3, v4}, Lapp/revanced/extension/gamehub/BhSettingsExporter;->showFrontendExportDialog(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)V
 
     const/4 v0, 0x0
     return-object v0
