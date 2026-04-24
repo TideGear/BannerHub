@@ -205,6 +205,24 @@ public class EpicGamesActivity extends Activity {
         freeBtn.setOnClickListener(v -> startActivity(new Intent(this, EpicFreeGamesActivity.class)));
         header.addView(freeBtn, freeBtnLp);
 
+        Button dlBtn = new Button(this);
+        dlBtn.setText("⬇");
+        dlBtn.setTextColor(0xFFFFFFFF);
+        GradientDrawable dlBtnBg = new GradientDrawable();
+        dlBtnBg.setColor(0xFF333333);
+        dlBtnBg.setCornerRadius(dp(4));
+        dlBtn.setBackground(dlBtnBg);
+        dlBtn.setTextSize(16f);
+        dlBtn.setPadding(dp(12), 0, dp(12), 0);
+        dlBtn.setOnFocusChangeListener((v, hasFocus) -> {
+            dlBtnBg.setColor(hasFocus ? 0xFF555555 : 0xFF333333);
+            dlBtnBg.setStroke(hasFocus ? dp(2) : 0, hasFocus ? 0xFFFFD700 : 0x00000000);
+        });
+        dlBtn.setOnClickListener(v -> startActivity(new Intent(this, BhDownloadsActivity.class)));
+        LinearLayout.LayoutParams dlLp = new LinearLayout.LayoutParams(-2, dp(40));
+        dlLp.leftMargin = dp(4);
+        header.addView(dlBtn, dlLp);
+
         root.addView(header, new LinearLayout.LayoutParams(-1, -2));
 
         // Search bar

@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -72,7 +73,7 @@ public class BhDownloadService extends Service {
     public static final String EXTRA_AMAZON_SKU        = "amz_sku";
     public static final String EXTRA_AMAZON_TITLE      = "amz_title";
 
-    // ── Public listener interface ─────────────────────────────────────────────
+    // ── Public listener interfaces ────────────────────────────────────────────
 
     public interface DownloadListener {
         void onProgress(String msg, int pct);
@@ -81,11 +82,21 @@ public class BhDownloadService extends Service {
         void onCancelled();
     }
 
+    public interface GlobalListener {
+        void onAnyProgress(String gameId, String gameName, String msg, int pct);
+        void onAnyComplete(String gameId, String gameName);
+        void onAnyError(String gameId, String msg);
+        void onAnyCancelled(String gameId);
+    }
+
     // Static registry — no binding needed; activities register/unregister directly
-    private static final Set<String>                   activeJobs    = ConcurrentHashMap.newKeySet();
-    private static final Map<String, DownloadListener> listeners     = new ConcurrentHashMap<>();
-    private static final Map<String, Runnable>         cancelHandles = new ConcurrentHashMap<>();
-    private static final Map<String, String>           gameNames     = new ConcurrentHashMap<>();
+    private static final Set<String>                    activeJobs     = ConcurrentHashMap.newKeySet();
+    private static final Map<String, DownloadListener>  listeners      = new ConcurrentHashMap<>();
+    private static final Map<String, Runnable>          cancelHandles  = new ConcurrentHashMap<>();
+    private static final Map<String, String>            gameNames      = new ConcurrentHashMap<>();
+    private static final Map<String, String>            lastMsgMap     = new ConcurrentHashMap<>();
+    private static final Map<String, Integer>           lastPctMap     = new ConcurrentHashMap<>();
+    private static final List<GlobalListener>           globalListeners = new CopyOnWriteArrayList<>();
 
     public static void addListener(String gameId, DownloadListener l) {
         listeners.put(gameId, l);
@@ -95,8 +106,33 @@ public class BhDownloadService extends Service {
         listeners.remove(gameId);
     }
 
+    public static void addGlobalListener(GlobalListener l) {
+        globalListeners.add(l);
+    }
+
+    public static void removeGlobalListener(GlobalListener l) {
+        globalListeners.remove(l);
+    }
+
     public static boolean isActive(String gameId) {
         return activeJobs.contains(gameId);
+    }
+
+    public static Set<String> getActiveJobs() {
+        return java.util.Collections.unmodifiableSet(activeJobs);
+    }
+
+    public static String getGameName(String gameId) {
+        return gameNames.getOrDefault(gameId, gameId);
+    }
+
+    public static String getLastMsg(String gameId) {
+        return lastMsgMap.getOrDefault(gameId, "");
+    }
+
+    public static int getLastPct(String gameId) {
+        Integer v = lastPctMap.get(gameId);
+        return v != null ? v : 0;
     }
 
     public static void cancel(Context ctx, String gameId) {
@@ -350,14 +386,19 @@ public class BhDownloadService extends Service {
 
     private void notifyProgress(String gameId, String msg, int pct) {
         String name = gameNames.getOrDefault(gameId, "");
+        lastMsgMap.put(gameId, msg);
+        lastPctMap.put(gameId, pct);
         updateProgressNotif(name, msg, pct, gameId);
         DownloadListener l = listeners.get(gameId);
         if (l != null) l.onProgress(msg, pct);
+        for (GlobalListener gl : globalListeners) gl.onAnyProgress(gameId, name, msg, pct);
     }
 
     private void notifyComplete(String gameId, String installDir) {
         Log.i(TAG, "[" + gameId + "] complete");
         activeJobs.remove(gameId);
+        lastMsgMap.remove(gameId);
+        lastPctMap.remove(gameId);
         String name = gameNames.remove(gameId);
         DownloadListener l = listeners.remove(gameId);
         if (l != null) {
@@ -366,6 +407,7 @@ public class BhDownloadService extends Service {
             notifMgr.notify(NOTIF_DONE_BASE + doneCounter.getAndIncrement(),
                     buildDoneNotif(name != null ? name : "Game"));
         }
+        for (GlobalListener gl : globalListeners) gl.onAnyComplete(gameId, name != null ? name : "");
         if (activeJobs.isEmpty()) {
             stopForeground(true);
             stopSelf();
@@ -375,6 +417,8 @@ public class BhDownloadService extends Service {
     private void notifyError(String gameId, String msg) {
         Log.e(TAG, "[" + gameId + "] error: " + msg);
         activeJobs.remove(gameId);
+        lastMsgMap.remove(gameId);
+        lastPctMap.remove(gameId);
         String name = gameNames.remove(gameId);
         DownloadListener l = listeners.remove(gameId);
         if (l != null) {
@@ -387,6 +431,7 @@ public class BhDownloadService extends Service {
              .setAutoCancel(true);
             notifMgr.notify(NOTIF_DONE_BASE + doneCounter.getAndIncrement(), b.build());
         }
+        for (GlobalListener gl : globalListeners) gl.onAnyError(gameId, msg);
         if (activeJobs.isEmpty()) {
             stopForeground(true);
             stopSelf();
@@ -396,9 +441,12 @@ public class BhDownloadService extends Service {
     private void notifyCancelled(String gameId) {
         Log.i(TAG, "[" + gameId + "] cancelled");
         activeJobs.remove(gameId);
+        lastMsgMap.remove(gameId);
+        lastPctMap.remove(gameId);
         gameNames.remove(gameId);
         DownloadListener l = listeners.remove(gameId);
         if (l != null) l.onCancelled();
+        for (GlobalListener gl : globalListeners) gl.onAnyCancelled(gameId);
         if (activeJobs.isEmpty()) {
             stopForeground(true);
             stopSelf();
