@@ -25,7 +25,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Full-screen game detail view for an Amazon Games library entry.
@@ -76,8 +75,30 @@ public class AmazonGameDetailActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (cancelDownload != null) cancelDownload.run();
         super.onBackPressed();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (productId == null) return;
+        String dlKey = "amazon_" + productId;
+        if (BhDownloadService.isActive(dlKey)) {
+            installBtn.setText("Cancel");
+            installBtn.setBackgroundColor(0xFFCC3333);
+            progressBar.setVisibility(View.VISIBLE);
+            progressLabel.setVisibility(View.VISIBLE);
+            launchBtn.setEnabled(false);
+            setExeBtn.setEnabled(false);
+            cancelDownload = () -> BhDownloadService.cancel(this, dlKey);
+            attachDownloadListener(dlKey);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (productId != null) BhDownloadService.removeListener("amazon_" + productId);
     }
 
     // ── UI ────────────────────────────────────────────────────────────────────
@@ -246,6 +267,7 @@ public class AmazonGameDetailActivity extends Activity {
     // ── Install ───────────────────────────────────────────────────────────────
 
     private void startInstall() {
+        String dlKey = "amazon_" + productId;
         installBtn.setText("Cancel");
         installBtn.setBackgroundColor(0xFFCC3333);
         progressBar.setVisibility(View.VISIBLE);
@@ -253,65 +275,36 @@ public class AmazonGameDetailActivity extends Activity {
         launchBtn.setEnabled(false);
         setExeBtn.setEnabled(false);
 
-        AtomicBoolean cancelled = new AtomicBoolean(false);
-        cancelDownload = () -> cancelled.set(true);
+        cancelDownload = () -> BhDownloadService.cancel(this, dlKey);
+        attachDownloadListener(dlKey);
 
-        AmazonGame game = new AmazonGame();
-        game.productId     = productId;
-        game.entitlementId = entitlementId != null ? entitlementId : "";
-        game.title         = title != null ? title : "";
-        game.productSku    = productSku != null ? productSku : "";
+        Intent svc = new Intent(this, BhDownloadService.class);
+        svc.setAction(BhDownloadService.ACTION_START);
+        svc.putExtra(BhDownloadService.EXTRA_STORE, "AMAZON");
+        svc.putExtra(BhDownloadService.EXTRA_GAME_ID, dlKey);
+        svc.putExtra(BhDownloadService.EXTRA_GAME_NAME, title != null ? title : productId);
+        svc.putExtra(BhDownloadService.EXTRA_AMAZON_PRODUCT_ID, productId);
+        svc.putExtra(BhDownloadService.EXTRA_AMAZON_ENT_ID, entitlementId);
+        svc.putExtra(BhDownloadService.EXTRA_AMAZON_SKU, productSku);
+        svc.putExtra(BhDownloadService.EXTRA_AMAZON_TITLE, title);
+        startForegroundService(svc);
+    }
 
-        new Thread(() -> {
-            String token = AmazonCredentialStore.getValidAccessToken(this);
-            if (token == null) { onInstallError("Login required"); return; }
-
-            String sanitized = title != null
-                    ? title.replaceAll("[^a-zA-Z0-9 \\-_]", "").trim() : "";
-            if (sanitized.isEmpty()) sanitized = "game_" + productId.hashCode();
-            File installDir = new File(new File(getFilesDir(), "Amazon"), sanitized);
-            prefs.edit().putString("amazon_dir_" + productId, installDir.getAbsolutePath()).apply();
-
-            boolean ok = AmazonDownloadManager.install(this, game, token, installDir,
-                (dl, total, file) -> {
-                    if (cancelled.get()) return;
-                    int pct = (total > 0) ? (int) (dl * 100L / total) : 0;
-                    String name = (file != null && !file.isEmpty()) ? file : "Downloading…";
-                    uiHandler.post(() -> {
-                        progressBar.setProgress(pct);
-                        progressLabel.setText(name);
-                    });
-                },
-                cancelled::get
-            );
-
-            if (cancelled.get()) { onInstallCancelled(); return; }
-            if (!ok) { onInstallError("Download failed"); return; }
-
-            List<File> exeFiles = new ArrayList<>();
-            AmazonLaunchHelper.collectExe(installDir, exeFiles);
-            if (exeFiles.isEmpty()) { onInstallError("No executable found"); return; }
-
-            String lowerTitle = title != null ? title.toLowerCase() : "";
-            Collections.sort(exeFiles, (a, b) ->
-                    AmazonLaunchHelper.scoreExe(b, lowerTitle)
-                    - AmazonLaunchHelper.scoreExe(a, lowerTitle));
-
-            if (exeFiles.size() == 1) {
-                prefs.edit().putString("amazon_exe_" + productId,
-                        exeFiles.get(0).getAbsolutePath()).apply();
-                onInstallComplete();
-            } else {
-                List<String> candidates = new ArrayList<>();
-                for (File f : exeFiles) candidates.add(f.getAbsolutePath());
-                showExePicker(candidates, selected -> {
-                    String chosen = (selected != null && !selected.isEmpty())
-                            ? selected : exeFiles.get(0).getAbsolutePath();
-                    prefs.edit().putString("amazon_exe_" + productId, chosen).apply();
-                    onInstallComplete();
-                });
+    private void attachDownloadListener(String dlKey) {
+        BhDownloadService.addListener(dlKey, new BhDownloadService.DownloadListener() {
+            @Override public void onProgress(String msg, int pct) {
+                uiHandler.post(() -> { progressBar.setProgress(pct); progressLabel.setText(msg); });
             }
-        }, "amazon-detail-dl-" + productId).start();
+            @Override public void onComplete(String installDir) {
+                uiHandler.post(AmazonGameDetailActivity.this::onInstallComplete);
+            }
+            @Override public void onError(String msg) {
+                uiHandler.post(() -> onInstallError(msg));
+            }
+            @Override public void onCancelled() {
+                uiHandler.post(AmazonGameDetailActivity.this::onInstallCancelled);
+            }
+        });
     }
 
     private void onInstallComplete() {

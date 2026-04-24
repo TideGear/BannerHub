@@ -14,6 +14,8 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
@@ -160,6 +162,7 @@
         <activity android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:name="app.revanced.extension.gamehub.EpicFreeGamesActivity" android:screenOrientation="sensorLandscape"/>
         <activity android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:name="app.revanced.extension.gamehub.AmazonGameDetailActivity" android:screenOrientation="sensorLandscape"/>
         <activity android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:name="app.revanced.extension.gamehub.FolderPickerActivity" android:screenOrientation="sensorLandscape"/>
+        <service android:name="app.revanced.extension.gamehub.BhDownloadService" android:foregroundServiceType="dataSync" android:exported="false"/>
         <activity android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:name="com.xj.landscape.launcher.ui.guide.GuideEmailValidateActivity" android:screenOrientation="sensorLandscape"/>
         <activity android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:name="com.xj.landscape.launcher.test.FocusCusViewActivity" android:screenOrientation="sensorLandscape"/>
         <activity android:configChanges="orientation" android:name="com.xj.landscape.launcher.ui.mobilegame.MobileGameV4Activity" android:screenOrientation="sensorLandscape"/>

@@ -31,7 +31,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Full-screen game detail view for a GOG library entry.
@@ -94,8 +93,30 @@ public class GogGameDetailActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (cancelDownload != null) cancelDownload.run();
         super.onBackPressed();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (gameId == null) return;
+        String dlKey = "gog_" + gameId;
+        if (BhDownloadService.isActive(dlKey)) {
+            installBtn.setText("Cancel");
+            installBtn.setBackgroundColor(0xFFCC3333);
+            progressBar.setVisibility(View.VISIBLE);
+            progressLabel.setVisibility(View.VISIBLE);
+            launchBtn.setEnabled(false);
+            setExeBtn.setEnabled(false);
+            cancelDownload = () -> BhDownloadService.cancel(this, dlKey);
+            attachDownloadListener(dlKey);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (gameId != null) BhDownloadService.removeListener("gog_" + gameId);
     }
 
     // ── UI ────────────────────────────────────────────────────────────────────
@@ -319,6 +340,7 @@ public class GogGameDetailActivity extends Activity {
     // ── Install flow ──────────────────────────────────────────────────────────
 
     private void startInstall() {
+        String dlKey = "gog_" + gameId;
         installBtn.setText("Cancel");
         installBtn.setBackgroundColor(0xFFCC3333);
         progressBar.setVisibility(View.VISIBLE);
@@ -326,17 +348,32 @@ public class GogGameDetailActivity extends Activity {
         launchBtn.setEnabled(false);
         setExeBtn.setEnabled(false);
 
-        cancelDownload = GogDownloadManager.startDownload(this, makeGogGame(), new GogDownloadManager.Callback() {
+        cancelDownload = () -> BhDownloadService.cancel(this, dlKey);
+        attachDownloadListener(dlKey);
+
+        GogGame game = makeGogGame();
+        Intent svc = new Intent(this, BhDownloadService.class);
+        svc.setAction(BhDownloadService.ACTION_START);
+        svc.putExtra(BhDownloadService.EXTRA_STORE, "GOG");
+        svc.putExtra(BhDownloadService.EXTRA_GAME_ID, dlKey);
+        svc.putExtra(BhDownloadService.EXTRA_GAME_NAME, title != null ? title : gameId);
+        svc.putExtra(BhDownloadService.EXTRA_GOG_GAME_ID, game.gameId);
+        svc.putExtra(BhDownloadService.EXTRA_GOG_TITLE, game.title);
+        svc.putExtra(BhDownloadService.EXTRA_GOG_IMAGE_URL, game.imageUrl);
+        svc.putExtra(BhDownloadService.EXTRA_GOG_DEVELOPER, game.developer);
+        svc.putExtra(BhDownloadService.EXTRA_GOG_CATEGORY, game.category);
+        svc.putExtra(BhDownloadService.EXTRA_GOG_GENERATION, game.generation);
+        startForegroundService(svc);
+    }
+
+    private void attachDownloadListener(String dlKey) {
+        BhDownloadService.addListener(dlKey, new BhDownloadService.DownloadListener() {
             @Override public void onProgress(String msg, int pct) {
-                uiHandler.post(() -> {
-                    progressBar.setProgress(pct);
-                    progressLabel.setText(msg);
-                });
+                uiHandler.post(() -> { progressBar.setProgress(pct); progressLabel.setText(msg); });
             }
-            @Override public void onComplete(String exePath) {
+            @Override public void onComplete(String installDir) {
                 cancelDownload = null;
                 uiHandler.post(() -> {
-                    progressBar.setProgress(100);
                     progressBar.setVisibility(View.GONE);
                     progressLabel.setVisibility(View.GONE);
                     setResult(RESULT_REFRESH);
@@ -365,10 +402,6 @@ public class GogGameDetailActivity extends Activity {
                     launchBtn.setEnabled(true);
                     setExeBtn.setEnabled(true);
                 });
-            }
-            @Override public void onSelectExe(List<String> candidates,
-                                               java.util.function.Consumer<String> onSelected) {
-                showExePicker(candidates, onSelected);
             }
         });
     }

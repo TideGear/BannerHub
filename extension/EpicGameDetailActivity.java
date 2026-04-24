@@ -26,7 +26,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Full-screen game detail view for an Epic Games library entry.
@@ -261,9 +260,35 @@ public class EpicGameDetailActivity extends Activity {
         return card;
     }
 
+    // ── Lifecycle — service reconnect ─────────────────────────────────────────
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (appName == null) return;
+        String dlKey = "epic_" + appName;
+        if (BhDownloadService.isActive(dlKey)) {
+            installBtn.setText("Cancel");
+            installBtn.setBackgroundColor(0xFFCC3333);
+            progressBar.setVisibility(View.VISIBLE);
+            progressLabel.setVisibility(View.VISIBLE);
+            launchBtn.setEnabled(false);
+            setExeBtn.setEnabled(false);
+            cancelDownload = () -> BhDownloadService.cancel(this, dlKey);
+            attachDownloadListener(dlKey);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (appName != null) BhDownloadService.removeListener("epic_" + appName);
+    }
+
     // ── Install ───────────────────────────────────────────────────────────────
 
     private void startInstall() {
+        String dlKey = "epic_" + appName;
         installBtn.setText("Cancel");
         installBtn.setBackgroundColor(0xFFCC3333);
         progressBar.setVisibility(View.VISIBLE);
@@ -271,76 +296,35 @@ public class EpicGameDetailActivity extends Activity {
         launchBtn.setEnabled(false);
         setExeBtn.setEnabled(false);
 
-        AtomicBoolean cancelled = new AtomicBoolean(false);
-        cancelDownload = () -> cancelled.set(true);
+        cancelDownload = () -> BhDownloadService.cancel(this, dlKey);
+        attachDownloadListener(dlKey);
 
-        new Thread(() -> {
-            try {
-                String token = EpicCredentialStore.getValidAccessToken(this);
-                if (token == null) { onInstallError("Login required"); return; }
+        Intent svc = new Intent(this, BhDownloadService.class);
+        svc.setAction(BhDownloadService.ACTION_START);
+        svc.putExtra(BhDownloadService.EXTRA_STORE, "EPIC");
+        svc.putExtra(BhDownloadService.EXTRA_GAME_ID, dlKey);
+        svc.putExtra(BhDownloadService.EXTRA_GAME_NAME, title != null ? title : appName);
+        svc.putExtra(BhDownloadService.EXTRA_EPIC_NAMESPACE, namespace);
+        svc.putExtra(BhDownloadService.EXTRA_EPIC_CATALOG_ID, catalogItemId);
+        svc.putExtra(BhDownloadService.EXTRA_EPIC_APP_NAME, appName);
+        startForegroundService(svc);
+    }
 
-                uiHandler.post(() -> progressLabel.setText("Fetching manifest…"));
-                String manifestJson = EpicApiClient.getManifestApiJson(
-                        token, namespace, catalogItemId, appName);
-                if (manifestJson == null) {
-                    onInstallError("Failed to fetch manifest");
-                    return;
-                }
-
-                String sanitized = title != null
-                        ? title.replaceAll("[^a-zA-Z0-9 \\-_]", "").trim() : "";
-                if (sanitized.isEmpty()) sanitized = "epic_" + appName.hashCode();
-                File installDir = new File(new File(getFilesDir(), "epic_games"), sanitized);
-                prefs.edit().putString("epic_dir_" + appName, installDir.getAbsolutePath()).apply();
-
-                final String finalToken = token;
-                boolean ok = EpicDownloadManager.install(this, manifestJson, finalToken,
-                        installDir.getAbsolutePath(), (msg, pct) -> {
-                            if (cancelled.get()) return;
-                            uiHandler.post(() -> {
-                                progressBar.setProgress(pct);
-                                progressLabel.setText(msg);
-                            });
-                        });
-
-                if (cancelled.get()) { onInstallCancelled(); return; }
-                if (!ok) { onInstallError("Download failed"); return; }
-
-                // Store manifest version for update checker
-                try {
-                    String vid = new org.json.JSONObject(manifestJson).optString("versionId", "");
-                    if (!vid.isEmpty()) {
-                        prefs.edit().putString("epic_manifest_version_" + appName, vid).apply();
-                    }
-                } catch (Exception ignored) {}
-
-                List<File> exeFiles = new ArrayList<>();
-                AmazonLaunchHelper.collectExe(installDir, exeFiles);
-                if (exeFiles.isEmpty()) { onInstallError("No executable found"); return; }
-
-                String lowerTitle = title != null ? title.toLowerCase() : "";
-                Collections.sort(exeFiles, (a, b) ->
-                        AmazonLaunchHelper.scoreExe(b, lowerTitle)
-                        - AmazonLaunchHelper.scoreExe(a, lowerTitle));
-
-                if (exeFiles.size() == 1) {
-                    String path = exeFiles.get(0).getAbsolutePath();
-                    prefs.edit().putString("epic_exe_" + appName, path).apply();
-                    onInstallComplete();
-                } else {
-                    List<String> candidates = new ArrayList<>();
-                    for (File f : exeFiles) candidates.add(f.getAbsolutePath());
-                    showExePicker(candidates, selected -> {
-                        String chosen = (selected != null && !selected.isEmpty())
-                                ? selected : exeFiles.get(0).getAbsolutePath();
-                        prefs.edit().putString("epic_exe_" + appName, chosen).apply();
-                        onInstallComplete();
-                    });
-                }
-            } catch (Exception e) {
-                if (!cancelled.get()) onInstallError(e.getMessage() != null ? e.getMessage() : "Unknown error");
+    private void attachDownloadListener(String dlKey) {
+        BhDownloadService.addListener(dlKey, new BhDownloadService.DownloadListener() {
+            @Override public void onProgress(String msg, int pct) {
+                uiHandler.post(() -> { progressBar.setProgress(pct); progressLabel.setText(msg); });
             }
-        }, "epic-detail-dl-" + appName).start();
+            @Override public void onComplete(String installDir) {
+                uiHandler.post(EpicGameDetailActivity.this::onInstallComplete);
+            }
+            @Override public void onError(String msg) {
+                uiHandler.post(() -> onInstallError(msg));
+            }
+            @Override public void onCancelled() {
+                uiHandler.post(EpicGameDetailActivity.this::onInstallCancelled);
+            }
+        });
     }
 
     private void onInstallComplete() {
