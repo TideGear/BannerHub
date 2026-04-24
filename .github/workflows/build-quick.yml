@@ -230,6 +230,59 @@ jobs:
           print("Settings Import/Export patch applied.")
           PYEOF
 
+      - name: Patch GameDetailActivity — finish after Beacon auto-launch
+        run: |
+          python3 << 'PYEOF'
+          import sys
+          path = 'apktool_out/smali_classes8/com/xj/landscape/launcher/ui/gamedetail/GameDetailActivity.smali'
+          content = open(path, encoding='utf-8').read()
+          old = (
+              '    .line 61\n'
+              '    .line 62\n'
+              '    new-instance p0, Lcom/xj/landscape/launcher/event/SendClickStartGameEvent;\n'
+              '\n'
+              '    .line 63\n'
+              '    .line 64\n'
+              '    .line 65\n'
+              '    invoke-direct {p0, v0}, Lcom/xj/landscape/launcher/event/SendClickStartGameEvent;-><init>(Lcom/xj/common/service/bean/GameStartupParams;)V\n'
+              '\n'
+              '    .line 66\n'
+              '    .line 67\n'
+              '    .line 68\n'
+              '    invoke-static {p0, v5, v4, v5}, Lcom/drake/channel/ChannelKt;->c(Ljava/lang/Object;Ljava/lang/String;ILjava/lang/Object;)Lkotlinx/coroutines/Job;\n'
+              '\n'
+              '    .line 69\n'
+              '    return-void'
+          )
+          new = (
+              '    .line 61\n'
+              '    .line 62\n'
+              '    move-object v1, p0\n'
+              '    new-instance p0, Lcom/xj/landscape/launcher/event/SendClickStartGameEvent;\n'
+              '\n'
+              '    .line 63\n'
+              '    .line 64\n'
+              '    .line 65\n'
+              '    invoke-direct {p0, v0}, Lcom/xj/landscape/launcher/event/SendClickStartGameEvent;-><init>(Lcom/xj/common/service/bean/GameStartupParams;)V\n'
+              '\n'
+              '    .line 66\n'
+              '    .line 67\n'
+              '    .line 68\n'
+              '    invoke-static {p0, v5, v4, v5}, Lcom/drake/channel/ChannelKt;->c(Ljava/lang/Object;Ljava/lang/String;ILjava/lang/Object;)Lkotlinx/coroutines/Job;\n'
+              '\n'
+              '    # BannerHub: finish GameDetailActivity after Beacon auto-launch to remove orphan task\n'
+              '    invoke-virtual {v1}, Lcom/xj/base/base/activity/BaseVmActivity;->finish()V\n'
+              '\n'
+              '    .line 69\n'
+              '    return-void'
+          )
+          if old not in content:
+              print("ERROR: anchor not found in GameDetailActivity.smali")
+              sys.exit(1)
+          open(path, 'w', encoding='utf-8').write(content.replace(old, new, 1))
+          print("GameDetailActivity auto-launch finish patch applied.")
+          PYEOF
+
       - name: Patch package name for pre/beta (isolate from stable installs)
         run: |
           sed -i "s/gamehub\.lite/com.tencent.ig/g" apktool_out/AndroidManifest.xml
