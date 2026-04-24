@@ -698,4 +698,36 @@ public class BhSettingsExporter {
             default:        return 12;
         }
     }
+
+    // ─── Frontend Export ─────────────────────────────────────────────────────
+
+    public static void showFrontendExportDialog(Context ctx, String gameId, String gameName) {
+        String[] frontends = {"Beacon"};
+        new AlertDialog.Builder(ctx)
+                .setTitle("Frontend Export — " + gameName)
+                .setItems(frontends, (dialog, which) -> {
+                    if (which == 0) exportForBeacon(ctx, gameId, gameName);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private static void exportForBeacon(Context ctx, String gameId, String gameName) {
+        try {
+            File dir = new File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                    "bannerhub/frontend/Beacon");
+            dir.mkdirs();
+            String safeName = gameName.replaceAll("[\\\\/:*?\"<>|]", "_");
+            File out = new File(dir, safeName + ".iso");
+            FileWriter fw = new FileWriter(out);
+            fw.write(gameId);
+            fw.close();
+            new Handler(Looper.getMainLooper()).post(() ->
+                    Toast.makeText(ctx, "Beacon: saved " + out.getName(), Toast.LENGTH_SHORT).show());
+        } catch (Exception e) {
+            new Handler(Looper.getMainLooper()).post(() ->
+                    Toast.makeText(ctx, "Frontend export failed: " + e.getMessage(), Toast.LENGTH_LONG).show());
+        }
+    }
 }
