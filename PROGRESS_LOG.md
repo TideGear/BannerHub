@@ -5,7 +5,7 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 ---
 
 ### [fix] — v3.4.2-pre1 — GOG: skip non-critical metadata files on CDN failure (2026-04-25)
-**Commit:** TBD  |  **Tag:** v3.4.2-pre1  |  **CI:** pending
+**Commit:** `58587f5`  |  **Tag:** v3.4.2-pre1  |  **CI:** run 24942760582 ✅
 #### What changed
 - Added `isNonCriticalGogFile()` helper in `GogDownloadManager.java`: matches `goggame-*.hashdb/.info/.ico/.script`
 - On 3-retry CDN failure, matching files now log a warning and are skipped rather than setting `anyFailed` and aborting the entire install
