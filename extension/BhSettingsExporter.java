@@ -703,8 +703,12 @@ public class BhSettingsExporter {
 
     public static void showFrontendExportDialog(Context ctx, String gameId, String gameName) {
         String[] frontends = {"Beacon", "ES-DE"};
+        String basePath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                .getAbsolutePath() + "/bannerhub/frontend/";
+        String message = "Select a frontend. The output file will be saved to:\n\n" + basePath;
         new AlertDialog.Builder(ctx)
                 .setTitle("Frontend Export — " + gameName)
+                .setMessage(message)
                 .setItems(frontends, (dialog, which) -> {
                     if (which == 0) exportForBeacon(ctx, gameId, gameName);
                     else if (which == 1) exportForEsde(ctx, gameId, gameName);
