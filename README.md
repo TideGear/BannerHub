@@ -1,6 +1,6 @@
 # BannerHub
 
-**GameHub 5.3.5 ReVanced** — extended with GOG Games, Amazon Games, and Epic Games Store library tabs, a full Component Manager, in-app component downloader, Winlator HUD overlay (Normal + Extra Detailed + Konkr style with CPU/GPU/RAM/SWAP/temp/per-core metrics), in-game performance toggles, RTS touch controls, VRAM unlock, per-game CPU core affinity, root access management, offline Steam launch, Japanese locale, and more. Built entirely with apktool smali patching — no source code, no external library injection.
+**GameHub 5.3.5 ReVanced** — extended with GOG Games, Amazon Games, and Epic Games Store library tabs, a full Component Manager, in-app component downloader, background download service with in-app cross-store download manager, Winlator HUD overlay (Normal + Extra Detailed + Konkr style with CPU/GPU/RAM/SWAP/temp/per-core metrics), in-game performance toggles, RTS touch controls, VRAM unlock, per-game CPU core affinity, root access management, offline Steam launch, community game configs browser, per-game config export/import with Frontend Export, Japanese locale, and more. Built entirely with apktool smali patching — no source code, no external library injection.
 
 ## AI Disclaimer
 
@@ -27,7 +27,7 @@ Before any stable release is published, all changes are manually debugged and te
   - [Epic Games Store](#epic-games-store)
   - [Component Manager](#component-manager)
   - [In-App Component Downloader](#in-app-component-downloader)
-  - [BCI Launcher Button](#bci-launcher-button)
+  - [Download Manager Button](#download-manager-button)
   - [Winlator HUD Overlay](#winlator-hud-overlay) (Normal + Extra Detailed + Konkr Style)
   - [Performance Sidebar Toggles](#performance-sidebar-toggles)
   - [RTS Touch Controls](#rts-touch-controls)
@@ -127,7 +127,8 @@ BannerHub supports both GOG's current and legacy download systems:
 #### Install Flow
 
 - Tapping **Install** opens a confirmation dialog showing download size and available storage — nothing downloads until you confirm.
-- A `ProgressBar` + status text replaces the Install button during download. A red **Cancel** button appears; tapping it stops the download and cleans up partial files.
+- Downloads run via the **BhDownloadService foreground service** — a persistent notification with a **Cancel** action appears in the notification tray. The download continues if you leave the screen or switch apps.
+- A `ProgressBar` + status text replaces the Install button during download. Live progress is also visible in the [Download Manager](#download-manager-button).
 - After install, BannerHub scans for qualifying executables (excluding redist/setup/unins/crash/helper paths). One found → auto-selected. Two or more → exe picker dialog.
 - On completion an **Add Game** button appears. Tapping it opens GameHub's `EditImportedGameInfoDialog` pre-populated with the executable path.
 - A green ✓ **Installed** checkmark appears on the card immediately — no app restart needed.
@@ -168,6 +169,8 @@ For the complete technical implementation breakdown, see [AMAZON_IMPLEMENTATION.
 4. Progress shows current filename and download speed (MB/s)
 5. Resumable — already-complete files (matching size) are skipped on retry
 
+Downloads run via the **BhDownloadService foreground service** — a persistent notification with a **Cancel** action appears in the notification tray and the download continues if you leave the screen. Live progress is also visible in the [Download Manager](#download-manager-button).
+
 #### Post-Install
 
 - **Launch** — reads `fuel.json` from the install directory to determine the executable and required FuelPump environment variables, then launches via GameHub's `EditImportedGameInfoDialog`
@@ -203,6 +206,8 @@ For the complete technical implementation breakdown, see [EPIC_IMPLEMENTATION.md
 3. Downloads chunks in **6 parallel threads** from Fastly or Akamai CDN (public — no auth token required on chunks)
 4. Assembles each game file from its ordered chunks, SHA-1 verified per chunk
 5. Progress shows current filename and download speed (MB/s)
+
+Downloads run via the **BhDownloadService foreground service** — a persistent notification with a **Cancel** action appears in the notification tray and the download continues if you leave the screen. Live progress is also visible in the [Download Manager](#download-manager-button).
 
 #### Post-Install
 
@@ -276,11 +281,25 @@ Tapping any asset downloads it to the cache directory and injects it as a new co
 
 ---
 
-### BCI Launcher Button
+### Download Manager Button
 
-A shortcut button appears in GameHub's **top-right toolbar**. Tapping it opens [BannersComponentInjector](https://github.com/The412Banner/BannersComponentInjector) (`com.banner.inject`) directly from inside BannerHub. If BCI is not installed, a toast message is shown instead.
+A **⬇ button** in the launcher dashboard opens the **Download Manager** (BhDownloadsActivity) — a live cross-store download dashboard accessible from anywhere in the app. The button updates in real time: at rest it shows ⬇; when one or more downloads are active it shows a **red count badge** (e.g. ⬇ 2) that increments and decrements as jobs start and finish.
 
-BCI is a companion app that provides SAF-based component management without root — useful for managing virtual containers, accessing Steam shadercache, and injecting components from your local storage.
+#### Download Manager (BhDownloadsActivity)
+
+A persistent screen showing all active and completed downloads across GOG, Amazon, and Epic simultaneously:
+
+- **Active rows** — each active download shows the game name, current status message, and a live percentage `ProgressBar`. A **Cancel** button stops the download immediately and cleans up partial files.
+- **Completed library** — finished downloads persist in `bh_library` SharedPreferences and are shown as completed rows with a color-coded store badge. Each row has:
+  - **Launch** — opens `EditImportedGameInfoDialog` pre-populated with the stored executable path
+  - **Uninstall** — confirms and deletes the install directory and all associated prefs
+  - **×** — removes the entry from the completed list without uninstalling
+- **Clear ✓** — header button that removes all completed entries at once
+- Active rows convert to completed rows in-place when a download finishes — no need to return to the store screen to see the result
+
+The ⬇ button in each store's header (GOG, Amazon, Epic) also opens the Download Manager directly from within the store view.
+
+All downloads are handled by **BhDownloadService**, an Android foreground service. A persistent notification with a **Cancel** action appears in the notification tray for each active download. Downloads survive leaving the detail screen, switching apps, or navigating elsewhere in BannerHub.
 
 ---
 
@@ -430,7 +449,12 @@ Accessible via the left side menu → **Game Configs**. A four-screen community 
 
 #### Config detail (Screen 3)
 
-- Full metadata card: device, SOC, BannerHub version, settings count, components count, uploader description, verified SOC badge
+- **Expanded metadata card** — loaded on demand and displays up to 11 rows of actual config values:
+  - Device, SOC, Date, Renderer, CPU, FPS Cap, BH Version
+  - Wine / Proton, DXVK, VKD3D, GPU Driver, FEXCore, Box64 — component names used by the uploader
+  - Resolution, Command Line, Env Vars (if set)
+  - Settings key count, bundled component count
+- **Uploader description** and **verified SOC badge** (green ✓ if SOC matches yours)
 - **Download to Device** — saves the config JSON locally
 - **View Settings & Components** — expands the raw settings and component list inline
 - **Share Config URL** — copies a direct download link to clipboard
@@ -455,7 +479,7 @@ You can also browse, search, filter, and download configs from the web at **[the
 
 ### Per-Game Config Export / Import
 
-PC game settings include **Export Config** and **Import Config** options.
+PC game settings include **Export Config**, **Frontend Export**, and **Import Config** options.
 
 #### Export Config
 
@@ -467,6 +491,13 @@ Then choose:
 - **Save Locally + Share Online** — saves locally and uploads to the community database
 
 The exported filename embeds the game name, device manufacturer, device model, and SOC (e.g. `GodOfWar-Samsung-SM_S928B-Adreno_750-1234567890.json`).
+
+#### Frontend Export
+
+A separate **Frontend Export** option in the PC game settings popup creates a launcher `.iso` file for use with a supported frontend instead of exporting a BannerHub config JSON.
+
+- Opens a dialog to select the target frontend (currently: **Beacon**)
+- For **Beacon**: creates `Downloads/bannerhub/frontend/Beacon/{gameName}.iso` using the correct game ID — `localGameId` for imported games, `getSteamAppId()` for catalog games
 
 #### Import Config
 
@@ -582,6 +613,7 @@ When a game is installed and launched, GameHub creates a Wine virtual container 
 ### UI Tweaks
 
 - The **"My"** tab in the bottom navigation bar is renamed to **"My Games"** for clarity.
+- **Beacon launch no longer creates a second app entry in recents** — `GameDetailActivity` is marked `excludeFromRecents`, so Beacon launches do not leave an orphaned BannerHub task in the recent apps list.
 
 ---
 
@@ -611,7 +643,7 @@ Only if you choose a matching package APK. The **Normal APK** (`banner.hub`) ins
 
 **Q: Can I use BCI (BannersComponentInjector) with BannerHub?**
 
-Yes. BCI grants SAF access to any GameHub package, including `banner.hub`. The BCI launcher button in BannerHub's toolbar opens BCI directly. Components injected via BCI are visible in BannerHub's Component Manager and vice versa.
+Yes. BCI grants SAF access to any GameHub package, including `banner.hub`. Components injected via BCI are visible in BannerHub's Component Manager and vice versa. Launch BCI as a standalone app from your device's home screen or app drawer.
 
 **Q: Why does the Max Adreno Clocks toggle require root while some other apps can do it without root?**
 
@@ -641,8 +673,9 @@ Yes. BannerHub detects the authorization code directly in the redirect URL regar
 | **APK size** | ~138 MB | ~47 MB |
 | **GOG / Amazon / Epic tabs** | Yes | Yes |
 | **Component Manager + Downloader** | Yes | Yes |
+| **Background download service + Download Manager** | Yes | No |
 | **Winlator HUD (Normal + Extra Detailed)** | Yes | Yes |
-| **Export / Import Config** | Yes | Yes |
+| **Export / Import Config + Frontend Export** | Yes | Yes |
 | **Controller D-pad navigation** | Yes | Yes |
 | **Community Game Configs browser** | Yes | No |
 | **Component descriptions in picker** | Yes | No |
