@@ -4,6 +4,19 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [docs] — README: Obtainium auto-update section (2026-04-25)
+**Commit:** `6fbe20e`  |  **Tag:** none  |  **CI:** n/a (docs only)
+#### What changed
+- Added `## Keeping BannerHub Updated` section after Installation, covering Obtainium setup
+- Key point documented: "Reconcile version string with version detected from OS" must be ON; works correctly starting v3.4.0
+- Warning callout added: do not track pre-releases in Obtainium (different package name)
+- TOC updated with new section link
+#### Files touched
+- `README.md`
+
+---
+
+
 ### [stable] — v3.4.0 — ES-DE frontend export, dynamic versioning (2026-04-25)
 **Commit:** `8e5ac3d`  |  **Tag:** v3.4.0  |  **CI:** run 24935382300 ✅
 #### What changed
@@ -3954,4 +3967,5 @@ Promotes all v3.0.x pre-releases to stable. Bundles:
 
 #### APK variants
 BannerHub-v3.1.0-Normal.apk, Normal.GHL.apk, PuBG.apk, PuBG-CrossFire.apk, Genshin.apk, Ludashi.apk, AnTuTu.apk, alt-AnTuTu.apk, Original.apk
+
 
