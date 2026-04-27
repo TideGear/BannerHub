@@ -4,6 +4,27 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [pre-release] — v3.4.2-pre2 — feat: SD card storage toggle routes GOG/Epic/Amazon downloads to SD card (2026-04-27)
+**Commit:** (pending)  |  **Tag:** v3.4.2-pre2  |  **CI:** (pending)
+#### What changed
+- Rewrote the SD Card Storage toggle behaviour — when enabled, GOG, Epic, and Amazon downloads now install to the SD card instead of internal storage
+- New helper `BhStoragePath.java`: reads `use_custom_storage` + `steam_storage_path` prefs (set by the existing toggle detection logic) and returns `{sdCardRoot}/bannerhub/{storeFolder}/{gameName}` when on, `{filesDir}/{storeFolder}/{gameName}` when off
+- `GogInstallPath.getInstallDir()` now delegates to `BhStoragePath` — all 4 GOG call sites in `GogGamesActivity` get SD card routing automatically
+- `EpicGamesActivity`: install dir and StatFs storage check updated
+- `AmazonGamesActivity`: install dir and StatFs storage check updated
+- "Available storage" dialog in all three stores now reflects SD card free space when toggle is on
+- SD card layout: `/storage/XXXX-XXXX/bannerhub/gog_games/`, `/storage/XXXX-XXXX/bannerhub/epic_games/`, `/storage/XXXX-XXXX/bannerhub/Amazon/`
+- Toggle off behaviour unchanged — falls back to internal `getFilesDir()` as before
+#### Files touched
+- `extension/BhStoragePath.java` (new)
+- `extension/GogInstallPath.java`
+- `extension/EpicGamesActivity.java`
+- `extension/AmazonGamesActivity.java`
+- `PROGRESS_LOG.md`
+
+---
+
+
 ### [fix] — v3.4.2-pre1 — GOG: skip non-critical metadata files on CDN failure (2026-04-25)
 **Commit:** `58587f5`  |  **Tag:** v3.4.2-pre1  |  **CI:** run 24942760582 ✅
 #### What changed

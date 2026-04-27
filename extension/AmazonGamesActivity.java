@@ -925,7 +925,7 @@ public class AmazonGamesActivity extends Activity {
 
             String sanitized = game.title.replaceAll("[^a-zA-Z0-9 \\-_]", "").trim();
             if (sanitized.isEmpty()) sanitized = "game_" + game.productId.hashCode();
-            File installDir = new File(new File(getFilesDir(), "Amazon"), sanitized);
+            File installDir = BhStoragePath.getInstallDir(this, "Amazon", sanitized);
 
             // Store install dir in prefs for uninstall
             prefs.edit().putString("amazon_dir_" + game.productId,
@@ -988,7 +988,7 @@ public class AmazonGamesActivity extends Activity {
     private void showInstallConfirm(AmazonGame game, Runnable onConfirm) {
         long freeBytes = -1;
         try {
-            File base = new File(new File(getFilesDir(), "Amazon"), "_check");
+            File base = BhStoragePath.getInstallDir(this, "Amazon", "_check");
             File parent = base.getParentFile();
             if (parent != null) parent.mkdirs();
             android.os.StatFs sf = new android.os.StatFs(

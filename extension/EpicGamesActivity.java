@@ -941,7 +941,7 @@ public class EpicGamesActivity extends Activity {
                 // Install directory: getFilesDir()/epic_games/{sanitized title}
                 String sanitized = game.title.replaceAll("[^a-zA-Z0-9 \\-_]", "").trim();
                 if (sanitized.isEmpty()) sanitized = "epic_" + game.appName.hashCode();
-                File installDir = new File(new File(getFilesDir(), "epic_games"), sanitized);
+                File installDir = BhStoragePath.getInstallDir(this, "epic_games", sanitized);
                 prefs.edit().putString("epic_dir_" + game.appName,
                         installDir.getAbsolutePath()).apply();
 
@@ -1006,7 +1006,7 @@ public class EpicGamesActivity extends Activity {
     private void showInstallConfirm(EpicGame game, Runnable onConfirm) {
         long freeBytes = -1;
         try {
-            File base   = new File(new File(getFilesDir(), "epic_games"), "_check");
+            File base   = BhStoragePath.getInstallDir(this, "epic_games", "_check");
             File parent = base.getParentFile();
             if (parent != null) parent.mkdirs();
             android.os.StatFs sf = new android.os.StatFs(
