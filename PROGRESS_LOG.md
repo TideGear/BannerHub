@@ -4,6 +4,18 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [stable] — v3.5.0 — External storage, system bars, uninstall UX, storage badge (2026-04-27)
+**Tag:** v3.5.0  |  **CI:** run 25024033767 ✅  |  **Release:** https://github.com/The412Banner/BannerHub/releases/tag/v3.5.0
+#### What shipped (all pre1–pre12 over v3.4.1)
+- SD card / external storage toggle for GOG/Epic/Amazon installs + confirmation dialog + renamed label
+- Install path display with 💾 SD Card / 📁 Internal badge on all three detail pages
+- System bars hidden across all store screens, detail pages, download manager, Component Manager
+- Uninstall spinner across all stores/screens
+- GOG detail page doUninstall path fix
+- GOG CDN non-critical metadata skip
+
+---
+
 ### [pre-release] — v3.4.2-pre11 — feat(ui): storage location badge on install path row (2026-04-27)
 **Commit:** `f1b1696`  |  **Tag:** v3.4.2-pre11  |  **CI:** run 25023554124 ✅
 #### What changed
