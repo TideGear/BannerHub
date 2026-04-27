@@ -452,7 +452,7 @@ public class AmazonGameDetailActivity extends Activity {
         } else {
             badge.setColor(0xFF2A2A2A);
             storageTypeBadgeTV.setTextColor(0xFF888888);
-            storageTypeBadgeTV.setText("📱 Internal");
+            storageTypeBadgeTV.setText("📁 Internal");
         }
         storageTypeBadgeTV.setBackground(badge);
         installPathRow.setVisibility(View.VISIBLE);
