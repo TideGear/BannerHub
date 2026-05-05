@@ -5,7 +5,7 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 ---
 
 ### [pre] — v3.6.1-pre3 — EOS exchange-code auth + diagnostic logging (2026-05-05)
-**Branch:** `epic-eos`  |  **Build:** `build-quick.yml` (pre-release, artifact-only)
+**Branch:** `epic-eos`  |  **Tag:** `v3.6.1-pre3` on commit `dfc5c6f`  |  **CI:** [run 25389420156](https://github.com/The412Banner/BannerHub/actions/runs/25389420156) ✅  |  **Artifact:** `BannerHub-pre-v3.6.1-pre3` (135 MB)
 
 #### Why
 After pre2's verifier fix unblocked launches, Fall Guys (a real EOS-integrated game) loaded successfully but its in-game UI showed "Epic Games Account Error — No exchange code was found, please launch from the Epic Games Launcher." This is the canonical error when EOS-integrated games detect they were launched outside Epic's launcher: they expect a fresh, short-lived exchange code passed via `-AUTH_LOGIN/-AUTH_PASSWORD/-AUTH_TYPE` and refuse to authenticate without it. Pre1/pre2's args (`-EpicPortal`, `-epicusername`, `-epicuserid`, `-epicsandboxid`, `-epiclocale`, `-epicdeploymentid`) describe the session, but the AUTH triple proves the user is signed in.
