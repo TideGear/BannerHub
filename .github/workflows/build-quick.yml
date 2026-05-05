@@ -315,9 +315,22 @@ jobs:
               open(path, 'w', encoding='utf-8').write(content.replace(old, new, 1))
               print(f"OK: {label}")
 
-          # Inject BhEpicLaunchArgs.maybeInject(args, exePath) at the end of
-          # WineHelper$Companion.b() — the chokepoint for the Wine launch command.
-          # See build.yml for the full rationale.
+          # Two-part patch — see build.yml for full rationale.
+          # Part 1: bump .locals + stash original p1 into a fresh local
+          patch(
+              'apktool_out/smali_classes5/com/winemu/core/WineHelper$Companion.smali',
+              '.method public final b(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/util/List;\n'
+              '    .locals 4\n',
+              '.method public final b(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/util/List;\n'
+              '    .locals 5\n'
+              '\n'
+              '    # BannerHub Phase 1 EOS: stash original exePath into a fresh local; p1 gets\n'
+              '    # reassigned later in the method, but v4 stays a single-typed String reference.\n'
+              '    move-object/from16 v4, p1\n'
+              '\n',
+              'WineHelper$Companion.b(): bump .locals + save exePath to v4'
+          )
+          # Part 2: inject the maybeInject call using the saved v4
           patch(
               'apktool_out/smali_classes5/com/winemu/core/WineHelper$Companion.smali',
               '    :cond_2\n'
@@ -328,11 +341,11 @@ jobs:
               '    :goto_1\n'
               '\n'
               '    # BannerHub Phase 1 EOS: inject Epic launch args for Epic-installed games\n'
-              '    invoke-static {p0, p1}, Lapp/revanced/extension/gamehub/BhEpicLaunchArgs;->maybeInject(Ljava/util/List;Ljava/lang/String;)V\n'
+              '    invoke-static {p0, v4}, Lapp/revanced/extension/gamehub/BhEpicLaunchArgs;->maybeInject(Ljava/util/List;Ljava/lang/String;)V\n'
               '\n'
               '    return-object p0\n'
               '.end method\n',
-              'WineHelper$Companion.b(): append Epic launch args for Epic-installed games'
+              'WineHelper$Companion.b(): append Epic launch args (using saved v4)'
           )
           print("EOS launch-args patch applied.")
           PYEOF

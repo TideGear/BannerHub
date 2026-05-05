@@ -319,6 +319,32 @@ jobs:
           # -epicusername, -epicuserid, -epicsandboxid, -epiclocale, and
           # (when available) -epicdeploymentid so EOS-integrated titles can
           # authenticate to Epic Online Services.
+          #
+          # IMPORTANT: p1 (exePath) is reassigned multiple times in the method
+          # (once with WinUtils.a() result, later with the int return of
+          # p2.length()). Referencing p1 directly at the end fails ART
+          # verification with "register v5 has type Conflict but expected
+          # Reference: java.lang.String" — verifier can't prove the type.
+          # Fix: bump .locals 4→5, save the original p1 to a fresh local v0
+          # at method entry, use v0 at the end. NOTE: bumping .locals shifts
+          # the physical register numbers for p-notation params (p0 was v4,
+          # becomes v5; p1 was v5, becomes v6; etc.). Smali assembler handles
+          # this remapping for all p-notation references automatically. We
+          # verified that the method body contains no LITERAL v5+ references
+          # within method b() — only p-notation — so the bump is safe.
+          patch(
+              'apktool_out_base/smali_classes5/com/winemu/core/WineHelper$Companion.smali',
+              '.method public final b(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/util/List;\n'
+              '    .locals 4\n',
+              '.method public final b(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/util/List;\n'
+              '    .locals 5\n'
+              '\n'
+              '    # BannerHub Phase 1 EOS: stash original exePath into a fresh local; p1 gets\n'
+              '    # reassigned later in the method, but v4 stays a single-typed String reference.\n'
+              '    move-object/from16 v4, p1\n'
+              '\n',
+              'WineHelper$Companion.b(): bump .locals + save exePath to v4'
+          )
           patch(
               'apktool_out_base/smali_classes5/com/winemu/core/WineHelper$Companion.smali',
               '    :cond_2\n'
@@ -329,11 +355,11 @@ jobs:
               '    :goto_1\n'
               '\n'
               '    # BannerHub Phase 1 EOS: inject Epic launch args for Epic-installed games\n'
-              '    invoke-static {p0, p1}, Lapp/revanced/extension/gamehub/BhEpicLaunchArgs;->maybeInject(Ljava/util/List;Ljava/lang/String;)V\n'
+              '    invoke-static {p0, v4}, Lapp/revanced/extension/gamehub/BhEpicLaunchArgs;->maybeInject(Ljava/util/List;Ljava/lang/String;)V\n'
               '\n'
               '    return-object p0\n'
               '.end method\n',
-              'WineHelper$Companion.b(): append Epic launch args for Epic-installed games'
+              'WineHelper$Companion.b(): append Epic launch args (using saved v4)'
           )
           print("EOS launch-args patch applied.")
           PYEOF
