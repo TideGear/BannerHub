@@ -4,6 +4,33 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [pre] — v3.6.1-pre2 — Fix verifier-rejection crash from pre1 (2026-05-05)
+**Branch:** `epic-eos`  |  **Tag:** `v3.6.1-pre2` on commit `8339d69`  |  **CI:** [run 25384496898](https://github.com/The412Banner/BannerHub/actions/runs/25384496898) ✅  |  **Artifact:** `BannerHub-pre-v3.6.1-pre2` (135 MB)
+
+#### What broke in pre1
+On-device test of pre1 with Brawlhalla + Fall Guys both crashed BannerHub. Logcat (captured via `getlog -b crash`) showed:
+```
+java.lang.VerifyError: Verifier rejected class com.winemu.core.WineHelper$Companion:
+[0x4C] register v5 has type Conflict but expected Reference: java.lang.String
+```
+The verifier rejected the patched method, crashing on **any** Wine launch — not just Epic. Steam/GOG/Amazon also broken in pre1.
+
+#### Root cause
+Inside `WineHelper$Companion.b()`, p1 (= v5 with `.locals 4`) gets reassigned twice during the method:
+1. With the String result of `WinUtils.a()` (DOS-form converted path)
+2. Later with the int return of `p2.length()` (when checking for non-empty args)
+
+Pre1's smali patch referenced `p1` at method end. ART's static verifier traces all code paths, and at the injection point can't prove a single type for v5 — so it flags "type Conflict" and refuses to load the class.
+
+#### Fix in pre2
+Two-part smali patch:
+1. **Bump `.locals 4` → `.locals 5`** at method entry, and **save the original `p1` to a fresh local `v4`**: `move-object/from16 v4, p1`. The new local is single-typed (only assigned once), so the verifier accepts it.
+2. **At method end, use `v4` instead of `p1`** in the `BhEpicLaunchArgs.maybeInject(...)` call.
+
+Verified safe before applying: no literal `v5+` register references exist within method `b()` body — only p-notation, which the smali assembler remaps automatically when locals changes.
+
+---
+
 ### [pre] — v3.6.1-pre1 — Epic Online Services Phase 1 (online auth) (2026-05-05)
 **Branch:** `epic-eos`  |  **Tag:** `v3.6.1-pre1` on commit `248e5b0`  |  **CI:** run [25380834999](https://github.com/The412Banner/BannerHub/actions/runs/25380834999) ✅  |  **Build:** `build-quick.yml` (pre-release, artifact-only)  |  **Artifact:** `BannerHub-pre-v3.6.1-pre1` (135 MB), expires 2026-06-04
 
