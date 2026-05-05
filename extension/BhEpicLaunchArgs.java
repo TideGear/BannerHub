@@ -41,14 +41,11 @@ public final class BhEpicLaunchArgs {
         if (args == null || exePath == null || exePath.isEmpty()) return;
 
         try {
-            Application app;
-            try {
-                app = com.blankj.utilcode.util.Utils.a();
-            } catch (Throwable t) {
-                Log.w(TAG, "Utils.a() unavailable; skipping Epic-args injection", t);
+            Application app = currentApplication();
+            if (app == null) {
+                Log.w(TAG, "current Application unavailable; skipping Epic-args injection");
                 return;
             }
-            if (app == null) return;
 
             SharedPreferences epicPrefs = app.getSharedPreferences("bh_epic_prefs", 0);
 
@@ -131,6 +128,26 @@ public final class BhEpicLaunchArgs {
     private static String sanitize(String s) {
         if (s == null) return "";
         return s.replace("\n", "").replace("\r", "").replace("\0", "");
+    }
+
+    /**
+     * Reflectively obtain the current Application context. Used at the Wine-launch
+     * chokepoint where no Activity/Service context is available. Falls back to
+     * BlankJ's {@code Utils.a()} (bundled in the host APK), then to Android's
+     * {@code ActivityThread.currentApplication()}.
+     */
+    private static Application currentApplication() {
+        try {
+            Class<?> utils = Class.forName("com.blankj.utilcode.util.Utils");
+            Object app = utils.getMethod("a").invoke(null);
+            if (app instanceof Application) return (Application) app;
+        } catch (Throwable ignored) {}
+        try {
+            Class<?> at = Class.forName("android.app.ActivityThread");
+            Object app = at.getMethod("currentApplication").invoke(null);
+            if (app instanceof Application) return (Application) app;
+        } catch (Throwable ignored) {}
+        return null;
     }
 
     /**
