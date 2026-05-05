@@ -510,6 +510,24 @@ public class EpicGamesActivity extends Activity {
         collapsedCheckTV.setVisibility(isInstalled ? View.VISIBLE : View.GONE);
         titleRow.addView(collapsedCheckTV, new LinearLayout.LayoutParams(-2, -2));
 
+        // EOS badge — shown if the install has been detected as EOS-using
+        if (isInstalled && BhEpicEosDetector.isEosCached(this, game.appName)) {
+            TextView eosBadge = new TextView(this);
+            eosBadge.setText("EOS");
+            eosBadge.setTextColor(0xFFFFFFFF);
+            eosBadge.setTextSize(9f);
+            eosBadge.setTypeface(null, Typeface.BOLD);
+            eosBadge.setPadding(dp(6), dp(2), dp(6), dp(2));
+            android.graphics.drawable.GradientDrawable eosBg =
+                    new android.graphics.drawable.GradientDrawable();
+            eosBg.setCornerRadius(dp(10));
+            eosBg.setColor(0xFF2962FF);
+            eosBadge.setBackground(eosBg);
+            LinearLayout.LayoutParams eosLp = new LinearLayout.LayoutParams(-2, -2);
+            eosLp.leftMargin = dp(6);
+            titleRow.addView(eosBadge, eosLp);
+        }
+
         titleRow.addView(new View(this), new LinearLayout.LayoutParams(0, 0, 1f));
 
         // ── Subtitle (developer) shown while collapsed ─────────────────────────

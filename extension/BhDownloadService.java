@@ -332,6 +332,9 @@ public class BhDownloadService extends Service {
             getSharedPreferences("bh_epic_prefs", 0)
                     .edit().putString("epic_exe_" + appName, exeFiles.get(0).getAbsolutePath()).apply();
 
+            // Detect EOS SDK presence so the library can show an "EOS" badge.
+            BhEpicEosDetector.scanAsync(this, appName, installDir, null);
+
             notifyComplete(gameId, installDir.getAbsolutePath());
 
         } catch (Exception e) {

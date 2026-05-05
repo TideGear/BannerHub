@@ -4,6 +4,27 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [pre] — v3.6.1-pre4 — Blue "EOS" badge on Epic library + detail page (2026-05-05)
+**Branch:** `epic-eos`  |  **Build:** `build-quick.yml` (pre-release, artifact-only)
+
+#### Why
+Now that BannerHub authenticates EOS-integrated Epic games (pre3), users want a way to see at a glance which games will use that integration. A small blue "EOS" pill — same visual style as the existing storage badge — communicates "this game uses Epic Online Services" without any explanation needed.
+
+#### What changed
+- **New `extension/BhEpicEosDetector.java`** — recursive scan of an installed game's directory for any of `EOSSDK-Win64-Shipping.dll`, `EOSSDK-Win32-Shipping.dll`, `EOSOVH-Win64-Shipping.dll`, `EOSBootstrapper.exe`. Result cached in `bh_epic_prefs` as `epic_uses_eos_<appName>` + `epic_eos_scanned_<appName>`. Bounded at 50,000 files to prevent giant-install stalls. Provides `scan` (sync), `scanAsync` (background thread), `scanIfNeeded` (only if never scanned), and `isEosCached` (read flag).
+- **`BhDownloadService.runEpic`** — fires `BhEpicEosDetector.scanAsync` after install completion. New installs get the flag automatically.
+- **`EpicGameDetailActivity`** — renders a blue (`0xFF2962FF`) "EOS" pill next to the title in the header when the cached flag is true. On `onCreate`, calls `refreshEosBadge()` which lazy-scans previously-installed games (pre-feature installs) so upgraders don't have to reinstall. Same badge style as the existing storage indicator: white bold `9f` text, padding `dp(6,2,6,2)`, corner radius `dp(10)`.
+- **`EpicGamesActivity`** — same blue pill rendered on each library tile when the cached flag is true and the game is installed.
+
+#### Behavior
+- New Epic installs → scan runs at install completion, badge shows immediately on first list refresh and detail-page open.
+- Pre-existing installs from older versions → on first detail-page open, lazy-scan runs in background, badge populates next time the activity is refreshed.
+- Non-installed games → no badge (we have no install dir to scan).
+- Non-EOS Epic games → scan completes, flag stays false, no badge.
+- Tap on badge → no action (informational only, mirrors storage badge UX).
+
+---
+
 ### [pre] — v3.6.1-pre3 — EOS exchange-code auth + diagnostic logging (2026-05-05)
 **Branch:** `epic-eos`  |  **Tag:** `v3.6.1-pre3` on commit `dfc5c6f`  |  **CI:** [run 25389420156](https://github.com/The412Banner/BannerHub/actions/runs/25389420156) ✅  |  **Artifact:** `BannerHub-pre-v3.6.1-pre3` (135 MB)
 

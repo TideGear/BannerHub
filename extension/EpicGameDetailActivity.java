@@ -48,7 +48,7 @@ public class EpicGameDetailActivity extends Activity {
     private String appName, title, description, developer, artCover, namespace, catalogItemId;
 
     private Button launchBtn, installBtn, setExeBtn, uninstallBtn;
-    private TextView exeNameTV, installPathTV, storageTypeBadgeTV, sizeTV;
+    private TextView exeNameTV, installPathTV, storageTypeBadgeTV, sizeTV, eosBadgeTV;
     private View installPathRow;
     private ProgressBar progressBar;
     private TextView progressLabel;
@@ -114,6 +114,23 @@ public class EpicGameDetailActivity extends Activity {
         titleTV.setEllipsize(android.text.TextUtils.TruncateAt.END);
         header.addView(titleTV, new LinearLayout.LayoutParams(0, -2, 1f));
 
+        // EOS badge (visible only if BhEpicEosDetector flagged this game)
+        eosBadgeTV = new TextView(this);
+        eosBadgeTV.setText("EOS");
+        eosBadgeTV.setTextColor(0xFFFFFFFF);
+        eosBadgeTV.setTextSize(9f);
+        eosBadgeTV.setTypeface(null, Typeface.BOLD);
+        eosBadgeTV.setPadding(dp(6), dp(2), dp(6), dp(2));
+        android.graphics.drawable.GradientDrawable eosBg =
+                new android.graphics.drawable.GradientDrawable();
+        eosBg.setCornerRadius(dp(10));
+        eosBg.setColor(0xFF2962FF);
+        eosBadgeTV.setBackground(eosBg);
+        eosBadgeTV.setVisibility(View.GONE);
+        LinearLayout.LayoutParams eosLp = new LinearLayout.LayoutParams(-2, -2);
+        eosLp.rightMargin = dp(8);
+        header.addView(eosBadgeTV, eosLp);
+
         root.addView(header, new LinearLayout.LayoutParams(-1, -2));
 
         ScrollView scroll = new ScrollView(this);
@@ -155,6 +172,25 @@ public class EpicGameDetailActivity extends Activity {
 
         refreshActionState();
         loadInstallSize();
+        refreshEosBadge();
+    }
+
+    /**
+     * Show the blue "EOS" pill if the game has been detected as using Epic Online
+     * Services. Lazy-scans previously-installed games (pre-v3.6.1-pre4 installs)
+     * so upgraders don't have to reinstall to see the badge.
+     */
+    private void refreshEosBadge() {
+        if (eosBadgeTV == null || appName == null) return;
+        eosBadgeTV.setVisibility(BhEpicEosDetector.isEosCached(this, appName)
+                ? View.VISIBLE : View.GONE);
+        if (BhEpicEosDetector.hasBeenScanned(this, appName)) return;
+        String dir = prefs.getString("epic_dir_" + appName, null);
+        if (dir == null || dir.isEmpty()) return;
+        java.io.File installDir = new java.io.File(dir);
+        if (!installDir.isDirectory()) return;
+        BhEpicEosDetector.scanAsync(this, appName, installDir,
+                () -> uiHandler.post(this::refreshEosBadge));
     }
 
     @Override
