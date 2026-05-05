@@ -395,12 +395,74 @@ public class EpicGamesActivity extends Activity {
                 showGames(finalGames);
                 int fn = finalGames.size(); setSync(fn + (fn == 1 ? " game" : " games") + " — tap a card to install");
                 enableRefresh();
+                scanInstalledForEos();
             });
         } catch (Exception e) {
             Log.e(TAG, "syncLibrary error", e);
             setSync("Error: " + e.getMessage());
             enableRefresh();
         }
+    }
+
+    /**
+     * After a refresh, walk every installed Epic game (those with an {@code epic_dir_<appName>}
+     * pref) that hasn't been EOS-scanned yet and dispatch each through a fixed pool of 3
+     * background threads. As each scan completes, re-render the list so badges pop in
+     * live; show a pre/post toast to keep the user informed.
+     *
+     * Skip-already-scanned: idempotent — repeated refreshes only do work for newly
+     * installed games (or for games that haven't been scanned yet on upgraders).
+     */
+    private void scanInstalledForEos() {
+        android.content.SharedPreferences sp = getSharedPreferences("bh_epic_prefs", 0);
+        final List<String> appsToScan = new ArrayList<>();
+        for (Map.Entry<String, ?> e : sp.getAll().entrySet()) {
+            String key = e.getKey();
+            if (!key.startsWith("epic_dir_")) continue;
+            String app = key.substring("epic_dir_".length());
+            if (BhEpicEosDetector.hasBeenScanned(this, app)) continue;
+            Object v = e.getValue();
+            if (!(v instanceof String)) continue;
+            String dir = (String) v;
+            if (dir.isEmpty()) continue;
+            File installDir = new File(dir);
+            if (!installDir.isDirectory()) continue;
+            appsToScan.add(app);
+        }
+        if (appsToScan.isEmpty()) return; // silent no-op when nothing to do
+
+        final int total = appsToScan.size();
+        final java.util.concurrent.atomic.AtomicInteger done = new java.util.concurrent.atomic.AtomicInteger(0);
+        final java.util.concurrent.atomic.AtomicInteger found = new java.util.concurrent.atomic.AtomicInteger(0);
+
+        Toast.makeText(this,
+                "Scanning " + total + " " + (total == 1 ? "game" : "games") + " for EOS…",
+                Toast.LENGTH_SHORT).show();
+
+        final java.util.concurrent.ExecutorService pool =
+                java.util.concurrent.Executors.newFixedThreadPool(3);
+        for (final String app : appsToScan) {
+            String dir = sp.getString("epic_dir_" + app, "");
+            final File installDir = new File(dir);
+            pool.submit(() -> {
+                boolean usesEos = BhEpicEosDetector.scan(this, app, installDir);
+                if (usesEos) found.incrementAndGet();
+                int finished = done.incrementAndGet();
+                uiHandler.post(() -> {
+                    // Live update — badges appear as scans complete
+                    applyFilter(searchBar != null ? searchBar.getText().toString() : "");
+                    if (finished == total) {
+                        int m = found.get();
+                        Toast.makeText(this,
+                                "EOS scan: " + m + " of " + total
+                                        + (total == 1 ? " game uses" : " games use")
+                                        + " Epic Online Services",
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
+            });
+        }
+        pool.shutdown(); // accepts no more tasks; submitted ones complete normally
     }
 
     private void showGames(List<EpicGame> games) {
@@ -509,6 +571,24 @@ public class EpicGamesActivity extends Activity {
         collapsedCheckTV.setTypeface(null, Typeface.BOLD);
         collapsedCheckTV.setVisibility(isInstalled ? View.VISIBLE : View.GONE);
         titleRow.addView(collapsedCheckTV, new LinearLayout.LayoutParams(-2, -2));
+
+        // EOS badge — shown if the install has been detected as EOS-using
+        if (isInstalled && BhEpicEosDetector.isEosCached(this, game.appName)) {
+            TextView eosBadge = new TextView(this);
+            eosBadge.setText("EOS");
+            eosBadge.setTextColor(0xFFFFFFFF);
+            eosBadge.setTextSize(9f);
+            eosBadge.setTypeface(null, Typeface.BOLD);
+            eosBadge.setPadding(dp(6), dp(2), dp(6), dp(2));
+            android.graphics.drawable.GradientDrawable eosBg =
+                    new android.graphics.drawable.GradientDrawable();
+            eosBg.setCornerRadius(dp(10));
+            eosBg.setColor(0xFF2962FF);
+            eosBadge.setBackground(eosBg);
+            LinearLayout.LayoutParams eosLp = new LinearLayout.LayoutParams(-2, -2);
+            eosLp.leftMargin = dp(6);
+            titleRow.addView(eosBadge, eosLp);
+        }
 
         titleRow.addView(new View(this), new LinearLayout.LayoutParams(0, 0, 1f));
 

@@ -278,6 +278,10 @@ public class BhDownloadService extends Service {
                     .putString("epic_meta_catalog_" + appName, catalogId != null ? catalogId : "")
                     .putString("epic_meta_title_" + appName, gameName != null ? gameName : "")
                     .apply();
+
+            // Pre-fetch EOS deployment ID so the first launch has it cached. Fire-and-forget;
+            // BhEpicLaunchArgs falls back to launching without -epicdeploymentid if missing.
+            BhEpicSidecar.refreshAsync(this, namespace, catalogId, appName);
         }
 
         AtomicBoolean cancelled = new AtomicBoolean(false);
@@ -327,6 +331,9 @@ public class BhDownloadService extends Service {
                     AmazonLaunchHelper.scoreExe(b, lowerTitle) - AmazonLaunchHelper.scoreExe(a, lowerTitle));
             getSharedPreferences("bh_epic_prefs", 0)
                     .edit().putString("epic_exe_" + appName, exeFiles.get(0).getAbsolutePath()).apply();
+
+            // Detect EOS SDK presence so the library can show an "EOS" badge.
+            BhEpicEosDetector.scanAsync(this, appName, installDir, null);
 
             notifyComplete(gameId, installDir.getAbsolutePath());
 

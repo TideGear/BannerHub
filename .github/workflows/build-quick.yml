@@ -299,6 +299,57 @@ jobs:
           print("Settings Import/Export patch applied.")
           PYEOF
 
+      - name: Apply EOS launch-args smali patch
+        run: |
+          python3 << 'PYEOF'
+          import sys
+
+          def patch(path, old, new, label):
+              try:
+                  content = open(path, encoding='utf-8').read()
+              except UnicodeDecodeError:
+                  content = open(path, encoding='latin-1').read()
+              if old not in content:
+                  print(f"ERROR: anchor not found in {path} for: {label}")
+                  sys.exit(1)
+              open(path, 'w', encoding='utf-8').write(content.replace(old, new, 1))
+              print(f"OK: {label}")
+
+          # Two-part patch — see build.yml for full rationale.
+          # Part 1: bump .locals + stash original p1 into a fresh local
+          patch(
+              'apktool_out/smali_classes5/com/winemu/core/WineHelper$Companion.smali',
+              '.method public final b(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/util/List;\n'
+              '    .locals 4\n',
+              '.method public final b(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/util/List;\n'
+              '    .locals 5\n'
+              '\n'
+              '    # BannerHub Phase 1 EOS: stash original exePath into a fresh local; p1 gets\n'
+              '    # reassigned later in the method, but v4 stays a single-typed String reference.\n'
+              '    move-object/from16 v4, p1\n'
+              '\n',
+              'WineHelper$Companion.b(): bump .locals + save exePath to v4'
+          )
+          # Part 2: inject the maybeInject call using the saved v4
+          patch(
+              'apktool_out/smali_classes5/com/winemu/core/WineHelper$Companion.smali',
+              '    :cond_2\n'
+              '    :goto_1\n'
+              '    return-object p0\n'
+              '.end method\n',
+              '    :cond_2\n'
+              '    :goto_1\n'
+              '\n'
+              '    # BannerHub Phase 1 EOS: inject Epic launch args for Epic-installed games\n'
+              '    invoke-static {p0, v4}, Lapp/revanced/extension/gamehub/BhEpicLaunchArgs;->maybeInject(Ljava/util/List;Ljava/lang/String;)V\n'
+              '\n'
+              '    return-object p0\n'
+              '.end method\n',
+              'WineHelper$Companion.b(): append Epic launch args (using saved v4)'
+          )
+          print("EOS launch-args patch applied.")
+          PYEOF
+
       - name: Patch GameDetailActivity — finish after Beacon auto-launch
         run: |
           python3 << 'PYEOF'

@@ -4,6 +4,110 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [pre] — v3.6.1-pre5 — EOS bulk-scan on Epic refresh (2026-05-05)
+**Branch:** `epic-eos`  |  **Tag:** `v3.6.1-pre5` on commit `fa801f4`  |  **CI:** [run 25393695167](https://github.com/The412Banner/BannerHub/actions/runs/25393695167) ✅  |  **Artifact:** `BannerHub-pre-v3.6.1-pre5` (135 MB)
+
+#### Why
+pre4's lazy-on-detail-page-open scan covers individual games but doesn't bulk-migrate upgraders. Wiring the same scan into the existing Epic library refresh (↺) button gives users a single touchpoint that scans every installed Epic game in one shot, bulk-populating badges without a separate UI element.
+
+#### What changed
+- **`EpicGamesActivity.scanInstalledForEos()`** — called at the end of `syncLibrary()` after the tile list is rendered. Enumerates every `bh_epic_prefs.epic_dir_<appName>` whose dir exists and hasn't been scanned, dispatches each through a fixed pool of **3 simultaneous background threads** (gentle-on-storage default).
+- **Toast feedback:**
+  - **Start:** `Scanning N games for EOS…` (only if N > 0; silent no-op when nothing to scan).
+  - **Per-completion:** list re-renders live so badges pop in as scans finish, no whole-screen redraw.
+  - **End:** `EOS scan: M of N games use Epic Online Services` once the last scan completes.
+- **Skip-already-scanned:** `BhEpicEosDetector.hasBeenScanned` gates each game; repeated refreshes only do work for newly-installed or never-scanned games. Idempotent.
+
+---
+
+### [pre] — v3.6.1-pre4 — Blue "EOS" badge on Epic library + detail page (2026-05-05)
+**Branch:** `epic-eos`  |  **Tag:** `v3.6.1-pre4` on commit `641ad9f`  |  **CI:** [run 25392779521](https://github.com/The412Banner/BannerHub/actions/runs/25392779521) ✅  |  **Artifact:** `BannerHub-pre-v3.6.1-pre4` (135 MB)
+
+#### Why
+Now that BannerHub authenticates EOS-integrated Epic games (pre3), users want a way to see at a glance which games will use that integration. A small blue "EOS" pill — same visual style as the existing storage badge — communicates "this game uses Epic Online Services" without any explanation needed.
+
+#### What changed
+- **New `extension/BhEpicEosDetector.java`** — recursive scan of an installed game's directory for any of `EOSSDK-Win64-Shipping.dll`, `EOSSDK-Win32-Shipping.dll`, `EOSOVH-Win64-Shipping.dll`, `EOSBootstrapper.exe`. Result cached in `bh_epic_prefs` as `epic_uses_eos_<appName>` + `epic_eos_scanned_<appName>`. Bounded at 50,000 files to prevent giant-install stalls. Provides `scan` (sync), `scanAsync` (background thread), `scanIfNeeded` (only if never scanned), and `isEosCached` (read flag).
+- **`BhDownloadService.runEpic`** — fires `BhEpicEosDetector.scanAsync` after install completion. New installs get the flag automatically.
+- **`EpicGameDetailActivity`** — renders a blue (`0xFF2962FF`) "EOS" pill next to the title in the header when the cached flag is true. On `onCreate`, calls `refreshEosBadge()` which lazy-scans previously-installed games (pre-feature installs) so upgraders don't have to reinstall. Same badge style as the existing storage indicator: white bold `9f` text, padding `dp(6,2,6,2)`, corner radius `dp(10)`.
+- **`EpicGamesActivity`** — same blue pill rendered on each library tile when the cached flag is true and the game is installed.
+
+#### Behavior
+- New Epic installs → scan runs at install completion, badge shows immediately on first list refresh and detail-page open.
+- Pre-existing installs from older versions → on first detail-page open, lazy-scan runs in background, badge populates next time the activity is refreshed.
+- Non-installed games → no badge (we have no install dir to scan).
+- Non-EOS Epic games → scan completes, flag stays false, no badge.
+- Tap on badge → no action (informational only, mirrors storage badge UX).
+
+---
+
+### [pre] — v3.6.1-pre3 — EOS exchange-code auth + diagnostic logging (2026-05-05)
+**Branch:** `epic-eos`  |  **Tag:** `v3.6.1-pre3` on commit `dfc5c6f`  |  **CI:** [run 25389420156](https://github.com/The412Banner/BannerHub/actions/runs/25389420156) ✅  |  **Artifact:** `BannerHub-pre-v3.6.1-pre3` (135 MB)
+
+#### Why
+After pre2's verifier fix unblocked launches, Fall Guys (a real EOS-integrated game) loaded successfully but its in-game UI showed "Epic Games Account Error — No exchange code was found, please launch from the Epic Games Launcher." This is the canonical error when EOS-integrated games detect they were launched outside Epic's launcher: they expect a fresh, short-lived exchange code passed via `-AUTH_LOGIN/-AUTH_PASSWORD/-AUTH_TYPE` and refuse to authenticate without it. Pre1/pre2's args (`-EpicPortal`, `-epicusername`, `-epicuserid`, `-epicsandboxid`, `-epiclocale`, `-epicdeploymentid`) describe the session, but the AUTH triple proves the user is signed in.
+
+#### What changed
+- **New `BhEpicSidecar.fetchExchangeCodeSync(Context)`** — synchronous GET to `https://account-public-service-prod03.ol.epicgames.com/account/api/oauth/exchange` with the user's Epic bearer token. Parses the response's `code` field. Returns null on any failure (caller skips AUTH args). 8-second timeout. NOT cached — exchange codes expire ~5 minutes after issuance and must be fresh per launch.
+- **`BhEpicLaunchArgs.maybeInject` extended** — after the existing args, fetch a fresh exchange code and append `-AUTH_LOGIN=unused`, `-AUTH_PASSWORD=<code>`, `-AUTH_TYPE=exchangecode`. Log line now reports presence of both deploymentId and exchangeCode for diagnostic purposes.
+- **More diagnostic logging in `BhEpicLaunchArgs`** — entry log reports the incoming exePath; existing failure paths log warnings instead of silent no-op so we can verify the hook is firing.
+
+#### What this does NOT fix (yet)
+- Fall Guys's earlier "failed to initialize wine buffer helper" Wine-init crash — user worked around by switching to `RunFallGuys.exe` + older Turnip + DXVK 2.3.1-async. Game now reaches the in-game UI.
+- Mono / Gecko / mscoree.dll for .NET-based games — no container ships these. Will block other titles eventually but Fall Guys runs without them.
+
+---
+
+### [pre] — v3.6.1-pre2 — Fix verifier-rejection crash from pre1 (2026-05-05)
+**Branch:** `epic-eos`  |  **Tag:** `v3.6.1-pre2` on commit `8339d69`  |  **CI:** [run 25384496898](https://github.com/The412Banner/BannerHub/actions/runs/25384496898) ✅  |  **Artifact:** `BannerHub-pre-v3.6.1-pre2` (135 MB)
+
+#### What broke in pre1
+On-device test of pre1 with Brawlhalla + Fall Guys both crashed BannerHub. Logcat (captured via `getlog -b crash`) showed:
+```
+java.lang.VerifyError: Verifier rejected class com.winemu.core.WineHelper$Companion:
+[0x4C] register v5 has type Conflict but expected Reference: java.lang.String
+```
+The verifier rejected the patched method, crashing on **any** Wine launch — not just Epic. Steam/GOG/Amazon also broken in pre1.
+
+#### Root cause
+Inside `WineHelper$Companion.b()`, p1 (= v5 with `.locals 4`) gets reassigned twice during the method:
+1. With the String result of `WinUtils.a()` (DOS-form converted path)
+2. Later with the int return of `p2.length()` (when checking for non-empty args)
+
+Pre1's smali patch referenced `p1` at method end. ART's static verifier traces all code paths, and at the injection point can't prove a single type for v5 — so it flags "type Conflict" and refuses to load the class.
+
+#### Fix in pre2
+Two-part smali patch:
+1. **Bump `.locals 4` → `.locals 5`** at method entry, and **save the original `p1` to a fresh local `v4`**: `move-object/from16 v4, p1`. The new local is single-typed (only assigned once), so the verifier accepts it.
+2. **At method end, use `v4` instead of `p1`** in the `BhEpicLaunchArgs.maybeInject(...)` call.
+
+Verified safe before applying: no literal `v5+` register references exist within method `b()` body — only p-notation, which the smali assembler remaps automatically when locals changes.
+
+---
+
+### [pre] — v3.6.1-pre1 — Epic Online Services Phase 1 (online auth) (2026-05-05)
+**Branch:** `epic-eos`  |  **Tag:** `v3.6.1-pre1` on commit `248e5b0`  |  **CI:** run [25380834999](https://github.com/The412Banner/BannerHub/actions/runs/25380834999) ✅  |  **Build:** `build-quick.yml` (pre-release, artifact-only)  |  **Artifact:** `BannerHub-pre-v3.6.1-pre1` (135 MB), expires 2026-06-04
+
+#### Why
+EOS-integrated Epic games (multiplayer-enabled titles, *Deliver At All Costs*, etc.) couldn't authenticate to Epic Online Services because BannerHub's Epic install path passed zero Epic-specific args to Wine. Modern EOS games hard-require these args or fail with "Failed to connect to the Epic Launcher". This is Phase 1 of the EOS port from GameNative upstream commit `cbea7f7` — covers online auth basics (Phase 2 = in-game overlay, deferred).
+
+#### What changed
+- **New `extension/BhEpicLaunchArgs.java`** — called from a smali patch at the chokepoint of GameHub's Wine launch flow. Looks up whether the launching exePath belongs to an Epic install (via `bh_epic_prefs.epic_dir_*`), and if so appends `-EpicPortal`, `-epicusername=<displayName>`, `-epicuserid=<accountId>`, `-epicsandboxid=<namespace>`, `-epiclocale=en`, and `-epicdeploymentid=<id>` (when cached). Path normalization handles DOS-form paths produced by GameHub's exePath conversion before our hook runs.
+- **New `extension/BhEpicSidecar.java`** — Java port of upstream `EpicManager.fetchDeploymentId`. Calls Epic's manifest API (`launcher-public-service-prod06.ol.epicgames.com`), parses `elements[0].sidecar.config` (a JSON-encoded string) for `deploymentId`, caches in `bh_epic_prefs.epic_deployment_<appName>` with 30-day TTL. Both positive and negative results are cached.
+- **`BhDownloadService.runEpic`** — at install kickoff, fires `BhEpicSidecar.refreshAsync` so the deploymentId is cached BEFORE the user's first launch. Fire-and-forget; if it fails, first launch happens without the deploymentId (graceful degradation — many EOS games still work without it).
+- **Smali patch in `build.yml` + `build-quick.yml`** — injects `BhEpicLaunchArgs.maybeInject(p0, p1)` before `return-object p0` in `WineHelper$Companion.b()` (smali_classes5). This is the single chokepoint — every Wine launch (Steam, GOG, Epic, Amazon, Custom) flows through here, but our helper silently no-ops for non-Epic launches.
+
+#### Architecture rationale
+- **Why `WineHelper$Companion.b()` and not a different injection point?** It's the universal Wine-launch chokepoint, called once from `WineProgramLauncherKt.a()` which is called once from `ProgramController.smali:2401`. No alternative entry points exist in GameHub. Confirmed by greppable inspection of the unpacked GameHub APK smali tree.
+- **Why no per-game decision point?** GameHub treats GOG/Epic/Amazon games as "imported PC games" — no Epic awareness in the launcher. The exePath is the only signal we have to identify Epic launches at the chokepoint.
+- **Why fire-and-forget the sidecar fetch?** The chokepoint runs synchronously during Wine container start; doing a network call there would block the launch. The cache-warming happens at install time so first-launch reads are local.
+- **Why not implement Phase 2 (overlay) here?** Phase 2 needs a Wine prefix registry editor + overlay DLL distribution. ~250 LOC additional. Defer until Phase 1 device-tested.
+
+#### Pre-existing-installs limitation
+Epic games installed before v3.6.0 don't have the per-game metadata (`epic_meta_namespace_<appName>`, etc.) needed to construct launch args. They'll launch without EOS auth, exactly as before. The user can reinstall to get full EOS support.
+
+---
+
 ### [stable] — v3.6.0 — Storage decouple, CDN ranking, thread picker, downloads UX (2026-05-05)
 **Tag:** v3.6.0  |  **Build:** `build.yml` (stable, all 9 variants)  |  **Branch merged:** `fix/store-storage-bannerhub-only`
 
