@@ -4,6 +4,22 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [pre] — v3.6.1-pre5 — EOS bulk-scan on Epic refresh (2026-05-05)
+**Branch:** `epic-eos`  |  **Build:** `build-quick.yml` (pre-release, artifact-only)
+
+#### Why
+pre4's lazy-on-detail-page-open scan covers individual games but doesn't bulk-migrate upgraders. Wiring the same scan into the existing Epic library refresh (↺) button gives users a single touchpoint that scans every installed Epic game in one shot, bulk-populating badges without a separate UI element.
+
+#### What changed
+- **`EpicGamesActivity.scanInstalledForEos()`** — called at the end of `syncLibrary()` after the tile list is rendered. Enumerates every `bh_epic_prefs.epic_dir_<appName>` whose dir exists and hasn't been scanned, dispatches each through a fixed pool of **3 simultaneous background threads** (gentle-on-storage default).
+- **Toast feedback:**
+  - **Start:** `Scanning N games for EOS…` (only if N > 0; silent no-op when nothing to scan).
+  - **Per-completion:** list re-renders live so badges pop in as scans finish, no whole-screen redraw.
+  - **End:** `EOS scan: M of N games use Epic Online Services` once the last scan completes.
+- **Skip-already-scanned:** `BhEpicEosDetector.hasBeenScanned` gates each game; repeated refreshes only do work for newly-installed or never-scanned games. Idempotent.
+
+---
+
 ### [pre] — v3.6.1-pre4 — Blue "EOS" badge on Epic library + detail page (2026-05-05)
 **Branch:** `epic-eos`  |  **Tag:** `v3.6.1-pre4` on commit `641ad9f`  |  **CI:** [run 25392779521](https://github.com/The412Banner/BannerHub/actions/runs/25392779521) ✅  |  **Artifact:** `BannerHub-pre-v3.6.1-pre4` (135 MB)
 
