@@ -5,7 +5,7 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 ---
 
 ### [pre] — v3.5.1-pre4 — + Downloads-screen store badge during DL + tap-to-open (2026-05-05)
-**Branch:** `fix/store-storage-bannerhub-only`  |  **Build:** `build-quick.yml` (pre-release, artifact-only)
+**Branch:** `fix/store-storage-bannerhub-only`  |  **Tag:** `v3.5.1-pre4` on commit `83a91c3`  |  **CI:** run [25377085187](https://github.com/The412Banner/BannerHub/actions/runs/25377085187) ✅  |  **Build:** `build-quick.yml` (pre-release, artifact-only)  |  **Artifact:** `BannerHub-pre-v3.5.1-pre4` (135 MB), expires 2026-06-04
 
 #### Why
 1. Cards in the in-app downloads manager (`BhDownloadsActivity`) only showed a colored store badge AFTER a download completed. While downloading, you couldn't tell at a glance whether a card was GOG/Epic/Amazon. Now the badge appears as soon as the download starts.
