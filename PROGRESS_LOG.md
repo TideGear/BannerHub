@@ -4,13 +4,13 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
-### [pre] — v3.5.1-pre1 — Decouple SD-card toggle from Steam (2026-05-04)
+### [pre] — v3.5.1-pre1 — Decouple SD-card toggle from Steam + Epic CDN ranking (2026-05-04)
 **Branch:** `fix/store-storage-bannerhub-only`  |  **Build:** `build-quick.yml` (pre-release, artifact-only)
 
-#### Why
+#### Why (storage decouple)
 v3.5.0's "Save Store Games to External Storage (SD Card)" toggle wrote into GameHub's native `steam_storage_pref`, so flipping it also moved Steam game installs to SD. The toggle is supposed to control GOG/Epic/Amazon only.
 
-#### What changed
+#### What changed (storage decouple)
 - New BannerHub-only pref file `bh_storage_pref` (keys `bh_use_custom_storage`, `bh_storage_path`, `bh_storage_migration_dialog_shown`).
 - `extension/BhStorageHelper.java` — new helper handles toggle apply (writes to `bh_storage_pref`), SD detection (same `GHL/` folder convention as GameHub).
 - `extension/BhStorageMigration.java` — one-shot dialog on first store-activity launch after upgrade. If user had Steam-on-SD via the v3.5.0 toggle, offers "Switch Steam to internal" (clears `steam_storage_pref` keys) vs "Keep Steam on SD card". Always seeds `bh_storage_pref` from the legacy values first so existing GOG/Epic/Amazon installs stay reachable regardless of choice.
@@ -20,13 +20,25 @@ v3.5.0's "Save Store Games to External Storage (SD Card)" toggle wrote into Game
 - Game detail activities (GOG/Epic/Amazon) — storage badge reads from `bh_storage_pref`.
 - Migration hooked into `GogMainActivity`, `EpicMainActivity`, `AmazonMainActivity` `onCreate`.
 
-#### What is NOT changed
+#### What is NOT changed (storage decouple)
 - Toggle position, label, and confirmation-dialog wording untouched.
 - GameHub's native Steam-storage smali (in `apktool_out_base/`) untouched. Steam continues to read `steam_storage_pref`. After migration, Steam either stays on SD (user chose "Keep") or reverts to internal (user chose "Switch").
 - `isCustomStorageEnabled()` keeps reading `steam_storage_pref` so any GameHub-native Steam-side path resolution that uses it (`getAvailableStorage`, `getEffectiveStoragePath`) is unaffected.
 
 #### Tradeoff (accepted by user)
 The visible toggle is now BannerHub-only. There is no separate Steam SD-card toggle exposed in the UI, so users who want to put Steam on SD via this app cannot do so going forward (Steam stays internal or stays wherever it already is).
+
+#### Why (Epic CDN ranking)
+Epic's manifest API returns multiple CDN base URLs (Akamai, Fastly, Highwinds, etc.). The order isn't always optimized for the user's geo; the first-listed CDN can be much slower than alternates. Java port of upstream GameNative commit `e78d402`.
+
+#### What changed (Epic CDN ranking)
+- New `extension/CdnRankingUtils.java` (~155 LOC). Two entry points:
+  - `rankBaseUrlsByHeadProbe(List<String>, userAgent)` — generic, returns reordered list. Future-proof for GOG (currently single-CDN in BH) or other stores.
+  - `rankEpicCdnUrls(List<EpicDownloadManager.CdnUrl>, userAgent)` — Epic-specific, preserves CdnUrl identity (each entry carries its own cloudDir + authParams alongside baseUrl).
+- Probe sends a HEAD request with 4s connect/read timeout per URL. Probes run in parallel via a fixed thread pool sized to `min(urls.size(), 8)`. Successful probes (HTTP 2xx-4xx) are preferred; ties broken by elapsed time. Failed/timeout probes go to the bottom.
+- `EpicDownloadManager.Companion.parseManifestApiJson` now ranks CDNs once before downloading the manifest binary.
+- `EpicDownloadManager.install` now ranks CDNs once before chunk downloads start. Adds a debug log line documenting the post-ranking order.
+- Cloudflare-skip filter (`cloudflare.epicgamescdn.com`) preserved — those URLs are still excluded before ranking.
 
 ---
 

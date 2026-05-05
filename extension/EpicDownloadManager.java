@@ -128,6 +128,7 @@ public class EpicDownloadManager {
                     Log.e(TAG, "No CDN URLs in manifest API response");
                     return null;
                 }
+                cdnUrls = CdnRankingUtils.rankEpicCdnUrls(cdnUrls, UA);
 
                 byte[] manifestBytes = downloadManifest(manifestApiJson, cdnUrls);
                 if (manifestBytes == null || manifestBytes.length == 0) {
@@ -179,6 +180,8 @@ public class EpicDownloadManager {
                 Log.e(TAG, "No CDN URLs in manifest API response");
                 return false;
             }
+            cdnUrls = CdnRankingUtils.rankEpicCdnUrls(cdnUrls, UA);
+            dbg.append("CDN order after HEAD-probe ranking:\n");
             for (CdnUrl c : cdnUrls) {
                 dbg.append("CDN: ").append(c.baseUrl)
                    .append("  cloudDir=").append(c.cloudDir)
