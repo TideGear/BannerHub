@@ -81,6 +81,60 @@ public final class BhEpicSidecar {
     }
 
     /**
+     * Synchronously fetch a fresh Epic exchange code. Required by modern EOS-integrated
+     * games for authentication — passed as {@code -AUTH_PASSWORD=<code>} on the launch
+     * command. Codes expire in ~5 minutes; do NOT cache.
+     *
+     * Endpoint: GET https://account-public-service-prod03.ol.epicgames.com/account/api/oauth/exchange
+     * with {@code Authorization: bearer <accessToken>}.
+     * Response body: {@code {"expiresInSeconds":300,"code":"<exchange_code>","creatingClientId":"..."}}
+     *
+     * Returns the code on success, null on any failure (caller skips AUTH args).
+     */
+    public static String fetchExchangeCodeSync(Context ctx) {
+        String token = EpicCredentialStore.getValidAccessToken(ctx);
+        if (token == null) {
+            Log.w(TAG, "fetchExchangeCode: no Epic access token");
+            return null;
+        }
+        HttpURLConnection conn = null;
+        try {
+            String url = "https://account-public-service-prod03.ol.epicgames.com/account/api/oauth/exchange";
+            conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Authorization", "bearer " + token);
+            conn.setRequestProperty("User-Agent", UA);
+            conn.setConnectTimeout(8000);
+            conn.setReadTimeout(8000);
+
+            int code = conn.getResponseCode();
+            if (code < 200 || code >= 300) {
+                Log.w(TAG, "fetchExchangeCode: HTTP " + code);
+                return null;
+            }
+
+            StringBuilder body = new StringBuilder();
+            try (BufferedReader r = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+                String line;
+                while ((line = r.readLine()) != null) body.append(line);
+            }
+
+            String exchangeCode = new JSONObject(body.toString()).optString("code", "");
+            if (exchangeCode.isEmpty()) {
+                Log.w(TAG, "fetchExchangeCode: empty code in response");
+                return null;
+            }
+            Log.i(TAG, "fetchExchangeCode: OK (length=" + exchangeCode.length() + ")");
+            return exchangeCode;
+        } catch (Exception e) {
+            Log.w(TAG, "fetchExchangeCode failed", e);
+            return null;
+        } finally {
+            if (conn != null) try { conn.disconnect(); } catch (Exception ignored) {}
+        }
+    }
+
+    /**
      * Synchronous fetch from Epic's manifest API. Returns the deploymentId, or empty
      * string if the game has no sidecar. Returns null on transient/network failure
      * (caller can choose to retry).

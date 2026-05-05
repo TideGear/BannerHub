@@ -38,7 +38,11 @@ public final class BhEpicLaunchArgs {
     private BhEpicLaunchArgs() {}
 
     public static void maybeInject(List<String> args, String exePath) {
-        if (args == null || exePath == null || exePath.isEmpty()) return;
+        Log.i(TAG, "maybeInject called: exePath=" + (exePath == null ? "<null>" : exePath));
+        if (args == null || exePath == null || exePath.isEmpty()) {
+            Log.w(TAG, "maybeInject early-out: null/empty args or exePath");
+            return;
+        }
 
         try {
             Application app = currentApplication();
@@ -109,9 +113,22 @@ public final class BhEpicLaunchArgs {
                 args.add("-epicdeploymentid=" + sanitize(deploymentId));
             }
 
+            // Step 7: fetch a FRESH Epic exchange code and append the AUTH triple.
+            // Without this, modern EOS-integrated games show "No exchange code was
+            // found, please launch from the Epic Games Launcher". Synchronous fetch
+            // — codes expire in ~5min and must be fresh per launch.
+            String exchangeCode = BhEpicSidecar.fetchExchangeCodeSync(app);
+            if (exchangeCode != null && !exchangeCode.isEmpty()) {
+                args.add("-AUTH_LOGIN=unused");
+                args.add("-AUTH_PASSWORD=" + sanitize(exchangeCode));
+                args.add("-AUTH_TYPE=exchangecode");
+            }
+
             Log.i(TAG, "injected Epic launch args for " + matchedAppName
-                    + " (title=" + title + ", deploymentId="
-                    + (deploymentId.isEmpty() ? "<none-yet>" : deploymentId) + ")");
+                    + " (title=" + title
+                    + ", deploymentId=" + (deploymentId.isEmpty() ? "<none>" : deploymentId)
+                    + ", exchangeCode=" + (exchangeCode == null || exchangeCode.isEmpty() ? "<missing>" : "<present>")
+                    + ")");
         } catch (Throwable t) {
             // Defensive: never let a bug here break game launches.
             Log.w(TAG, "maybeInject failed", t);

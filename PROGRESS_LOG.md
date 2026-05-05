@@ -4,6 +4,23 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [pre] — v3.6.1-pre3 — EOS exchange-code auth + diagnostic logging (2026-05-05)
+**Branch:** `epic-eos`  |  **Build:** `build-quick.yml` (pre-release, artifact-only)
+
+#### Why
+After pre2's verifier fix unblocked launches, Fall Guys (a real EOS-integrated game) loaded successfully but its in-game UI showed "Epic Games Account Error — No exchange code was found, please launch from the Epic Games Launcher." This is the canonical error when EOS-integrated games detect they were launched outside Epic's launcher: they expect a fresh, short-lived exchange code passed via `-AUTH_LOGIN/-AUTH_PASSWORD/-AUTH_TYPE` and refuse to authenticate without it. Pre1/pre2's args (`-EpicPortal`, `-epicusername`, `-epicuserid`, `-epicsandboxid`, `-epiclocale`, `-epicdeploymentid`) describe the session, but the AUTH triple proves the user is signed in.
+
+#### What changed
+- **New `BhEpicSidecar.fetchExchangeCodeSync(Context)`** — synchronous GET to `https://account-public-service-prod03.ol.epicgames.com/account/api/oauth/exchange` with the user's Epic bearer token. Parses the response's `code` field. Returns null on any failure (caller skips AUTH args). 8-second timeout. NOT cached — exchange codes expire ~5 minutes after issuance and must be fresh per launch.
+- **`BhEpicLaunchArgs.maybeInject` extended** — after the existing args, fetch a fresh exchange code and append `-AUTH_LOGIN=unused`, `-AUTH_PASSWORD=<code>`, `-AUTH_TYPE=exchangecode`. Log line now reports presence of both deploymentId and exchangeCode for diagnostic purposes.
+- **More diagnostic logging in `BhEpicLaunchArgs`** — entry log reports the incoming exePath; existing failure paths log warnings instead of silent no-op so we can verify the hook is firing.
+
+#### What this does NOT fix (yet)
+- Fall Guys's earlier "failed to initialize wine buffer helper" Wine-init crash — user worked around by switching to `RunFallGuys.exe` + older Turnip + DXVK 2.3.1-async. Game now reaches the in-game UI.
+- Mono / Gecko / mscoree.dll for .NET-based games — no container ships these. Will block other titles eventually but Fall Guys runs without them.
+
+---
+
 ### [pre] — v3.6.1-pre2 — Fix verifier-rejection crash from pre1 (2026-05-05)
 **Branch:** `epic-eos`  |  **Tag:** `v3.6.1-pre2` on commit `8339d69`  |  **CI:** [run 25384496898](https://github.com/The412Banner/BannerHub/actions/runs/25384496898) ✅  |  **Artifact:** `BannerHub-pre-v3.6.1-pre2` (135 MB)
 
