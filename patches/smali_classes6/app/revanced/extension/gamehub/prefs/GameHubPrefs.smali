@@ -1054,7 +1054,7 @@
     if-ne p0, v0, :cond_0
 
     .line 164
-    invoke-static {}, Lapp/revanced/extension/gamehub/prefs/GameHubPrefs;->isCustomStorageEnabled()Z
+    invoke-static {}, Lapp/revanced/extension/gamehub/prefs/GameHubPrefs;->isBhCustomStorageEnabled()Z
 
     move-result p0
 
@@ -1129,6 +1129,86 @@
     move-result-object v0
 
     return-object v0
+.end method
+
+# BannerHub-only storage state reader. Drives the visible toggle's on/off display
+# (getInitialSwitchValue + isSettingEnabled at id 0x18). Decoupled from Steam's
+# native isCustomStorageEnabled (which keeps reading steam_storage_pref).
+#
+# On first read after upgrade from <= v3.5.0, bh_storage_pref is empty. To avoid
+# a visible "toggle reset to OFF" glitch, seed it from steam_storage_pref the same
+# way BhStoragePath / BhStorageMigration do. After this seed, all reads return the
+# BannerHub-owned value.
+.method public static isBhCustomStorageEnabled()Z
+    .locals 5
+
+    invoke-static {}, Lcom/blankj/utilcode/util/Utils;->a()Landroid/app/Application;
+
+    move-result-object v0
+
+    const-string v1, "bh_storage_pref"
+
+    const/4 v2, 0x0
+
+    invoke-virtual {v0, v1, v2}, Landroid/app/Application;->getSharedPreferences(Ljava/lang/String;I)Landroid/content/SharedPreferences;
+
+    move-result-object v1
+
+    const-string v3, "bh_use_custom_storage"
+
+    invoke-interface {v1, v3}, Landroid/content/SharedPreferences;->contains(Ljava/lang/String;)Z
+
+    move-result v4
+
+    if-eqz v4, :cond_seed
+
+    invoke-interface {v1, v3, v2}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
+
+    move-result v0
+
+    return v0
+
+    :cond_seed
+    # Seed from legacy steam_storage_pref
+    const-string v3, "steam_storage_pref"
+
+    invoke-virtual {v0, v3, v2}, Landroid/app/Application;->getSharedPreferences(Ljava/lang/String;I)Landroid/content/SharedPreferences;
+
+    move-result-object v0
+
+    const-string v3, "use_custom_storage"
+
+    invoke-interface {v0, v3, v2}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
+
+    move-result v3
+
+    const-string v4, "steam_storage_path"
+
+    const-string v2, ""
+
+    invoke-interface {v0, v4, v2}, Landroid/content/SharedPreferences;->getString(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v0
+
+    invoke-interface {v1}, Landroid/content/SharedPreferences;->edit()Landroid/content/SharedPreferences$Editor;
+
+    move-result-object v1
+
+    const-string v2, "bh_use_custom_storage"
+
+    invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences$Editor;->putBoolean(Ljava/lang/String;Z)Landroid/content/SharedPreferences$Editor;
+
+    move-result-object v1
+
+    const-string v2, "bh_storage_path"
+
+    invoke-interface {v1, v2, v0}, Landroid/content/SharedPreferences$Editor;->putString(Ljava/lang/String;Ljava/lang/String;)Landroid/content/SharedPreferences$Editor;
+
+    move-result-object v0
+
+    invoke-interface {v0}, Landroid/content/SharedPreferences$Editor;->apply()V
+
+    return v3
 .end method
 
 .method public static handleSettingToggle(IZ)Z
@@ -1601,7 +1681,7 @@
     if-ne p0, v0, :cond_0
 
     .line 146
-    invoke-static {}, Lapp/revanced/extension/gamehub/prefs/GameHubPrefs;->isCustomStorageEnabled()Z
+    invoke-static {}, Lapp/revanced/extension/gamehub/prefs/GameHubPrefs;->isBhCustomStorageEnabled()Z
 
     move-result p0
 

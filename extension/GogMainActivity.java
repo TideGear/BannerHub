@@ -45,6 +45,8 @@ public class GogMainActivity extends Activity {
 
         setContentView(root);
         refreshView();
+
+        BhStorageMigration.maybeShowDialog(this);
     }
 
     @Override

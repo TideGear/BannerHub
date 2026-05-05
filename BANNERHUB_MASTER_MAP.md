@@ -741,16 +741,21 @@ Steam CDN helpers and URL builders.
 
 ### Storage Path Resolution (`BhStoragePath`)
 
-```
-SharedPreferences "steam_storage_pref":
-  "use_custom_storage" (boolean, default false)
-  "steam_storage_path" (string, custom root)
+> **v3.5.1-pre1:** Storage decoupled from Steam. `BhStoragePath` now reads `bh_storage_pref` (BannerHub-only). `steam_storage_pref` is still GameHub's native Steam-storage pref and unaffected by the BannerHub toggle.
 
-If use_custom_storage=true && steam_storage_path set:
-  base = <custom_path>/bannerhub/<store_dir>/
+```
+SharedPreferences "bh_storage_pref":  (v3.5.1+, BannerHub-only)
+  "bh_use_custom_storage" (boolean, default false)
+  "bh_storage_path" (string, custom root)
+  "bh_storage_migration_dialog_shown" (boolean, one-shot flag)
+
+If bh_use_custom_storage=true && bh_storage_path set:
+  base = <bh_storage_path>/bannerhub/<store_dir>/
 Else:
   base = context.getFilesDir()/<store_dir>/
 ```
+
+**Migration:** on first read of `bh_storage_pref` after upgrade from <= v3.5.0 (when `bh_use_custom_storage` is unset), the values are seeded from the legacy `steam_storage_pref` keys (`use_custom_storage`, `steam_storage_path`) so existing GOG/Epic/Amazon installs keep resolving to the same path. Seed sites: `BhStoragePath.getStoreBase`, `BhStorageMigration.maybeShowDialog`, `GameHubPrefs.isBhCustomStorageEnabled` (smali). All idempotent.
 
 **Store directories:**
 - GOG: `gog_games/<game_title>/`
@@ -764,7 +769,8 @@ Else:
 
 | Prefs Name | Owner | Key Contents |
 |---|---|---|
-| `"steam_storage_pref"` | GameHubPrefs / BhStoragePath | `api_source`, `last_api_source`, `use_custom_storage`, `steam_storage_path`, `use_external_api`, `cpu_usage_display`, `perf_metrics_display`, `log_all_requests` |
+| `"steam_storage_pref"` | GameHubPrefs (Steam-side + non-storage settings) | `api_source`, `last_api_source`, `use_custom_storage`, `steam_storage_path`, `use_external_api`, `cpu_usage_display`, `perf_metrics_display`, `log_all_requests` — v3.5.1+: storage keys (`use_custom_storage`, `steam_storage_path`) only used by GameHub's native Steam code; BannerHub stores no longer read/write them |
+| `"bh_storage_pref"` (v3.5.1+) | BhStoragePath / BhStorageHelper / BhStorageMigration | `bh_use_custom_storage`, `bh_storage_path`, `bh_storage_migration_dialog_shown` — drives the BannerHub-renamed SD-card toggle and GOG/Epic/Amazon install paths |
 | `"token_provider_pref"` | TokenProvider | `cached_token`, `cached_token_expiry` |
 | `"bh_epic_prefs"` | EpicCredentialStore | `access_token`, `refresh_token`, `account_id`, `display_name`, `expires_at` |
 | `"bh_gog_prefs"` | GogMainActivity / GogLaunchHelper | `access_token`, `refresh_token`, `pending_gog_exe` |
@@ -1414,7 +1420,7 @@ This is a Kotlin `object` (singleton) — `INSTANCE` is the companion object fie
 | GOG launch method | `GogLaunchHelper.checkPendingLaunch()` → `activity.B3(exe)` via reflection | If host renames `B3`, this breaks silently — add fallback method name list |
 | Component injection | `ComponentInjectorHelper.appendLocalComponents(list, type)` — type 32 = graphics drivers | Add new type IDs here to expose new component categories |
 | WCP extractor | `ComponentInjectorHelper.extractWcp()` — skips `profile.json` | Insert custom post-extraction hook here for asset patching |
-| Storage override | `BhStoragePath.getStoreBase()` — check `"use_custom_storage"` key | SD card path injection point |
+| Storage override | `BhStoragePath.getStoreBase()` — check `"bh_use_custom_storage"` key in `bh_storage_pref` (v3.5.1+) | SD card path injection point — BannerHub-only, no longer touches Steam |
 | BH version string | `BhSettingsExporter.BH_VERSION = "3.5.0"` | Bump on version increments |
 | Config worker URL | `BhSettingsExporter.WORKER_BASE` | Replace for custom config backend |
 
@@ -1556,13 +1562,15 @@ Triggered on API source switch to prevent stale data from old API bleeding into 
 
 ## 42. BhStoragePath — Full Path Resolution Logic
 
-**Prefs name:** `steam_storage_pref`
-- `use_custom_storage` (boolean)
-- `steam_storage_path` (String — custom root path)
+**Prefs name (v3.5.1+):** `bh_storage_pref`
+- `bh_use_custom_storage` (boolean)
+- `bh_storage_path` (String — custom root path)
+
+(Pre-v3.5.1 used GameHub's native `steam_storage_pref` keys `use_custom_storage` and `steam_storage_path`, which had the side effect of moving Steam games too.)
 
 **Path formula:**
-- If `use_custom_storage` = false: `filesDir/<storeDir>/<gameName>`
-- If `use_custom_storage` = true: `<custom_path>/bannerhub/<storeDir>/<gameName>`
+- If `bh_use_custom_storage` = false: `filesDir/<storeDir>/<gameName>`
+- If `bh_use_custom_storage` = true: `<bh_storage_path>/bannerhub/<storeDir>/<gameName>`
 
 **Known storeDir values:**
 - `gog_games` — GOG game installs (via `GogInstallPath.getInstallDir()`)
@@ -2439,17 +2447,23 @@ Connection: keep-alive
 ## Section 75: BhStoragePath — Storage Routing
 
 **File:** `app/revanced/extension/gamehub/BhStoragePath.java`
-**SharedPrefs:** `steam_storage_pref`
-- `use_custom_storage` (bool) — whether SD card mode is active
-- `steam_storage_path` (String) — custom storage root path
+**SharedPrefs (v3.5.1+):** `bh_storage_pref`
+- `bh_use_custom_storage` (bool) — whether SD card mode is active
+- `bh_storage_path` (String) — custom storage root path
+
+**Companions:**
+- `BhStorageHelper` — handles toggle apply (writes `bh_storage_pref`) + SD detection (`GHL/` folder convention).
+- `BhStorageMigration` — one-shot dialog on store-activity launch after upgrade from <= v3.5.0.
 
 **Routing logic:**
 ```
-if (use_custom_storage && steam_storage_path != null):
-    base = <steam_storage_path>/bannerhub/<storeName>/
+if (bh_use_custom_storage && bh_storage_path is set):
+    base = <bh_storage_path>/bannerhub/<storeName>/
 else:
     base = filesDir/<storeName>/
 ```
+
+Steam's storage decisions are made by GameHub's native code reading `steam_storage_pref` separately.
 
 **Store names:** `"gog_games"` (GOG), `"epic_games"` (Epic), `"Amazon"` (Amazon)
 

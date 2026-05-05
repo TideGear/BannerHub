@@ -42,6 +42,8 @@ public class AmazonMainActivity extends Activity {
 
         setContentView(root);
         refreshView();
+
+        BhStorageMigration.maybeShowDialog(this);
     }
 
     @Override

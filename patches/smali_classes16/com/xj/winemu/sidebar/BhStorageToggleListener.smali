@@ -3,7 +3,10 @@
 .source "SourceFile"
 
 # Confirm or cancel listener for the SD card storage toggle dialog.
-# confirm=true  → apply the toggle via handleSettingToggle(0x18, newValue) and update switch
+# confirm=true  → apply via BhStorageHelper.applyToggle(ctx, newValue). Writes
+#                 BannerHub-only bh_storage_pref keys; never touches GameHub's
+#                 steam_storage_pref, so Steam stays on whatever GameHub had
+#                 set (v3.5.1+).
 # confirm=false → revert switch to old state (XOR newValue)
 
 .implements Landroid/content/DialogInterface$OnClickListener;
@@ -32,9 +35,10 @@
 
     if-eqz v2, :cond_cancel
 
-    # Confirm: apply the toggle, get actual result (handles SD card not found)
-    const/16 v3, 0x18
-    invoke-static {v3, v1}, Lapp/revanced/extension/gamehub/prefs/GameHubPrefs;->handleSettingToggle(IZ)Z
+    # Confirm: apply via BannerHub-only helper (handles SD card not found via toast)
+    invoke-virtual {v0}, Lcom/xj/common/view/CommFocusSwitchBtn;->getContext()Landroid/content/Context;
+    move-result-object v3
+    invoke-static {v3, v1}, Lapp/revanced/extension/gamehub/BhStorageHelper;->applyToggle(Landroid/content/Context;Z)Z
     move-result v1
 
     # Update switch to actual result with animation

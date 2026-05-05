@@ -508,8 +508,8 @@ public class GogGameDetailActivity extends Activity {
     private void updateStorageBadge(String dir) {
         if (installPathRow == null) return;
         installPathTV.setText("Path: " + dir);
-        SharedPreferences sp = getSharedPreferences("steam_storage_pref", 0);
-        String sdPath = sp.getString("steam_storage_path", null);
+        SharedPreferences sp = getSharedPreferences(BhStorageHelper.PREFS, 0);
+        String sdPath = sp.getString(BhStorageHelper.KEY_PATH, null);
         boolean isSD = sdPath != null && !sdPath.isEmpty() && dir.startsWith(sdPath);
         GradientDrawable badge = new GradientDrawable();
         badge.setCornerRadius(dp(10));

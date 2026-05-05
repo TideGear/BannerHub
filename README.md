@@ -324,7 +324,7 @@ All downloads are handled by **BhDownloadService**, an Android foreground servic
 
 ### External Storage — SD Card
 
-A **"Save Store Games to External Storage (SD Card)"** toggle in the BannerHub side menu settings controls where GOG, Epic, and Amazon game downloads are saved.
+A **"Save Store Games to External Storage (SD Card)"** toggle in the BannerHub side menu settings controls where GOG, Epic, and Amazon game downloads are saved. **Steam games are unaffected** — this toggle only governs the BannerHub-added stores.
 
 - **Toggle OFF (default):** games install to internal app storage at `Android/data/<package>/files/{store}/{game}/`
 - **Toggle ON:** games install to your SD card at `{SD card}/bannerhub/{store}/{game}/` — visible as a `bannerhub/` folder at the root of the SD card with subfolders per store (`gog_games/`, `epic_games/`, `Amazon/`)
@@ -332,6 +332,8 @@ A **"Save Store Games to External Storage (SD Card)"** toggle in the BannerHub s
 **Turning the toggle on or off shows a confirmation dialog** explaining what will change before anything is applied. Pressing Cancel reverts the switch without making any change.
 
 **Install location is locked at install time.** The full absolute path is saved to SharedPreferences the moment a game finishes installing. All uninstall paths (game list, detail page, download manager) read and delete from that stored path directly — the toggle state at uninstall time is irrelevant. Installing with the toggle on, flipping it off, then uninstalling will still correctly remove the game from the SD card.
+
+> **Upgrading from v3.5.0?** That release accidentally moved Steam games to SD card alongside GOG/Epic/Amazon when the toggle was on. The first time you open a GOG/Epic/Amazon library after upgrading, BannerHub will offer a one-time prompt to switch Steam back to internal storage. From v3.5.1 onward this toggle is BannerHub-only and never touches Steam.
 
 **Install path display:** each game's detail page shows the full install path in the ACTIONS card when the game is installed, alongside a colored badge indicating the storage location:
 - **💾 SD Card** — green pill, game is on the SD card
@@ -698,7 +700,7 @@ Yes. BannerHub supports Gen 1 downloads via the legacy byte-range download pipel
 
 **Q: Where are GOG / Amazon / Epic games installed?**
 
-By default, inside the app's private storage: `Android/data/<package>/files/gog_games/<name>/`, `amazon_games/<name>/`, or `epic_games/<name>/` respectively. If the **Save Store Games to External Storage (SD Card)** toggle is enabled in the side menu settings, games install to `{SD card}/bannerhub/{store}/{game}/` instead. The install path is shown on each game's detail page with a badge indicating whether it is on SD card or internal storage. GOG games have a **Copy to Downloads** button in the detail dialog to copy files to `Downloads/<name>/` for access from any file manager.
+By default, inside the app's private storage: `Android/data/<package>/files/gog_games/<name>/`, `amazon_games/<name>/`, or `epic_games/<name>/` respectively. If the **Save Store Games to External Storage (SD Card)** toggle is enabled in the side menu settings, games install to `{SD card}/bannerhub/{store}/{game}/` instead. The toggle only affects these BannerHub stores — Steam games are managed independently. The install path is shown on each game's detail page with a badge indicating whether it is on SD card or internal storage. GOG games have a **Copy to Downloads** button in the detail dialog to copy files to `Downloads/<name>/` for access from any file manager.
 
 **Q: Does Amazon login work with two-factor authentication (OTP)?**
 
