@@ -599,7 +599,7 @@ public class AmazonGamesActivity extends Activity {
                 return;
             }
 
-            showInstallConfirm(game, () -> {
+            showInstallConfirm(game, threadCount -> {
                 cancelRef[0] = null;
                 actionBtn.setEnabled(true);
                 actionBtn.setText("Cancel");
@@ -658,7 +658,7 @@ public class AmazonGamesActivity extends Activity {
                                                       java.util.function.Consumer<String> onSelected) {
                         showExePicker(candidates, onSelected);
                     }
-                });
+                }, threadCount);
             });
         });
 
@@ -819,7 +819,7 @@ public class AmazonGamesActivity extends Activity {
                 if (exe != null) pendingLaunchExe(exe);
                 return;
             }
-            showInstallConfirm(game, () -> {
+            showInstallConfirm(game, threadCount -> {
                 cancelRef[0] = null;
                 actionBtn.setEnabled(true);
                 actionBtn.setText("Cancel");
@@ -866,7 +866,7 @@ public class AmazonGamesActivity extends Activity {
                                                       java.util.function.Consumer<String> onSelected) {
                         showExePicker(candidates, onSelected);
                     }
-                });
+                }, threadCount);
             });
         });
 
@@ -901,6 +901,10 @@ public class AmazonGamesActivity extends Activity {
     // ── Service-backed download (routes through BhDownloadService) ───────────
 
     private Runnable startViaServiceAmazon(AmazonGame game, DownloadCallback cb) {
+        return startViaServiceAmazon(game, cb, BhDownloadConfig.DEFAULT_THREADS);
+    }
+
+    private Runnable startViaServiceAmazon(AmazonGame game, DownloadCallback cb, int threadCount) {
         String dlKey = "amazon_" + game.productId;
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
                 checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -912,6 +916,7 @@ public class AmazonGamesActivity extends Activity {
         svc.putExtra(BhDownloadService.EXTRA_STORE, "AMAZON");
         svc.putExtra(BhDownloadService.EXTRA_GAME_ID, dlKey);
         svc.putExtra(BhDownloadService.EXTRA_GAME_NAME, game.title);
+        svc.putExtra(BhDownloadService.EXTRA_THREADS, threadCount);
         svc.putExtra(BhDownloadService.EXTRA_AMAZON_PRODUCT_ID, game.productId);
         svc.putExtra(BhDownloadService.EXTRA_AMAZON_ENT_ID, game.entitlementId);
         svc.putExtra(BhDownloadService.EXTRA_AMAZON_SKU, game.productSku);
@@ -1010,83 +1015,33 @@ public class AmazonGamesActivity extends Activity {
 
     // ── Dialogs ───────────────────────────────────────────────────────────────
 
-    private void showInstallConfirm(AmazonGame game, Runnable onConfirm) {
-        long freeBytes = -1;
-        try {
-            File base = BhStoragePath.getInstallDir(this, "Amazon", "_check");
-            File parent = base.getParentFile();
-            if (parent != null) parent.mkdirs();
-            android.os.StatFs sf = new android.os.StatFs(
-                    parent != null ? parent.getAbsolutePath()
-                            : getCacheDir().getAbsolutePath());
-            freeBytes = sf.getAvailableBlocksLong() * sf.getBlockSizeLong();
-        } catch (Exception ignored) {}
-
-        final long freeBytesF = freeBytes;
-
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(20), dp(8), dp(20), dp(8));
-
-        TextView sizeTV = new TextView(this);
-        sizeTV.setText("Game size:  Fetching…");
-        sizeTV.setTextColor(0xFFCCCCCC);
-        sizeTV.setTextSize(14f);
-        content.addView(sizeTV);
-
-        TextView freeTV = new TextView(this);
-        freeTV.setText("Available storage:  " + formatBytes(freeBytesF));
-        freeTV.setTextColor(0xFF88CC88);
-        freeTV.setTextSize(14f);
-        content.addView(freeTV);
-
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Install " + game.title + "?")
-                .setView(content)
-                .setPositiveButton("Install", null)
-                .setNegativeButton("Cancel", null)
-                .create();
-        dialog.show();
-
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            dialog.dismiss();
-            onConfirm.run();
-        });
-
-        // Fetch game size in background and update label
-        if (game.installSize > 0) {
-            sizeTV.setText("Game size:  " + formatBytes(game.installSize));
-        } else {
-            new Thread(() -> {
-                long size = 0;
-                try {
-                    String token = AmazonCredentialStore.getValidAccessToken(this);
-                    if (token != null) {
-                        AmazonApiClient.GameDownloadSpec spec =
-                                AmazonApiClient.getGameDownload(token, game.entitlementId);
-                        if (spec != null && !spec.downloadUrl.isEmpty()) {
-                            String manifestUrl = AmazonApiClient.appendPath(
-                                    spec.downloadUrl, "manifest.proto");
-                            byte[] manifestBytes = AmazonApiClient.getBytes(
-                                    manifestUrl, token);
-                            if (manifestBytes != null) {
-                                AmazonManifest.ParsedManifest manifest =
-                                        AmazonManifest.parse(manifestBytes);
-                                size = manifest.totalInstallSize;
-                                game.installSize = size;
+    private void showInstallConfirm(AmazonGame game, BhInstallConfirmDialog.Callback callback) {
+        BhInstallConfirmDialog.showAsync(this, game.title, "Amazon", callback,
+                game.installSize > 0 ? game.installSize : 0L,
+                game.installSize > 0 ? null : sizeCallback -> new Thread(() -> {
+                    long size = 0;
+                    try {
+                        String token = AmazonCredentialStore.getValidAccessToken(this);
+                        if (token != null) {
+                            AmazonApiClient.GameDownloadSpec spec =
+                                    AmazonApiClient.getGameDownload(token, game.entitlementId);
+                            if (spec != null && !spec.downloadUrl.isEmpty()) {
+                                String manifestUrl = AmazonApiClient.appendPath(
+                                        spec.downloadUrl, "manifest.proto");
+                                byte[] manifestBytes = AmazonApiClient.getBytes(
+                                        manifestUrl, token);
+                                if (manifestBytes != null) {
+                                    AmazonManifest.ParsedManifest manifest =
+                                            AmazonManifest.parse(manifestBytes);
+                                    size = manifest.totalInstallSize;
+                                    game.installSize = size;
+                                }
                             }
                         }
-                    }
-                } catch (Exception ignored) {}
-                final long finalSize = size;
-                uiHandler.post(() -> {
-                    if (dialog.isShowing()) {
-                        sizeTV.setText("Game size:  "
-                                + (finalSize > 0 ? formatBytes(finalSize) : "Unknown"));
-                    }
-                });
-            }, "amazon-size-" + game.productId).start();
-        }
+                    } catch (Exception ignored) {}
+                    final long finalSize = size;
+                    uiHandler.post(() -> sizeCallback.onSize(finalSize));
+                }, "amazon-size-" + game.productId).start());
     }
 
     // ── Full-screen detail ────────────────────────────────────────────────────

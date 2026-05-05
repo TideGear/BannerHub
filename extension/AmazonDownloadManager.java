@@ -80,6 +80,18 @@ public class AmazonDownloadManager {
                                    File installDir,
                                    ProgressCallback progress,
                                    CancelChecker cancel) {
+        return install(ctx, game, accessToken, installDir, progress, cancel,
+                BhDownloadConfig.DEFAULT_THREADS);
+    }
+
+    public static boolean install(Context ctx,
+                                   AmazonGame game,
+                                   String accessToken,
+                                   File installDir,
+                                   ProgressCallback progress,
+                                   CancelChecker cancel,
+                                   int threadCount) {
+        final int threads = BhDownloadConfig.clamp(threadCount);
         StringBuilder dbg = new StringBuilder();
         dbg.append("=== BH Amazon Debug === game=").append(game.productId)
            .append(" title=").append(game.title).append("\n");
@@ -147,7 +159,8 @@ public class AmazonDownloadManager {
             java.util.concurrent.ConcurrentLinkedQueue<String> fileLog =
                     new java.util.concurrent.ConcurrentLinkedQueue<>();
 
-            ExecutorService pool = Executors.newFixedThreadPool(MAX_PARALLEL);
+            dbg.append("chunk parallelism: ").append(threads).append(" threads\n");
+            ExecutorService pool = Executors.newFixedThreadPool(threads);
             List<Future<Boolean>> futures = new ArrayList<>();
             for (AmazonManifest.ManifestFile file : files) {
                 final String dlUrl = spec.downloadUrl;

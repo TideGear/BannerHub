@@ -742,7 +742,7 @@ public class GogGamesActivity extends Activity {
                 if (exePath != null) GogLaunchHelper.triggerLaunch(this, exePath);
                 return;
             }
-            showInstallConfirm(game, () -> {
+            showInstallConfirm(game, threadCount -> {
                 cancelRef1[0] = null;
                 actionBtn.setEnabled(true);
                 actionBtn.setText("Cancel");
@@ -801,7 +801,7 @@ public class GogGamesActivity extends Activity {
                                                        java.util.function.Consumer<String> onSelected) {
                         showExePicker(candidates, onSelected);
                     }
-                });
+                }, threadCount);
             });
         });
 
@@ -1004,7 +1004,7 @@ public class GogGamesActivity extends Activity {
                 if (exe != null) GogLaunchHelper.triggerLaunch(this, exe);
                 return;
             }
-            showInstallConfirm(game, () -> {
+            showInstallConfirm(game, threadCount -> {
                 cancelRef2[0] = null;
                 actionBtn.setEnabled(true);
                 actionBtn.setText("Cancel");
@@ -1053,7 +1053,7 @@ public class GogGamesActivity extends Activity {
                                                        java.util.function.Consumer<String> onSelected) {
                         showExePicker(candidates, onSelected);
                     }
-                });
+                }, threadCount);
             });
         });
 
@@ -1183,7 +1183,7 @@ public class GogGamesActivity extends Activity {
                     if (cancelRef3[0] != null) cancelRef3[0].run();
                     return;
                 }
-                showInstallConfirm(game, () -> {
+                showInstallConfirm(game, threadCount -> {
                 cancelRef3[0] = null;
                 customInstall.setEnabled(true);
                 customInstall.setText("Cancel");
@@ -1245,7 +1245,7 @@ public class GogGamesActivity extends Activity {
                                                        java.util.function.Consumer<String> onSelected) {
                         showExePicker(candidates, onSelected);
                     }
-                });
+                }, threadCount);
                 }); // end showInstallConfirm
             });
             return; // dialog already shown above
@@ -1257,6 +1257,10 @@ public class GogGamesActivity extends Activity {
     // ── Service-backed download (routes through BhDownloadService) ───────────
 
     private Runnable startViaServiceGog(GogGame game, GogDownloadManager.Callback cb) {
+        return startViaServiceGog(game, cb, BhDownloadConfig.DEFAULT_THREADS);
+    }
+
+    private Runnable startViaServiceGog(GogGame game, GogDownloadManager.Callback cb, int threadCount) {
         String dlKey = "gog_" + game.gameId;
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
                 checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -1268,6 +1272,7 @@ public class GogGamesActivity extends Activity {
         svc.putExtra(BhDownloadService.EXTRA_STORE, "GOG");
         svc.putExtra(BhDownloadService.EXTRA_GAME_ID, dlKey);
         svc.putExtra(BhDownloadService.EXTRA_GAME_NAME, game.title);
+        svc.putExtra(BhDownloadService.EXTRA_THREADS, threadCount);
         svc.putExtra(BhDownloadService.EXTRA_GOG_GAME_ID, game.gameId);
         svc.putExtra(BhDownloadService.EXTRA_GOG_TITLE, game.title);
         svc.putExtra(BhDownloadService.EXTRA_GOG_IMAGE_URL, game.imageUrl);
@@ -1489,64 +1494,14 @@ public class GogGamesActivity extends Activity {
         });
     }
 
-    /** Shows a pre-install confirmation dialog with game size (async-fetched) and available storage. */
-    private void showInstallConfirm(GogGame game, Runnable onConfirm) {
-        long freeBytes = -1;
-        try {
-            java.io.File installBase = GogInstallPath.getInstallDir(this, "_check");
-            java.io.File parent = installBase.getParentFile();
-            if (parent != null) parent.mkdirs();
-            android.os.StatFs sf = new android.os.StatFs(
-                    parent != null ? parent.getAbsolutePath() : getCacheDir().getAbsolutePath());
-            freeBytes = sf.getAvailableBlocksLong() * sf.getBlockSizeLong();
-        } catch (Exception ignored) {}
-
-        final long finalFree = freeBytes;
-
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(20), dp(8), dp(20), dp(8));
-
-        TextView gameSizeTV = new TextView(this);
-        gameSizeTV.setText("Game size:  Fetching…");
-        gameSizeTV.setTextColor(0xFFCCCCCC);
-        gameSizeTV.setTextSize(14f);
-        content.addView(gameSizeTV);
-
-        TextView freeTV = new TextView(this);
-        freeTV.setText("Available storage:  " + GogDownloadManager.formatBytes(finalFree));
-        freeTV.setTextColor(0xFF88CC88);
-        freeTV.setTextSize(14f);
-        LinearLayout.LayoutParams tvLp = new LinearLayout.LayoutParams(-2, -2);
-        tvLp.topMargin = dp(6);
-        content.addView(freeTV, tvLp);
-
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Install " + game.title + "?")
-                .setView(content)
-                .setPositiveButton("Install", null)
-                .setNegativeButton("Cancel", null)
-                .create();
-        dialog.show();
-
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            dialog.dismiss();
-            onConfirm.run();
-        });
-
-        new Thread(() -> {
-            long size = GogDownloadManager.fetchGameSize(this, game);
-            runOnUiThread(() -> {
-                if (!dialog.isShowing()) return;
-                gameSizeTV.setText("Game size:  " + GogDownloadManager.formatBytes(size));
-                if (size > 0 && finalFree > 0 && size > finalFree) {
-                    gameSizeTV.setTextColor(0xFFFF5252);
-                    gameSizeTV.setText("Game size:  " + GogDownloadManager.formatBytes(size)
-                            + "  ⚠ Not enough space");
-                    freeTV.setTextColor(0xFFFF5252);
-                }
-            });
-        }).start();
+    /** Shows a pre-install confirmation dialog with game size (async-fetched), available storage, and a per-download thread-count picker. */
+    private void showInstallConfirm(GogGame game, BhInstallConfirmDialog.Callback callback) {
+        BhInstallConfirmDialog.showAsync(this, game.title, "gog_games", callback,
+                /* initialSizeBytes = */ 0L,
+                sizeCallback -> new Thread(() -> {
+                    long size = GogDownloadManager.fetchGameSize(this, game);
+                    runOnUiThread(() -> sizeCallback.onSize(size));
+                }).start());
     }
 
     /**

@@ -389,6 +389,19 @@ public class GogGameDetailActivity extends Activity {
     // ── Install flow ──────────────────────────────────────────────────────────
 
     private void startInstall() {
+        GogGame previewGame = makeGogGame();
+        BhInstallConfirmDialog.showAsync(this,
+                title != null ? title : (previewGame.title != null ? previewGame.title : gameId),
+                "gog_games",
+                this::launchInstallWithThreads,
+                /* initialSizeBytes = */ 0L,
+                sizeCallback -> new Thread(() -> {
+                    long size = GogDownloadManager.fetchGameSize(this, previewGame);
+                    runOnUiThread(() -> sizeCallback.onSize(size));
+                }).start());
+    }
+
+    private void launchInstallWithThreads(int threadCount) {
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
                 checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
                 != android.content.pm.PackageManager.PERMISSION_GRANTED) {
@@ -411,6 +424,7 @@ public class GogGameDetailActivity extends Activity {
         svc.putExtra(BhDownloadService.EXTRA_STORE, "GOG");
         svc.putExtra(BhDownloadService.EXTRA_GAME_ID, dlKey);
         svc.putExtra(BhDownloadService.EXTRA_GAME_NAME, title != null ? title : gameId);
+        svc.putExtra(BhDownloadService.EXTRA_THREADS, threadCount);
         svc.putExtra(BhDownloadService.EXTRA_GOG_GAME_ID, game.gameId);
         svc.putExtra(BhDownloadService.EXTRA_GOG_TITLE, game.title);
         svc.putExtra(BhDownloadService.EXTRA_GOG_IMAGE_URL, game.imageUrl);

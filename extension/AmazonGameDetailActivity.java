@@ -316,6 +316,36 @@ public class AmazonGameDetailActivity extends Activity {
     // ── Install ───────────────────────────────────────────────────────────────
 
     private void startInstall() {
+        BhInstallConfirmDialog.showAsync(this,
+                title != null ? title : productId,
+                "Amazon",
+                this::launchInstallWithThreads,
+                /* initialSizeBytes = */ 0L,
+                sizeCallback -> new Thread(() -> {
+                    long size = 0;
+                    try {
+                        String token = AmazonCredentialStore.getValidAccessToken(this);
+                        if (token != null) {
+                            AmazonApiClient.GameDownloadSpec spec =
+                                    AmazonApiClient.getGameDownload(token, entitlementId);
+                            if (spec != null && !spec.downloadUrl.isEmpty()) {
+                                String manifestUrl = AmazonApiClient.appendPath(
+                                        spec.downloadUrl, "manifest.proto");
+                                byte[] manifestBytes = AmazonApiClient.getBytes(manifestUrl, token);
+                                if (manifestBytes != null) {
+                                    AmazonManifest.ParsedManifest manifest =
+                                            AmazonManifest.parse(manifestBytes);
+                                    size = manifest.totalInstallSize;
+                                }
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                    final long finalSize = size;
+                    runOnUiThread(() -> sizeCallback.onSize(finalSize));
+                }, "amazon-detail-size-" + productId).start());
+    }
+
+    private void launchInstallWithThreads(int threadCount) {
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
                 checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
                 != android.content.pm.PackageManager.PERMISSION_GRANTED) {
@@ -337,6 +367,7 @@ public class AmazonGameDetailActivity extends Activity {
         svc.putExtra(BhDownloadService.EXTRA_STORE, "AMAZON");
         svc.putExtra(BhDownloadService.EXTRA_GAME_ID, dlKey);
         svc.putExtra(BhDownloadService.EXTRA_GAME_NAME, title != null ? title : productId);
+        svc.putExtra(BhDownloadService.EXTRA_THREADS, threadCount);
         svc.putExtra(BhDownloadService.EXTRA_AMAZON_PRODUCT_ID, productId);
         svc.putExtra(BhDownloadService.EXTRA_AMAZON_ENT_ID, entitlementId);
         svc.putExtra(BhDownloadService.EXTRA_AMAZON_SKU, productSku);

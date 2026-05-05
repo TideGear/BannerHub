@@ -58,6 +58,8 @@ public class BhDownloadService extends Service {
     public static final String EXTRA_STORE     = "store";
     public static final String EXTRA_GAME_ID   = "game_id";
     public static final String EXTRA_GAME_NAME = "game_name";
+    /** Per-download parallel-thread count chosen by the user in BhInstallConfirmDialog. */
+    public static final String EXTRA_THREADS   = "threads";
     // Epic extras
     public static final String EXTRA_EPIC_NAMESPACE  = "epic_ns";
     public static final String EXTRA_EPIC_CATALOG_ID = "epic_cat";
@@ -284,10 +286,11 @@ public class BhDownloadService extends Service {
                     .edit().putString("epic_dir_" + appName, installDir.getAbsolutePath()).apply();
 
             final String finalToken = token;
+            int threadCount = intent.getIntExtra(EXTRA_THREADS, BhDownloadConfig.DEFAULT_THREADS);
             boolean ok = EpicDownloadManager.install(this, manifestJson, finalToken,
                     installDir.getAbsolutePath(), (msg, pct) -> {
                         if (!cancelled.get()) notifyProgress(gameId, msg, pct);
-                    });
+                    }, threadCount);
 
             if (cancelled.get()) { notifyCancelled(gameId); return; }
             if (!ok) { notifyError(gameId, "Download failed"); return; }
@@ -341,6 +344,7 @@ public class BhDownloadService extends Service {
 
         CountDownLatch latch = new CountDownLatch(1);
 
+        int gogThreadCount = intent.getIntExtra(EXTRA_THREADS, BhDownloadConfig.DEFAULT_THREADS);
         Runnable cancelHandle = GogDownloadManager.startDownload(this, game,
                 new GogDownloadManager.Callback() {
             @Override public void onProgress(String msg, int pct) {
@@ -376,7 +380,7 @@ public class BhDownloadService extends Service {
                                                java.util.function.Consumer<String> onSelected) {
                 onSelected.accept(candidates.isEmpty() ? null : candidates.get(0));
             }
-        });
+        }, gogThreadCount);
 
         cancelHandles.put(gameId, cancelHandle);
         try {
@@ -417,6 +421,7 @@ public class BhDownloadService extends Service {
             getSharedPreferences("bh_amazon_prefs", 0)
                     .edit().putString("amazon_dir_" + productId, installDir.getAbsolutePath()).apply();
 
+            int amazonThreadCount = intent.getIntExtra(EXTRA_THREADS, BhDownloadConfig.DEFAULT_THREADS);
             boolean ok = AmazonDownloadManager.install(this, game, token, installDir,
                     (dl, total, file) -> {
                         if (!cancelled.get()) {
@@ -424,7 +429,8 @@ public class BhDownloadService extends Service {
                             notifyProgress(gameId, file != null && !file.isEmpty() ? file : "Downloading…", pct);
                         }
                     },
-                    cancelled::get);
+                    cancelled::get,
+                    amazonThreadCount);
 
             if (cancelled.get()) { notifyCancelled(gameId); return; }
             if (!ok) { notifyError(gameId, "Download failed"); return; }

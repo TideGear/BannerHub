@@ -167,6 +167,18 @@ public class EpicDownloadManager {
             String accessToken,
             String installDirPath,
             ProgressCallback progressCallback) {
+        return install(ctx, manifestApiJson, accessToken, installDirPath,
+                progressCallback, BhDownloadConfig.DEFAULT_THREADS);
+    }
+
+    public static boolean install(
+            android.content.Context ctx,
+            String manifestApiJson,
+            String accessToken,
+            String installDirPath,
+            ProgressCallback progressCallback,
+            int threadCount) {
+        final int threads = BhDownloadConfig.clamp(threadCount);
         StringBuilder dbg = new StringBuilder();
         dbg.append("=== BH Epic Debug ===\n");
         dbg.append("installDirPath=").append(installDirPath).append("\n");
@@ -238,8 +250,9 @@ public class EpicDownloadManager {
             dbg.append("totalDownloadBytes=").append(totalBytes)
                .append(String.format(" (%.1f MB)\n", totalBytes / 1048576.0));
 
-            // Download unique chunks — 8 parallel threads
-            ExecutorService pool = Executors.newFixedThreadPool(8);
+            // Download unique chunks — caller-configurable parallelism
+            dbg.append("chunk parallelism: ").append(threads).append(" threads\n");
+            ExecutorService pool = Executors.newFixedThreadPool(threads);
             for (ChunkInfo chunk : manifest.uniqueChunks) {
                 final ChunkInfo fc = chunk;
                 pool.submit(() -> {

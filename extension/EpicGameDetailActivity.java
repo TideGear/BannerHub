@@ -337,6 +337,29 @@ public class EpicGameDetailActivity extends Activity {
     // ── Install ───────────────────────────────────────────────────────────────
 
     private void startInstall() {
+        BhInstallConfirmDialog.showAsync(this,
+                title != null ? title : appName,
+                "epic_games",
+                this::launchInstallWithThreads,
+                /* initialSizeBytes = */ 0L,
+                sizeCallback -> new Thread(() -> {
+                    long size = 0;
+                    try {
+                        String token = EpicCredentialStore.getValidAccessToken(this);
+                        if (token != null) {
+                            EpicGame g = new EpicGame();
+                            g.namespace = namespace;
+                            g.catalogItemId = catalogItemId;
+                            g.appName = appName;
+                            size = EpicApiClient.getInstallSize(token, g);
+                        }
+                    } catch (Exception ignored) {}
+                    final long finalSize = size;
+                    runOnUiThread(() -> sizeCallback.onSize(finalSize));
+                }, "epic-detail-size-" + appName).start());
+    }
+
+    private void launchInstallWithThreads(int threadCount) {
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
                 checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
                 != android.content.pm.PackageManager.PERMISSION_GRANTED) {
@@ -358,6 +381,7 @@ public class EpicGameDetailActivity extends Activity {
         svc.putExtra(BhDownloadService.EXTRA_STORE, "EPIC");
         svc.putExtra(BhDownloadService.EXTRA_GAME_ID, dlKey);
         svc.putExtra(BhDownloadService.EXTRA_GAME_NAME, title != null ? title : appName);
+        svc.putExtra(BhDownloadService.EXTRA_THREADS, threadCount);
         svc.putExtra(BhDownloadService.EXTRA_EPIC_NAMESPACE, namespace);
         svc.putExtra(BhDownloadService.EXTRA_EPIC_CATALOG_ID, catalogItemId);
         svc.putExtra(BhDownloadService.EXTRA_EPIC_APP_NAME, appName);

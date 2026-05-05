@@ -4,6 +4,36 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [pre] — v3.5.1-pre3 — + Per-download thread-count picker (2026-05-05)
+**Branch:** `fix/store-storage-bannerhub-only`  |  **Build:** `build-quick.yml` (pre-release, artifact-only)
+
+#### Why
+Game downloads were hardcoded to 8 parallel threads in all three stores — no way for users to dial down on slow networks/older phones or dial up on fast wifi. Per-download dialog rather than a global setting so users can choose game-by-game.
+
+#### What changed
+- New `extension/BhDownloadConfig.java` — preset constants (Low=4, Medium=8, High=16, Max=24, Auto=cores) + clamp helper. Default opens at **Low (4 threads)**.
+- New `extension/BhInstallConfirmDialog.java` — centralized install-confirmation dialog showing install size, available space, and a tappable "Download speed" row that opens a single-choice picker. Async size-fetch hook so each store can supply its own size source.
+- `BhDownloadService` — new `EXTRA_THREADS` int extra. Each `runEpic` / `runGog` / `runAmazon` reads it and passes through to the manager.
+- Download manager method overloads added with `int threadCount`:
+  - `GogDownloadManager.startDownload(...)` — old signature kept as wrapper, both Gen 2 (line ~344) and Gen 1 (line ~570) thread pools now use the value.
+  - `EpicDownloadManager.install(...)` — old signature kept as wrapper, chunk pool uses the value.
+  - `AmazonDownloadManager.install(...)` — old signature kept as wrapper, chunk pool uses the value (replaces hardcoded `MAX_PARALLEL`).
+- All six install entry points wired to the dialog:
+  - `GogGamesActivity.showInstallConfirm` (3 callsites)
+  - `EpicGamesActivity.showInstallConfirm` (2 callsites)
+  - `AmazonGamesActivity.showInstallConfirm` (2 callsites)
+  - `GogGameDetailActivity.startInstall` → split into dialog + `launchInstallWithThreads(int)`
+  - `EpicGameDetailActivity.startInstall` → same split, fetches size via `EpicApiClient.getInstallSize`
+  - `AmazonGameDetailActivity.startInstall` → same split, fetches size via Amazon manifest.proto
+- All `startViaService*` helpers in list activities accept threadCount and put it on the intent. Backwards-compat overloads keep DEFAULT_THREADS for any callsite that didn't pass one.
+
+#### Notes / scope
+- DLC install paths (call download managers directly, not via service) keep using `DEFAULT_THREADS` — no dialog. Out of scope.
+- Per-install only — no global setting, no persistence between installs. Every dialog opens at Low.
+- Behavior change for users who don't read the dialog: previous default was 8 (hardcoded), new default is 4. They'll see slower downloads unless they explicitly bump it.
+
+---
+
 ### [pre] — v3.5.1-pre2 — Decouple SD-card toggle from Steam + Epic CDN ranking (2026-05-05)
 **Branch:** `fix/store-storage-bannerhub-only`  |  **Tag:** `v3.5.1-pre2` on commit `05aac50`  |  **CI:** run [25368485394](https://github.com/The412Banner/BannerHub/actions/runs/25368485394) ✅  |  **Build:** `build-quick.yml` (pre-release, artifact-only)  |  **Artifact:** `BannerHub-pre-v3.5.1-pre2` (135 MB), expires 2026-06-04
 **Branch contains 7 commits ahead of main:** storage decouple (`4548c5a`), 4 CI fixes for `/`-in-branch-name (`ee877c5`, `caa486b`, `6ac7e04`, `fdae054`), Epic CDN ranking (`18641d6`), CDN ranking lambda-capture fix (`05aac50`), progress-log version bump (`9214711`).

@@ -80,9 +80,14 @@ public final class GogDownloadManager {
      * partially downloaded files for this game.
      */
     public static Runnable startDownload(Context ctx, GogGame game, Callback cb) {
+        return startDownload(ctx, game, cb, BhDownloadConfig.DEFAULT_THREADS);
+    }
+
+    public static Runnable startDownload(Context ctx, GogGame game, Callback cb, int threadCount) {
+        final int threads = BhDownloadConfig.clamp(threadCount);
         AtomicBoolean cancelled = new AtomicBoolean(false);
         AtomicReference<File> installDirRef = new AtomicReference<>(null);
-        Thread t = new Thread(() -> doDownload(ctx, game, cb, cancelled, installDirRef),
+        Thread t = new Thread(() -> doDownload(ctx, game, cb, cancelled, installDirRef, threads),
                 "gog-dl-" + game.gameId);
         t.start();
         return () -> {
@@ -98,7 +103,8 @@ public final class GogDownloadManager {
     // ─────────────────────────────────────────────────────────────────────────
 
     private static void doDownload(Context ctx, GogGame game, Callback cb,
-                                    AtomicBoolean cancelled, AtomicReference<File> installDirRef) {
+                                    AtomicBoolean cancelled, AtomicReference<File> installDirRef,
+                                    int threadCount) {
         StringBuilder dbg = new StringBuilder();
         dbg.append("=== BH GOG Debug === game=").append(game.gameId)
            .append(" title=").append(game.title).append("\n");
@@ -339,9 +345,9 @@ public final class GogDownloadManager {
             final String        fCdnBase     = cdnBase;
             final java.util.concurrent.ConcurrentLinkedQueue<String> fileLog2 =
                     new java.util.concurrent.ConcurrentLinkedQueue<>();
-            dbg.append("gen2 parallel download: ").append(total).append(" files, 8 threads\n");
+            dbg.append("gen2 parallel download: ").append(total).append(" files, ").append(threadCount).append(" threads\n");
 
-            ExecutorService pool = Executors.newFixedThreadPool(8);
+            ExecutorService pool = Executors.newFixedThreadPool(threadCount);
             List<Future<Void>> futures = new ArrayList<>();
             for (DepotFile df : files) {
                 futures.add(pool.submit((Callable<Void>) () -> {
@@ -565,9 +571,9 @@ public final class GogDownloadManager {
             final AtomicBoolean anyFailedG1     = new AtomicBoolean(false);
             final java.util.concurrent.ConcurrentLinkedQueue<String> fileLog1 =
                     new java.util.concurrent.ConcurrentLinkedQueue<>();
-            dbg.append("gen1 parallel download: ").append(totalG1).append(" files, 8 threads\n");
+            dbg.append("gen1 parallel download: ").append(totalG1).append(" files, ").append(threadCount).append(" threads\n");
 
-            ExecutorService poolG1 = Executors.newFixedThreadPool(8);
+            ExecutorService poolG1 = Executors.newFixedThreadPool(threadCount);
             List<Future<Void>> futuresG1 = new ArrayList<>();
             for (Gen1File gf : files) {
                 futuresG1.add(poolG1.submit((Callable<Void>) () -> {

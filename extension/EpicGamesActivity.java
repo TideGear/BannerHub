@@ -611,7 +611,7 @@ public class EpicGamesActivity extends Activity {
                 if (exe != null) pendingLaunchExe(exe);
                 return;
             }
-            showInstallConfirm(game, () -> {
+            showInstallConfirm(game, threadCount -> {
                 cancelRef[0] = null;
                 actionBtn.setEnabled(true);
                 actionBtn.setText("Cancel");
@@ -670,7 +670,7 @@ public class EpicGamesActivity extends Activity {
                                                        java.util.function.Consumer<String> onSelected) {
                         showExePicker(candidates, onSelected);
                     }
-                });
+                }, threadCount);
             });
         });
 
@@ -829,7 +829,7 @@ public class EpicGamesActivity extends Activity {
                 if (exe != null) pendingLaunchExe(exe);
                 return;
             }
-            showInstallConfirm(game, () -> {
+            showInstallConfirm(game, threadCount -> {
                 cancelRef[0] = null;
                 actionBtn.setEnabled(true);
                 actionBtn.setText("Cancel");
@@ -876,7 +876,7 @@ public class EpicGamesActivity extends Activity {
                                                        java.util.function.Consumer<String> onSelected) {
                         showExePicker(candidates, onSelected);
                     }
-                });
+                }, threadCount);
             });
         });
 
@@ -911,6 +911,10 @@ public class EpicGamesActivity extends Activity {
     // ── Service-backed download (routes through BhDownloadService) ───────────
 
     private Runnable startViaServiceEpic(EpicGame game, DownloadCallback cb) {
+        return startViaServiceEpic(game, cb, BhDownloadConfig.DEFAULT_THREADS);
+    }
+
+    private Runnable startViaServiceEpic(EpicGame game, DownloadCallback cb, int threadCount) {
         String dlKey = "epic_" + game.appName;
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
                 checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -922,6 +926,7 @@ public class EpicGamesActivity extends Activity {
         svc.putExtra(BhDownloadService.EXTRA_STORE, "EPIC");
         svc.putExtra(BhDownloadService.EXTRA_GAME_ID, dlKey);
         svc.putExtra(BhDownloadService.EXTRA_GAME_NAME, game.title);
+        svc.putExtra(BhDownloadService.EXTRA_THREADS, threadCount);
         svc.putExtra(BhDownloadService.EXTRA_EPIC_NAMESPACE, game.namespace);
         svc.putExtra(BhDownloadService.EXTRA_EPIC_CATALOG_ID, game.catalogItemId);
         svc.putExtra(BhDownloadService.EXTRA_EPIC_APP_NAME, game.appName);
@@ -1028,71 +1033,21 @@ public class EpicGamesActivity extends Activity {
 
     // ── Dialogs ───────────────────────────────────────────────────────────────
 
-    private void showInstallConfirm(EpicGame game, Runnable onConfirm) {
-        long freeBytes = -1;
-        try {
-            File base   = BhStoragePath.getInstallDir(this, "epic_games", "_check");
-            File parent = base.getParentFile();
-            if (parent != null) parent.mkdirs();
-            android.os.StatFs sf = new android.os.StatFs(
-                    parent != null ? parent.getAbsolutePath()
-                            : getCacheDir().getAbsolutePath());
-            freeBytes = sf.getAvailableBlocksLong() * sf.getBlockSizeLong();
-        } catch (Exception ignored) {}
-
-        final long freeBytesF = freeBytes;
-
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(20), dp(8), dp(20), dp(8));
-
-        TextView sizeTV = new TextView(this);
-        sizeTV.setText("Download size:  Fetching…");
-        sizeTV.setTextColor(0xFFCCCCCC);
-        sizeTV.setTextSize(14f);
-        content.addView(sizeTV);
-
-        TextView freeTV = new TextView(this);
-        freeTV.setText("Available storage:  " + formatBytes(freeBytesF));
-        freeTV.setTextColor(0xFF88CC88);
-        freeTV.setTextSize(14f);
-        content.addView(freeTV);
-
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Install " + game.title + "?")
-                .setView(content)
-                .setPositiveButton("Install", null)
-                .setNegativeButton("Cancel", null)
-                .create();
-        dialog.show();
-
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            dialog.dismiss();
-            onConfirm.run();
-        });
-
-        // Fetch download size in background
-        if (game.installSize > 0) {
-            sizeTV.setText("Download size:  " + formatBytes(game.installSize));
-        } else {
-            new Thread(() -> {
-                long size = 0;
-                try {
-                    String token = EpicCredentialStore.getValidAccessToken(this);
-                    if (token != null) {
-                        size = EpicApiClient.getInstallSize(token, game);
-                        game.installSize = size;
-                    }
-                } catch (Exception ignored) {}
-                final long finalSize = size;
-                uiHandler.post(() -> {
-                    if (dialog.isShowing()) {
-                        sizeTV.setText("Download size:  "
-                                + (finalSize > 0 ? formatBytes(finalSize) : "Unknown"));
-                    }
-                });
-            }, "epic-size-" + game.appName).start();
-        }
+    private void showInstallConfirm(EpicGame game, BhInstallConfirmDialog.Callback callback) {
+        BhInstallConfirmDialog.showAsync(this, game.title, "epic_games", callback,
+                game.installSize > 0 ? game.installSize : 0L,
+                game.installSize > 0 ? null : sizeCallback -> new Thread(() -> {
+                    long size = 0;
+                    try {
+                        String token = EpicCredentialStore.getValidAccessToken(this);
+                        if (token != null) {
+                            size = EpicApiClient.getInstallSize(token, game);
+                            game.installSize = size;
+                        }
+                    } catch (Exception ignored) {}
+                    final long finalSize = size;
+                    uiHandler.post(() -> sizeCallback.onSize(finalSize));
+                }, "epic-size-" + game.appName).start());
     }
 
     // ── Full-screen detail ────────────────────────────────────────────────────
