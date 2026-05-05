@@ -5,7 +5,7 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 ---
 
 ### [pre] — v3.6.1-pre1 — Epic Online Services Phase 1 (online auth) (2026-05-05)
-**Branch:** `epic-eos`  |  **Build:** `build-quick.yml` (pre-release, artifact-only)
+**Branch:** `epic-eos`  |  **Tag:** `v3.6.1-pre1` on commit `248e5b0`  |  **CI:** run [25380834999](https://github.com/The412Banner/BannerHub/actions/runs/25380834999) ✅  |  **Build:** `build-quick.yml` (pre-release, artifact-only)  |  **Artifact:** `BannerHub-pre-v3.6.1-pre1` (135 MB), expires 2026-06-04
 
 #### Why
 EOS-integrated Epic games (multiplayer-enabled titles, *Deliver At All Costs*, etc.) couldn't authenticate to Epic Online Services because BannerHub's Epic install path passed zero Epic-specific args to Wine. Modern EOS games hard-require these args or fail with "Failed to connect to the Epic Launcher". This is Phase 1 of the EOS port from GameNative upstream commit `cbea7f7` — covers online auth basics (Phase 2 = in-game overlay, deferred).
