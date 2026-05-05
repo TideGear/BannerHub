@@ -173,14 +173,14 @@ public class EpicDownloadManager {
         try {
             progress(progressCallback, "Parsing CDN URLs...", 0);
 
-            List<CdnUrl> cdnUrls = parseCdnUrls(manifestApiJson);
-            if (cdnUrls.isEmpty()) {
+            List<CdnUrl> rawCdnUrls = parseCdnUrls(manifestApiJson);
+            if (rawCdnUrls.isEmpty()) {
                 dbg.append("ERROR: No CDN URLs in manifest API response\n");
                 writeDebug(ctx, dbg);
                 Log.e(TAG, "No CDN URLs in manifest API response");
                 return false;
             }
-            cdnUrls = CdnRankingUtils.rankEpicCdnUrls(cdnUrls, UA);
+            final List<CdnUrl> cdnUrls = CdnRankingUtils.rankEpicCdnUrls(rawCdnUrls, UA);
             dbg.append("CDN order after HEAD-probe ranking:\n");
             for (CdnUrl c : cdnUrls) {
                 dbg.append("CDN: ").append(c.baseUrl)
