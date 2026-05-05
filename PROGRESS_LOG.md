@@ -5,7 +5,7 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 ---
 
 ### [pre] — v3.6.1-pre5 — EOS bulk-scan on Epic refresh (2026-05-05)
-**Branch:** `epic-eos`  |  **Build:** `build-quick.yml` (pre-release, artifact-only)
+**Branch:** `epic-eos`  |  **Tag:** `v3.6.1-pre5` on commit `fa801f4`  |  **CI:** [run 25393695167](https://github.com/The412Banner/BannerHub/actions/runs/25393695167) ✅  |  **Artifact:** `BannerHub-pre-v3.6.1-pre5` (135 MB)
 
 #### Why
 pre4's lazy-on-detail-page-open scan covers individual games but doesn't bulk-migrate upgraders. Wiring the same scan into the existing Epic library refresh (↺) button gives users a single touchpoint that scans every installed Epic game in one shot, bulk-populating badges without a separate UI element.
