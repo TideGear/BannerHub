@@ -333,7 +333,7 @@ A **"Save Store Games to External Storage (SD Card)"** toggle in the BannerHub s
 
 **Install location is locked at install time.** The full absolute path is saved to SharedPreferences the moment a game finishes installing. All uninstall paths (game list, detail page, download manager) read and delete from that stored path directly — the toggle state at uninstall time is irrelevant. Installing with the toggle on, flipping it off, then uninstalling will still correctly remove the game from the SD card.
 
-> **Upgrading from v3.5.0?** That release accidentally moved Steam games to SD card alongside GOG/Epic/Amazon when the toggle was on. The first time you open a GOG/Epic/Amazon library after upgrading, BannerHub will offer a one-time prompt to switch Steam back to internal storage. From v3.5.1 onward this toggle is BannerHub-only and never touches Steam.
+> **Upgrading from v3.5.0?** That release accidentally moved Steam games to SD card alongside GOG/Epic/Amazon when the toggle was on. The first time you open a GOG/Epic/Amazon library after upgrading, BannerHub will offer a one-time prompt to switch Steam back to internal storage. From v3.6.0 onward this toggle is BannerHub-only and never touches Steam.
 
 **Install path display:** each game's detail page shows the full install path in the ACTIONS card when the game is installed, alongside a colored badge indicating the storage location:
 - **💾 SD Card** — green pill, game is on the SD card
