@@ -4,6 +4,29 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [pre] — v3.6.1-pre1 — Epic Online Services Phase 1 (online auth) (2026-05-05)
+**Branch:** `epic-eos`  |  **Build:** `build-quick.yml` (pre-release, artifact-only)
+
+#### Why
+EOS-integrated Epic games (multiplayer-enabled titles, *Deliver At All Costs*, etc.) couldn't authenticate to Epic Online Services because BannerHub's Epic install path passed zero Epic-specific args to Wine. Modern EOS games hard-require these args or fail with "Failed to connect to the Epic Launcher". This is Phase 1 of the EOS port from GameNative upstream commit `cbea7f7` — covers online auth basics (Phase 2 = in-game overlay, deferred).
+
+#### What changed
+- **New `extension/BhEpicLaunchArgs.java`** — called from a smali patch at the chokepoint of GameHub's Wine launch flow. Looks up whether the launching exePath belongs to an Epic install (via `bh_epic_prefs.epic_dir_*`), and if so appends `-EpicPortal`, `-epicusername=<displayName>`, `-epicuserid=<accountId>`, `-epicsandboxid=<namespace>`, `-epiclocale=en`, and `-epicdeploymentid=<id>` (when cached). Path normalization handles DOS-form paths produced by GameHub's exePath conversion before our hook runs.
+- **New `extension/BhEpicSidecar.java`** — Java port of upstream `EpicManager.fetchDeploymentId`. Calls Epic's manifest API (`launcher-public-service-prod06.ol.epicgames.com`), parses `elements[0].sidecar.config` (a JSON-encoded string) for `deploymentId`, caches in `bh_epic_prefs.epic_deployment_<appName>` with 30-day TTL. Both positive and negative results are cached.
+- **`BhDownloadService.runEpic`** — at install kickoff, fires `BhEpicSidecar.refreshAsync` so the deploymentId is cached BEFORE the user's first launch. Fire-and-forget; if it fails, first launch happens without the deploymentId (graceful degradation — many EOS games still work without it).
+- **Smali patch in `build.yml` + `build-quick.yml`** — injects `BhEpicLaunchArgs.maybeInject(p0, p1)` before `return-object p0` in `WineHelper$Companion.b()` (smali_classes5). This is the single chokepoint — every Wine launch (Steam, GOG, Epic, Amazon, Custom) flows through here, but our helper silently no-ops for non-Epic launches.
+
+#### Architecture rationale
+- **Why `WineHelper$Companion.b()` and not a different injection point?** It's the universal Wine-launch chokepoint, called once from `WineProgramLauncherKt.a()` which is called once from `ProgramController.smali:2401`. No alternative entry points exist in GameHub. Confirmed by greppable inspection of the unpacked GameHub APK smali tree.
+- **Why no per-game decision point?** GameHub treats GOG/Epic/Amazon games as "imported PC games" — no Epic awareness in the launcher. The exePath is the only signal we have to identify Epic launches at the chokepoint.
+- **Why fire-and-forget the sidecar fetch?** The chokepoint runs synchronously during Wine container start; doing a network call there would block the launch. The cache-warming happens at install time so first-launch reads are local.
+- **Why not implement Phase 2 (overlay) here?** Phase 2 needs a Wine prefix registry editor + overlay DLL distribution. ~250 LOC additional. Defer until Phase 1 device-tested.
+
+#### Pre-existing-installs limitation
+Epic games installed before v3.6.0 don't have the per-game metadata (`epic_meta_namespace_<appName>`, etc.) needed to construct launch args. They'll launch without EOS auth, exactly as before. The user can reinstall to get full EOS support.
+
+---
+
 ### [stable] — v3.6.0 — Storage decouple, CDN ranking, thread picker, downloads UX (2026-05-05)
 **Tag:** v3.6.0  |  **Build:** `build.yml` (stable, all 9 variants)  |  **Branch merged:** `fix/store-storage-bannerhub-only`
 

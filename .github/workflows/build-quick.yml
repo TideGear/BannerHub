@@ -299,6 +299,44 @@ jobs:
           print("Settings Import/Export patch applied.")
           PYEOF
 
+      - name: Apply EOS launch-args smali patch
+        run: |
+          python3 << 'PYEOF'
+          import sys
+
+          def patch(path, old, new, label):
+              try:
+                  content = open(path, encoding='utf-8').read()
+              except UnicodeDecodeError:
+                  content = open(path, encoding='latin-1').read()
+              if old not in content:
+                  print(f"ERROR: anchor not found in {path} for: {label}")
+                  sys.exit(1)
+              open(path, 'w', encoding='utf-8').write(content.replace(old, new, 1))
+              print(f"OK: {label}")
+
+          # Inject BhEpicLaunchArgs.maybeInject(args, exePath) at the end of
+          # WineHelper$Companion.b() — the chokepoint for the Wine launch command.
+          # See build.yml for the full rationale.
+          patch(
+              'apktool_out/smali_classes5/com/winemu/core/WineHelper$Companion.smali',
+              '    :cond_2\n'
+              '    :goto_1\n'
+              '    return-object p0\n'
+              '.end method\n',
+              '    :cond_2\n'
+              '    :goto_1\n'
+              '\n'
+              '    # BannerHub Phase 1 EOS: inject Epic launch args for Epic-installed games\n'
+              '    invoke-static {p0, p1}, Lapp/revanced/extension/gamehub/BhEpicLaunchArgs;->maybeInject(Ljava/util/List;Ljava/lang/String;)V\n'
+              '\n'
+              '    return-object p0\n'
+              '.end method\n',
+              'WineHelper$Companion.b(): append Epic launch args for Epic-installed games'
+          )
+          print("EOS launch-args patch applied.")
+          PYEOF
+
       - name: Patch GameDetailActivity — finish after Beacon auto-launch
         run: |
           python3 << 'PYEOF'
