@@ -140,7 +140,7 @@ public final class GogDownloadManager {
                     : buildsJson.substring(0, Math.min(300, buildsJson.length()))).append("\n");
 
             if (buildsJson != null) {
-                String err = runGen2(ctx, game, token, buildsJson, cb, dbg, cancelled, installDirRef);
+                String err = runGen2(ctx, game, token, buildsJson, cb, dbg, cancelled, installDirRef, threadCount);
                 if (err == null) { writeDebug(ctx, dbg); return; }
                 dbg.append("gen2_failed=").append(err).append("\n");
             }
@@ -159,7 +159,7 @@ public final class GogDownloadManager {
                 writeDebug(ctx, dbg);
                 cb.onError("No builds available for this game"); return;
             }
-            String err1 = runGen1(ctx, game, token, builds1Json, cb, dbg, cancelled, installDirRef);
+            String err1 = runGen1(ctx, game, token, builds1Json, cb, dbg, cancelled, installDirRef, threadCount);
             if (err1 != null) {
                 dbg.append("gen1_failed=").append(err1).append("\n");
 
@@ -204,7 +204,8 @@ public final class GogDownloadManager {
     // Returns null on success, error description string on failure.
     private static String runGen2(Context ctx, GogGame game, String token,
                                    String buildsJson, Callback cb, StringBuilder dbg,
-                                   AtomicBoolean cancelled, AtomicReference<File> installDirRef) {
+                                   AtomicBoolean cancelled, AtomicReference<File> installDirRef,
+                                   int threadCount) {
         try {
             dbg.append("\n--- Gen2 ---\n");
             JSONObject builds = new JSONObject(buildsJson);
@@ -505,7 +506,8 @@ public final class GogDownloadManager {
     // Returns null on success, error description string on failure.
     private static String runGen1(Context ctx, GogGame game, String token,
                                    String buildsJson, Callback cb, StringBuilder dbg,
-                                   AtomicBoolean cancelled, AtomicReference<File> installDirRef) {
+                                   AtomicBoolean cancelled, AtomicReference<File> installDirRef,
+                                   int threadCount) {
         try {
             dbg.append("\n--- Gen1 ---\n");
             JSONObject builds = new JSONObject(buildsJson);
