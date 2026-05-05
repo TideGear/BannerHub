@@ -182,6 +182,11 @@ public class BhDownloadService extends Service {
         return gameNames.getOrDefault(gameId, gameId);
     }
 
+    /** Returns the store ("GOG" / "EPIC" / "AMAZON") for an active download, or null if not active. */
+    public static String getStore(String gameId) {
+        return gameStores.get(gameId);
+    }
+
     public static String getLastMsg(String gameId) {
         return lastMsgMap.getOrDefault(gameId, "");
     }
@@ -266,6 +271,15 @@ public class BhDownloadService extends Service {
         String catalogId = intent.getStringExtra(EXTRA_EPIC_CATALOG_ID);
         String appName   = intent.getStringExtra(EXTRA_EPIC_APP_NAME);
 
+        // Persist enough metadata for BhDownloadsActivity to tap-to-open the detail page later.
+        if (appName != null) {
+            getSharedPreferences("bh_epic_prefs", 0).edit()
+                    .putString("epic_meta_namespace_" + appName, namespace != null ? namespace : "")
+                    .putString("epic_meta_catalog_" + appName, catalogId != null ? catalogId : "")
+                    .putString("epic_meta_title_" + appName, gameName != null ? gameName : "")
+                    .apply();
+        }
+
         AtomicBoolean cancelled = new AtomicBoolean(false);
         cancelHandles.put(gameId, () -> cancelled.set(true));
 
@@ -332,6 +346,17 @@ public class BhDownloadService extends Service {
         String developer  = intent.getStringExtra(EXTRA_GOG_DEVELOPER);
         String category   = intent.getStringExtra(EXTRA_GOG_CATEGORY);
         int    generation = intent.getIntExtra(EXTRA_GOG_GENERATION, 0);
+
+        // Persist enough metadata for BhDownloadsActivity to tap-to-open the detail page later.
+        if (gogGameId != null) {
+            getSharedPreferences("bh_gog_prefs", 0).edit()
+                    .putString("gog_meta_title_" + gogGameId, title != null ? title : "")
+                    .putString("gog_meta_image_" + gogGameId, imageUrl != null ? imageUrl : "")
+                    .putString("gog_meta_dev_" + gogGameId, developer != null ? developer : "")
+                    .putString("gog_meta_category_" + gogGameId, category != null ? category : "")
+                    .putInt("gog_meta_generation_" + gogGameId, generation)
+                    .apply();
+        }
 
         GogGame game = new GogGame(
                 gogGameId  != null ? gogGameId  : "",
@@ -400,6 +425,15 @@ public class BhDownloadService extends Service {
         String entitlementId = intent.getStringExtra(EXTRA_AMAZON_ENT_ID);
         String productSku    = intent.getStringExtra(EXTRA_AMAZON_SKU);
         String title         = intent.getStringExtra(EXTRA_AMAZON_TITLE);
+
+        // Persist enough metadata for BhDownloadsActivity to tap-to-open the detail page later.
+        if (productId != null) {
+            getSharedPreferences("bh_amazon_prefs", 0).edit()
+                    .putString("amazon_meta_title_" + productId, title != null ? title : "")
+                    .putString("amazon_meta_ent_" + productId, entitlementId != null ? entitlementId : "")
+                    .putString("amazon_meta_sku_" + productId, productSku != null ? productSku : "")
+                    .apply();
+        }
 
         AtomicBoolean cancelled = new AtomicBoolean(false);
         cancelHandles.put(gameId, () -> cancelled.set(true));

@@ -185,6 +185,10 @@ public class BhDownloadsActivity extends Activity {
     // ── Active download row ───────────────────────────────────────────────────
 
     private void addRow(String gameId, String gameName, String msg, int pct) {
+        addRow(gameId, gameName, msg, pct, BhDownloadService.getStore(gameId));
+    }
+
+    private void addRow(String gameId, String gameName, String msg, int pct, String store) {
         if (rows.containsKey(gameId)) return;
 
         LinearLayout card = new LinearLayout(this);
@@ -194,6 +198,8 @@ public class BhDownloadsActivity extends Activity {
         cardBg.setCornerRadius(dp(8));
         card.setBackground(cardBg);
         card.setPadding(dp(14), dp(12), dp(14), dp(12));
+        // Tap anywhere on the card (outside the Cancel button) opens the detail page.
+        card.setOnClickListener(v -> openDetailScreen(gameId, store));
 
         LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(-1, -2);
         cardLp.setMargins(0, 0, 0, dp(10));
@@ -207,7 +213,26 @@ public class BhDownloadsActivity extends Activity {
         nameTV.setTextColor(0xFFFFFFFF);
         nameTV.setTextSize(15f);
         nameTV.setTypeface(null, Typeface.BOLD);
+        nameTV.setMaxLines(1);
+        nameTV.setEllipsize(android.text.TextUtils.TruncateAt.END);
         titleRow.addView(nameTV, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        if (store != null && !store.isEmpty()) {
+            TextView storeBadge = new TextView(this);
+            storeBadge.setText(store);
+            storeBadge.setTextColor(0xFFFFFFFF);
+            storeBadge.setTextSize(9f);
+            storeBadge.setTypeface(null, Typeface.BOLD);
+            storeBadge.setPadding(dp(6), dp(2), dp(6), dp(2));
+            GradientDrawable badgeBg = new GradientDrawable();
+            badgeBg.setCornerRadius(dp(10));
+            badgeBg.setColor(storeColor(store));
+            storeBadge.setBackground(badgeBg);
+            LinearLayout.LayoutParams badgeLp = new LinearLayout.LayoutParams(-2, -2);
+            badgeLp.leftMargin = dp(6);
+            badgeLp.rightMargin = dp(4);
+            titleRow.addView(storeBadge, badgeLp);
+        }
 
         Button cancelBtn = makeBtn("Cancel", 0xFF8B0000);
         cancelBtn.setTextSize(12f);
@@ -250,6 +275,8 @@ public class BhDownloadsActivity extends Activity {
         cardBg.setStroke(dp(1), 0xFF2A4A2A);
         card.setBackground(cardBg);
         card.setPadding(dp(14), dp(12), dp(14), dp(12));
+        // Tap anywhere on the card (outside Launch / Uninstall / × buttons) opens the detail page.
+        card.setOnClickListener(v -> openDetailScreen(entry.dlKey, entry.store));
 
         LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(-1, -2);
         cardLp.setMargins(0, 0, 0, dp(10));
@@ -319,6 +346,66 @@ public class BhDownloadsActivity extends Activity {
     }
 
     // ── Actions ───────────────────────────────────────────────────────────────
+
+    /**
+     * Opens the appropriate game detail activity for the given dlKey + store. Reads
+     * persisted metadata from per-store SharedPreferences (written by BhDownloadService
+     * at install kickoff). For pre-v3.5.1 installs the metadata may not exist; in that
+     * case we fall back to opening the store's main library so the user lands somewhere
+     * sensible rather than a blank screen.
+     */
+    private void openDetailScreen(String dlKey, String store) {
+        if (store == null || dlKey == null) return;
+        try {
+            if ("GOG".equals(store)) {
+                String gogGameId = dlKey.substring("gog_".length());
+                android.content.SharedPreferences sp = getSharedPreferences("bh_gog_prefs", 0);
+                String title = sp.getString("gog_meta_title_" + gogGameId, null);
+                if (title == null || title.isEmpty()) {
+                    startActivity(new android.content.Intent(this, GogMainActivity.class));
+                    return;
+                }
+                android.content.Intent i = new android.content.Intent(this, GogGameDetailActivity.class);
+                i.putExtra("game_id", gogGameId);
+                i.putExtra("title", title);
+                i.putExtra("image_url", sp.getString("gog_meta_image_" + gogGameId, ""));
+                i.putExtra("developer", sp.getString("gog_meta_dev_" + gogGameId, ""));
+                i.putExtra("category", sp.getString("gog_meta_category_" + gogGameId, ""));
+                i.putExtra("generation", sp.getInt("gog_meta_generation_" + gogGameId, 0));
+                startActivity(i);
+            } else if ("EPIC".equals(store)) {
+                String appName = dlKey.substring("epic_".length());
+                android.content.SharedPreferences sp = getSharedPreferences("bh_epic_prefs", 0);
+                String title = sp.getString("epic_meta_title_" + appName, null);
+                if (title == null || title.isEmpty()) {
+                    startActivity(new android.content.Intent(this, EpicMainActivity.class));
+                    return;
+                }
+                android.content.Intent i = new android.content.Intent(this, EpicGameDetailActivity.class);
+                i.putExtra("app_name", appName);
+                i.putExtra("title", title);
+                i.putExtra("namespace", sp.getString("epic_meta_namespace_" + appName, ""));
+                i.putExtra("catalog_item_id", sp.getString("epic_meta_catalog_" + appName, ""));
+                startActivity(i);
+            } else if ("AMAZON".equals(store)) {
+                String productId = dlKey.substring("amazon_".length());
+                android.content.SharedPreferences sp = getSharedPreferences("bh_amazon_prefs", 0);
+                String title = sp.getString("amazon_meta_title_" + productId, null);
+                if (title == null || title.isEmpty()) {
+                    startActivity(new android.content.Intent(this, AmazonMainActivity.class));
+                    return;
+                }
+                android.content.Intent i = new android.content.Intent(this, AmazonGameDetailActivity.class);
+                i.putExtra("product_id", productId);
+                i.putExtra("title", title);
+                i.putExtra("entitlement_id", sp.getString("amazon_meta_ent_" + productId, ""));
+                i.putExtra("product_sku", sp.getString("amazon_meta_sku_" + productId, ""));
+                startActivity(i);
+            }
+        } catch (Exception ignored) {
+            // Defensive: never crash the downloads screen because tap-to-open hit unexpected state.
+        }
+    }
 
     private void launchGame(String dlKey, String store) {
         if ("GOG".equals(store)) {

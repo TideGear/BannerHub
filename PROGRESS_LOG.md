@@ -4,6 +4,28 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [pre] — v3.5.1-pre4 — + Downloads-screen store badge during DL + tap-to-open (2026-05-05)
+**Branch:** `fix/store-storage-bannerhub-only`  |  **Build:** `build-quick.yml` (pre-release, artifact-only)
+
+#### Why
+1. Cards in the in-app downloads manager (`BhDownloadsActivity`) only showed a colored store badge AFTER a download completed. While downloading, you couldn't tell at a glance whether a card was GOG/Epic/Amazon. Now the badge appears as soon as the download starts.
+2. Cards weren't tappable. You couldn't navigate from a download row to that game's detail page; you had to back out and go through the store's library. Now both downloading and completed cards open the appropriate `*GameDetailActivity` on tap (existing buttons — Cancel / × / Launch / Uninstall — still work because Android dispatches taps to the topmost handler).
+
+#### What changed
+- `BhDownloadService` — new public getter `getStore(String gameId)` exposes the in-memory `gameStores` map.
+- `BhDownloadService.run{Epic,Gog,Amazon}` — at install kickoff, persist enough metadata for tap-to-open to relaunch the detail page later. New keys:
+  - GOG: `gog_meta_title_<id>`, `gog_meta_image_<id>`, `gog_meta_dev_<id>`, `gog_meta_category_<id>`, `gog_meta_generation_<id>` in `bh_gog_prefs`
+  - Epic: `epic_meta_namespace_<appName>`, `epic_meta_catalog_<appName>`, `epic_meta_title_<appName>` in `bh_epic_prefs`
+  - Amazon: `amazon_meta_title_<id>`, `amazon_meta_ent_<id>`, `amazon_meta_sku_<id>` in `bh_amazon_prefs`
+- `BhDownloadsActivity.addRow` — now accepts a `String store` parameter. Renders the same colored pill badge as completed rows. New no-store overload looks up the store via `BhDownloadService.getStore(gameId)` for backwards-compat with existing callsites.
+- `BhDownloadsActivity` — new `openDetailScreen(dlKey, store)` helper. Reads per-store metadata and builds the right Intent for each store. Falls back to launching the store's main activity if metadata is missing.
+- Card click listener — both active and completed cards now call `openDetailScreen` on tap.
+
+#### Disclaimer for next stable release
+Pre-existing installs (from before v3.5.1) won't have the per-store metadata persisted, so tapping their completed cards will land on the store's main library rather than the specific detail page. New installs going forward have full tap-to-open support. This is by design; the alternative would have been a migration that re-fetches game data from each store's API on first run — not worth the complexity.
+
+---
+
 ### [pre] — v3.5.1-pre3 — + Per-download thread-count picker (2026-05-05)
 **Branch:** `fix/store-storage-bannerhub-only`  |  **Tag:** `v3.5.1-pre3` on commit `c95b2c0`  |  **CI:** run [25375252865](https://github.com/The412Banner/BannerHub/actions/runs/25375252865) ✅  |  **Build:** `build-quick.yml` (pre-release, artifact-only)  |  **Artifact:** `BannerHub-pre-v3.5.1-pre3` (135 MB), expires 2026-06-04
 
