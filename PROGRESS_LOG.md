@@ -5,7 +5,14 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 ---
 
 ### [stable] — v3.6.1 — Epic Online Services support (2026-05-05)
-**Tag:** v3.6.1  |  **Build:** `build.yml` (stable, all 9 variants)  |  **Branch merged:** `epic-eos`
+**Tag:** v3.6.1  |  **Build:** `build.yml` (stable, all 9 variants)  |  **Branch merged:** `epic-eos`  |  **CI:** [run 25395902373](https://github.com/The412Banner/BannerHub/actions/runs/25395902373) ✅  |  **Release:** https://github.com/The412Banner/BannerHub/releases/tag/v3.6.1
+
+#### 🙏 Credit
+This release is a Java port of the EOS work by The GameNative Team (https://github.com/utkarshdalal/GameNative). Specifically based on **PR #1286 / commit `cbea7f7`** ("Feat/eos overlay utkarsh") — https://github.com/utkarshdalal/GameNative/commit/cbea7f70be46e6f4a99a7e92db13c9b96add9c1c — which introduced the launch-args, sidecar/deployment-ID fetch, and exchange-code auth flow we ported. Massive thanks to **utkarshdalal** and the GameNative contributors. Without their research and reverse-engineering of Epic's launcher protocols this feature wouldn't exist in BannerHub.
+
+#### Phase 1 vs Phase 2
+- **Phase 1 (this release)** — Online authentication. Games successfully authenticate to Epic Online Services for multiplayer / friends / leaderboards / matchmaking.
+- **Phase 2 (still pending)** — In-game EOS overlay UI (Epic friends popup / notifications / achievement toasts via Shift+F3). Estimated 250-400 LOC + Wine prefix registry editor. Will land in a future BannerHub release. Multiplayer / online services / leaderboards / matchmaking all work without it; only the in-game UI chrome is missing.
 
 #### What shipped (cumulative across pre1–pre5 over v3.6.0)
 

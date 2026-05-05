@@ -1,3 +1,17 @@
+/*
+ * Epic Online Services sidecar / deployment-ID + exchange-code fetcher.
+ *
+ * Credits: Java port of EpicManager.fetchDeploymentId from The GameNative Team
+ * (https://github.com/utkarshdalal/GameNative), commit cbea7f7. The
+ * fetchExchangeCodeSync method follows the same auth flow used by Legendary /
+ * GameNative / Epic Launcher itself: GET account-public-service-prod03
+ * .ol.epicgames.com/account/api/oauth/exchange with the user's bearer token
+ * and consume the returned short-lived "code" as -AUTH_PASSWORD.
+ *
+ * Massive thanks to utkarshdalal and the GameNative contributors.
+ *
+ * Reference: https://github.com/utkarshdalal/GameNative/commit/cbea7f70be46e6f4a99a7e92db13c9b96add9c1c
+ */
 package app.revanced.extension.gamehub;
 
 import android.content.Context;

@@ -1,3 +1,15 @@
+/*
+ * EOS-marker detection for the Epic library "EOS" badge.
+ *
+ * Companion to BhEpicLaunchArgs / BhEpicSidecar — those provide the auth
+ * functionality, this provides the visibility UX so users can see at a
+ * glance which Epic games will use BannerHub's EOS auth integration.
+ *
+ * Credits: this file's marker list (EOSSDK-Win64-Shipping.dll,
+ * EOSOVH-Win64-Shipping.dll, EOSBootstrapper.exe) follows the same set
+ * The GameNative Team uses to identify EOS-integrated games. See PR #1286
+ * (https://github.com/utkarshdalal/GameNative/pull/1286).
+ */
 package app.revanced.extension.gamehub;
 
 import android.content.Context;

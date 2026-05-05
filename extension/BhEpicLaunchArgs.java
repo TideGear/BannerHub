@@ -1,3 +1,18 @@
+/*
+ * Epic Online Services launch-argument injection for BannerHub.
+ *
+ * Credits: Java port of the EOS launch-args work by The GameNative Team
+ * (https://github.com/utkarshdalal/GameNative). Based on PR #1286 / commit
+ * cbea7f7 ("Feat/eos overlay utkarsh"), which introduced -EpicPortal,
+ * -epicusername, -epicuserid, -epicsandboxid, -epiclocale, -epicdeploymentid
+ * plus the -AUTH_LOGIN / -AUTH_PASSWORD / -AUTH_TYPE exchange-code triple.
+ * Massive thanks to utkarshdalal and the GameNative contributors.
+ *
+ * This file ships Phase 1 (online auth handshake). Phase 2 (in-game EOS
+ * overlay UI for friends / notifications / achievements) is still pending.
+ *
+ * Reference: https://github.com/utkarshdalal/GameNative/commit/cbea7f70be46e6f4a99a7e92db13c9b96add9c1c
+ */
 package app.revanced.extension.gamehub;
 
 import android.app.Application;
