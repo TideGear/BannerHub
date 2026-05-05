@@ -4,8 +4,8 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
-### [pre] — v3.5.1-pre1 — Decouple SD-card toggle from Steam + Epic CDN ranking (2026-05-04)
-**Branch:** `fix/store-storage-bannerhub-only`  |  **Build:** `build-quick.yml` (pre-release, artifact-only)
+### [pre] — v3.5.1-pre2 — Decouple SD-card toggle from Steam + Epic CDN ranking (2026-05-05)
+**Branch:** `fix/store-storage-bannerhub-only`  |  **Tag:** `v3.5.1-pre2`  |  **Build:** `build-quick.yml` (pre-release, artifact-only)
 
 #### Why (storage decouple)
 v3.5.0's "Save Store Games to External Storage (SD Card)" toggle wrote into GameHub's native `steam_storage_pref`, so flipping it also moved Steam game installs to SD. The toggle is supposed to control GOG/Epic/Amazon only.
