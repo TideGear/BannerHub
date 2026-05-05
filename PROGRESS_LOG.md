@@ -4,6 +4,42 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [stable] — v3.6.0 — Storage decouple, CDN ranking, thread picker, downloads UX (2026-05-05)
+**Tag:** v3.6.0  |  **Build:** `build.yml` (stable, all 9 variants)  |  **Branch merged:** `fix/store-storage-bannerhub-only`
+
+#### What shipped (cumulative across pre1–pre4 over v3.5.0)
+
+**Storage architecture (pre1)**
+- SD-card toggle decoupled from Steam. New `bh_storage_pref` SharedPreferences file with `bh_use_custom_storage`, `bh_storage_path`, `bh_storage_migration_dialog_shown`. The "Save Store Games to External Storage (SD Card)" toggle now writes only to BannerHub's pref — Steam's `steam_storage_pref` is never touched.
+- One-shot migration dialog on first GOG/Epic/Amazon library visit after upgrade, offering to switch Steam back to internal storage if the user previously had it on SD via the v3.5.0 toggle.
+- Lazy seed of `bh_storage_pref` from legacy `steam_storage_pref` so existing installs keep resolving to the same paths.
+
+**Epic CDN ranking (pre2)**
+- New `CdnRankingUtils.java` — HEAD-probes Epic's manifest CDN URLs in parallel and reorders by latency before downloads start. Java port of GameNative upstream `e78d402`.
+- Wired into both `EpicDownloadManager.parseManifestApiJson` and `EpicDownloadManager.install`. Cloudflare-skip filter preserved.
+
+**Per-download thread-count picker (pre3)**
+- New tappable "Download speed" row on the install confirmation dialog (Low=4 / Medium=8 / High=16 / Max=24 / Auto=cores). Default opens at **Low (4)** — conservative on CPU + battery.
+- Centralized into `BhInstallConfirmDialog.java` — used by all 6 install entry points (3 list activities + 3 detail activities).
+- All three managers got a `int threadCount` overload; old signatures retained as wrappers for DLC paths.
+- `BhDownloadService.EXTRA_THREADS` plumbs the chosen count through the foreground service.
+
+**Downloads-screen UX (pre4)**
+- Active download cards in `BhDownloadsActivity` now show the colored store badge (GOG / Epic / Amazon) the entire time, not just after completion.
+- Both active and completed cards are tappable — opens the appropriate `*GameDetailActivity`.
+- `BhDownloadService` persists per-game launch metadata at install kickoff (Epic namespace/catalog/title; GOG title/image/dev/category/generation; Amazon title/entitlement/sku) so tap-to-open survives app restarts.
+- Pre-existing installs (from before v3.6.0) don't have the metadata — graceful fallback to the store's main library.
+
+**CI infrastructure**
+- `build.yml` and `build-quick.yml`: sed delimiter switched to `|` for branch names containing `/`. APK filename and artifact upload name sanitize `/` → `-`.
+
+#### Disclaimers (release-notes "Note for upgraders" content)
+1. **Tap-to-open detail pages — pre-existing installs.** Games installed before v3.6.0 don't have the per-store metadata needed for tap-to-open. Tapping their cards opens the store's main library instead. New installs going forward have full support.
+2. **SD-card toggle is BannerHub-only.** The toggle now affects only GOG/Epic/Amazon. Steam is not touched. A one-time prompt on first store visit asks whether to switch Steam back to internal storage if you had the toggle on previously. There is no separate Steam SD-card toggle in the BannerHub UI.
+3. **Default download speed is Low (4 threads).** A new "Download speed" picker on the install dialog defaults to Low to be conservative. Bump it up for faster downloads on a fast network. Per-install only; every dialog opens fresh at Low.
+
+---
+
 ### [pre] — v3.5.1-pre4 — + Downloads-screen store badge during DL + tap-to-open (2026-05-05)
 **Branch:** `fix/store-storage-bannerhub-only`  |  **Tag:** `v3.5.1-pre4` on commit `83a91c3`  |  **CI:** run [25377085187](https://github.com/The412Banner/BannerHub/actions/runs/25377085187) ✅  |  **Build:** `build-quick.yml` (pre-release, artifact-only)  |  **Artifact:** `BannerHub-pre-v3.5.1-pre4` (135 MB), expires 2026-06-04
 
