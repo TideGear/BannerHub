@@ -5,7 +5,7 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 ---
 
 ### [pre] — v3.5.1-pre3 — + Per-download thread-count picker (2026-05-05)
-**Branch:** `fix/store-storage-bannerhub-only`  |  **Build:** `build-quick.yml` (pre-release, artifact-only)
+**Branch:** `fix/store-storage-bannerhub-only`  |  **Tag:** `v3.5.1-pre3` on commit `c95b2c0`  |  **CI:** run [25375252865](https://github.com/The412Banner/BannerHub/actions/runs/25375252865) ✅  |  **Build:** `build-quick.yml` (pre-release, artifact-only)  |  **Artifact:** `BannerHub-pre-v3.5.1-pre3` (135 MB), expires 2026-06-04
 
 #### Why
 Game downloads were hardcoded to 8 parallel threads in all three stores — no way for users to dial down on slow networks/older phones or dial up on fast wifi. Per-download dialog rather than a global setting so users can choose game-by-game.
