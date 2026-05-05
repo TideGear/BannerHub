@@ -4,6 +4,34 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [stable] — v3.6.1 — Epic Online Services support (2026-05-05)
+**Tag:** v3.6.1  |  **Build:** `build.yml` (stable, all 9 variants)  |  **Branch merged:** `epic-eos`
+
+#### What shipped (cumulative across pre1–pre5 over v3.6.0)
+
+**Epic Online Services authentication (pre1–pre3)**
+- New `BhEpicLaunchArgs.java` hooked into `WineHelper$Companion.b()` (smali patch). For Epic-installed games, appends `-EpicPortal`, `-epicusername=<displayName>`, `-epicuserid=<accountId>`, `-epicsandboxid=<namespace>`, `-epiclocale=en`, and the `-AUTH_LOGIN=unused -AUTH_PASSWORD=<exchangeCode> -AUTH_TYPE=exchangecode` triple. Silent no-op for non-Epic launches (Steam/GOG/Amazon/custom unaffected).
+- New `BhEpicSidecar.java` — fetches a fresh Epic exchange code per launch via `account-public-service-prod03.ol.epicgames.com/account/api/oauth/exchange`. Exchange codes expire ~5 minutes so they must be fresh per launch (not cached). Also fetches deploymentId from Epic's manifest API and caches it (30-day TTL).
+- Confirmed working on Fall Guys (device test): game launches, gets past "No exchange code was found" popup, reaches main menu authenticated to EOS.
+
+**EOS visibility UX (pre4–pre5)**
+- New `BhEpicEosDetector.java` — recursively scans an installed game's directory for EOS marker files (`EOSSDK-Win64-Shipping.dll`, `EOSSDK-Win32-Shipping.dll`, `EOSOVH-Win64-Shipping.dll`, `EOSBootstrapper.exe`).
+- Blue (`0xFF2962FF`) "EOS" pill rendered on `EpicGameDetailActivity` title row + `EpicGamesActivity` library tiles for games with the cached flag.
+- Auto-scan triggered at install completion + lazy-scan on detail-page open for upgraders' previously-installed games.
+- Bulk-scan wired into Epic library refresh (↺) button: 3-thread pool, skip-already-scanned, toast feedback ("Scanning N games for EOS…" → "EOS scan: M of N games use Epic Online Services").
+
+#### What is NOT in this release
+- **Phase 2 (in-game EOS overlay)** — the Epic friends popup / notifications UI. Cosmetic; deferred. Some games may need it for full feature parity but auth/multiplayer works without it.
+- **Mono / Gecko / mscoree.dll in containers** — .NET-based games will still hit a missing-mscoree wall after auth succeeds. Fall Guys works because Unity ships its own runtime; other titles vary.
+- **Third-party launcher dependencies** (e.g. Kongregate's `kartridge-sdk.dll` in Firestone, Ubisoft Connect in Brawlhalla) — these games may still fail to fully connect even with EOS auth working. Out of scope.
+
+#### Disclaimers (release-notes "Note for upgraders" content)
+1. **EOS coverage scope.** This release adds Epic Online Services authentication for online multiplayer / friends / leaderboards in EOS-integrated Epic games. The EOS in-game overlay (friend popup) is NOT included — games still authenticate and play online; you just don't get the in-game friends UI.
+2. **Some Epic games have non-EOS dependencies.** Brawlhalla bundles Ubisoft Connect; Firestone bundles Kongregate's launcher SDK. These games may still fail to connect to their backends even with EOS auth working. This is unrelated to Epic / EOS — they need their respective third-party launchers running.
+3. **Pre-existing Epic installs auto-detect.** Tap the Epic library ↺ refresh button once and BannerHub will scan all your installed Epic games for EOS markers and apply the blue "EOS" badge automatically. No reinstall needed.
+
+---
+
 ### [pre] — v3.6.1-pre5 — EOS bulk-scan on Epic refresh (2026-05-05)
 **Branch:** `epic-eos`  |  **Tag:** `v3.6.1-pre5` on commit `fa801f4`  |  **CI:** [run 25393695167](https://github.com/The412Banner/BannerHub/actions/runs/25393695167) ✅  |  **Artifact:** `BannerHub-pre-v3.6.1-pre5` (135 MB)
 
