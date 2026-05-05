@@ -5,7 +5,7 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 ---
 
 ### [pre] — v3.6.1-pre4 — Blue "EOS" badge on Epic library + detail page (2026-05-05)
-**Branch:** `epic-eos`  |  **Build:** `build-quick.yml` (pre-release, artifact-only)
+**Branch:** `epic-eos`  |  **Tag:** `v3.6.1-pre4` on commit `641ad9f`  |  **CI:** [run 25392779521](https://github.com/The412Banner/BannerHub/actions/runs/25392779521) ✅  |  **Artifact:** `BannerHub-pre-v3.6.1-pre4` (135 MB)
 
 #### Why
 Now that BannerHub authenticates EOS-integrated Epic games (pre3), users want a way to see at a glance which games will use that integration. A small blue "EOS" pill — same visual style as the existing storage badge — communicates "this game uses Epic Online Services" without any explanation needed.
