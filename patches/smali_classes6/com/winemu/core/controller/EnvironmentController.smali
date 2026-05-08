@@ -3346,6 +3346,9 @@
     .line 238
     invoke-virtual {p1, v0, p0}, Lcom/winemu/core/utils/EnvVars;->d(Ljava/lang/String;Ljava/lang/Object;)V
 
+    # BannerHub: apply persisted Frame Generation settings on top of BannerHub's defaults
+    invoke-static {}, Lcom/xj/winemu/sidebar/BhFrameGenWriter;->applyFromPrefsNoContext()V
+
     .line 239
     .line 240
     .line 241

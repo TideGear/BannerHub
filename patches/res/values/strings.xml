@@ -3846,4 +3846,6 @@ Please note that you need to reactivate the mapping after restarting your phoneã
     <string name="yes">Yes</string>
     <string name="zb1">Equip-1</string>
     <string name="zb2">Equip-2</string>
+    <string name="bh_framegen_title">Frame Generation</string>
+    <string name="bh_framegen_settings_open">Open frame generation settings</string>
 </resources>

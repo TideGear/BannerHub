@@ -7728,28 +7728,69 @@ Used by `CompatibleDialog.report()` — allows users to submit game compatibilit
 
 ## §286 — GameScopeController: mmap Control File Protocol
 
-**File:** `com/winemu/core/controller/GameScopeController.java`
+**File:** `com/winemu/core/controller/GameScopeController.java` (legacy) plus AI-frame-gen extensions added in GameHub 6.0.1.
 
-Uses a **4-byte memory-mapped file** at `<imageFs>/etc/gamescope.control` to communicate rendering mode to Wine side without IPC overhead.
+The control file at `<imageFs>/etc/gamescope.control` was expanded from 4 bytes (5.x) to **10 bytes (6.0.1+)** to add AI Frame Generation parameters.
 
-**Layout (4 bytes total):**
-```
-Byte 0-1: FPS limit (little-endian 16-bit)
-Byte 2:   Focus flag (0 = background, 1 = focused)
-Byte 3:   DirectRenderingMode (enum ordinal)
-```
+**Current 10-byte layout (little-endian)** — verified against GameHub 6.0.1 master map § 26.8.3 + on-device reverse engineering 2026-05-08:
 
-**DirectRenderingMode enum values:**
-- `Auto` (default on boot)
-- Other modes from `com.winemu.openapi.DirectRenderingMode`
+| Offset | Size | Field | Notes |
+|---|---|---|---|
+| 0–1 | 2 B | uint16 FPS limit | `0` = no cap |
+| 2 | 1 B | AI frame-gen enabled flag | 0=off, 1=on |
+| 3 | 1 B | NativeRenderingMode | 0=Auto, 1=Never, 2=Always |
+| 4–7 | 4 B | float32 flowScale | clamped 0.2–1.0 (AI optical-flow strength) |
+| 8 | 1 B | AI model byte | 0=standard, 1=clear/extreme |
+| 9 | 1 B | AI multiplier byte | clamped 2–4 at IPC layer |
 
-**API:**
-- `d(int fps)` — set FPS limit
-- `c(bool focused)` — set focus state
-- `b(DirectRenderingMode mode)` — set rendering mode
-- `a()` — close/flush (called on exit)
+**Wine-side reader:** `libGameScopeVK.so` (Vulkan ICD layer) mmaps the file and reads byte 2 as the on/off, bytes 4-9 as frame-gen parameters. Wine env var `GAMESCOPE_CONTROL_PATH` set by `EnvironmentController.smali` points to this file.
 
-**Wine env var:** Path set indirectly as the control socket for GameScope process.
+**Java-side writers:** GameHub-original `defpackage.ca2` (file ctor) and `defpackage.sz4.a()` (AI fields). Each write is followed by `MappedByteBuffer.force()` to flush. Byte 2 written by `ca2.G(boolean)`.
+
+**Diagnostic strings emitted by libGameScopeVK** (logcat tag `gamescope`): `"GameScope control enabled"` (read OK), `"Frame interpolation backend created"` / `"Frame interpolation backend creation failed"`, `"Failed to load HMI"`, `"Failed to create BCN decoder"`. Optical flow gate is silent — no `VK_NV_optical_flow` → silent passthrough.
+
+**ICD JSON quirk:** `<wineprefix>/usr/home/steamuser/.config/vulkan/icd.d/GameScopeVK_icd.json` ships with hardcoded `library_path` of `/data/data/com.winemu/files/usr/lib/libGameScopeVK.so` — a placeholder that doesn't exist on real installs. GameHub's launcher path-substitutes this at runtime; BannerHub forks must do the same or rewrite the JSON in place (see § AI-FrameGen below).
+
+---
+
+## § AI-FrameGen — BannerHub In-Game Frame Generation Menu
+
+**Branch:** `feature/framegen-menu` → main.
+
+**Files:**
+| Path | Role |
+|---|---|
+| `extension/BhFrameGenSettings.java` | Persisted settings + 6 preset enum (Eco/Flow/Bal/Boost/Clear/Max) — values mirror GameHub 6.0.1 `AiFrameInterpolationMode` |
+| `extension/BhFrameGenWriter.java` | mmap byte writer to `gamescope.control`. Per-byte setters + `applyFromPrefs(Context)` + `applyFromPrefsNoContext()` for smali launch hook |
+| `extension/BhFrameGenDialog.java` | Programmatic Dialog with toggle + preset slider + multiplier picker + flowScale slider + FPS-limit toggle/value. Writes immediately on every change |
+| `extension/BhFrameGenWiring.java` | Wires the in-game sidebar switch + gear button to settings + dialog. Called from fragment `onResume` |
+
+**Smali patches:**
+- `patches/smali_classes14/com/xj/winemu/sidebar/SidebarControlsFragment.smali` — `onResume()` injection: calls `getView()` → `BhFrameGenWiring.bind(View)` to bind the switch + gear listeners
+- `patches/smali_classes6/com/winemu/core/controller/EnvironmentController.smali` — after `GAMESCOPE_CONTROL_PATH` env-var write, calls `BhFrameGenWriter.applyFromPrefsNoContext()` to re-apply persisted user settings on top of BannerHub's default regeneration
+
+**Resource patches:**
+- `patches/res/layout/winemu_sidebar_controls_fragment.xml` — adds `frame_gen_container` LinearLayout (switch + gear button) below `rts_controls_container`
+- `patches/res/values/ids.xml` — adds `frame_gen_container`, `switch_frame_gen`, `btn_frame_gen_settings`
+- `patches/res/values/strings.xml` — adds `bh_framegen_title`, `bh_framegen_settings_open`
+
+**SharedPreferences:** `bh_framegen.xml` stores global settings (not per-game in v1). Keys: `enabled`, `preset`, `multiplier`, `flowScale`, `model`, `fpsLimitEnabled`, `fpsLimitValue`.
+
+**Persistence model:** every dialog control writes to `gamescope.control` immediately AND saves to SharedPrefs. The `EnvironmentController` smali hook re-applies all SharedPrefs values to the file on every game launch (after BannerHub's own regenerator zeroes byte 0).
+
+**Preset values** (matches GameHub 6.0.1 `AiFrameInterpolationMode` enum):
+| Preset | model | flowScale | UI label |
+|---|---|---|---|
+| ECO | 0 | 0.2 | Eco |
+| FLOW | 0 | 0.4 | Flow |
+| BAL | 0 | 0.6 | Bal (default) |
+| BOOST | 0 | 0.8 | Boost |
+| CLEAR | 1 | 0.6 | Clear |
+| MAX | 1 | 0.8 | Max |
+
+The dialog UI is built programmatically (no XML layout) to avoid R.id cross-module coupling — same approach as `BhFrameRating.java`.
+
+**Discovered 2026-05-08:** The byte 2 (enabled) in our v1 reverse engineering matched master map § 26.8.3. Byte 0 (FPS limit) repurposed from old 4-byte protocol — BannerHub's regenerator zeros it on every game launch, which is why our manual `0x3c` patches kept getting wiped. Our launch hook re-writes user-set values after the regenerator runs.
 
 ---
 
