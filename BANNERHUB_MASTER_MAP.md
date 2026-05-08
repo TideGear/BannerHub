@@ -7767,7 +7767,7 @@ The control file at `<imageFs>/etc/gamescope.control` was expanded from 4 bytes 
 
 **Smali patches:**
 - `patches/smali_classes14/com/xj/winemu/sidebar/SidebarControlsFragment.smali` — `onResume()` injection: calls `getView()` → `BhFrameGenWiring.bind(View)` to bind the switch + gear listeners
-- `patches/smali_classes6/com/winemu/core/controller/EnvironmentController.smali` — after `GAMESCOPE_CONTROL_PATH` env-var write, calls `BhFrameGenWriter.applyFromPrefsNoContext()` to re-apply persisted user settings on top of BannerHub's default regeneration
+- `patches/smali_classes15/com/xj/winemu/WineActivity.smali` — `onCreate(Bundle)` injection (right after super call) calls `BhFrameGenWriter.applyFromPrefsNoContext()` to re-apply persisted user settings before wine starts. Hook moved from `EnvironmentController` (classes6) to `WineActivity` (classes15) because classes6 was already at the dex method-reference ceiling
 
 **Resource patches:**
 - `patches/res/layout/winemu_sidebar_controls_fragment.xml` — adds `frame_gen_container` LinearLayout (switch + gear button) below `rts_controls_container`
