@@ -444,6 +444,8 @@ echo 0 > /sys/class/kgsl/kgsl-3d0/devfreq/min_freq
 
 ### AI Frame Generation Menu
 
+> 🙏 **Credit:** The AI frame interpolation engine itself — `libGameScopeVK`, the `VK_NV_optical_flow` Adreno path, the optical-flow synthesis pipeline, and the 6 quality presets — is the work of the **GameHub team**, who built it into GameHub 6.0.1. BannerHub adds only the user-facing wiring: the in-game sidebar entry, the settings dialog, persistence across launches, and the runtime ICD JSON path fix. All the heavy lifting that actually generates interpolated frames is theirs.
+
 A new sidebar entry that drives GameHub 6.0.1's built-in `libGameScopeVK` AI frame-interpolation engine — generates synthetic in-between frames using Vulkan-side optical-flow vectors so your effective frame rate roughly doubles on supported hardware. No more hex-editing `gamescope.control` to use it.
 
 > 📖 **For the full technical breakdown** — data classes, the 10-byte `gamescope.control` mmap protocol, libGameScopeVK Vulkan ICD, the `VK_NV_optical_flow` Adreno path, per-GPU capability gating, and the action/state classes — see [`gamehub_reports/GAMEHUB_600_MASTER_MAP.md` § 26.8 (AI Frame Generation — Technical Deep Dive)](gamehub_reports/GAMEHUB_600_MASTER_MAP.md#268--ai-frame-generation--technical-deep-dive).
