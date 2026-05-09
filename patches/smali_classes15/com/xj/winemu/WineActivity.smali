@@ -6048,6 +6048,9 @@
     .line 5
     invoke-super/range {p0 .. p1}, Lcom/xj/common/view/focus/focus/app/FocusableAppCompatActivity;->onCreate(Landroid/os/Bundle;)V
 
+    # BannerHub: apply persisted Frame Generation settings to gamescope.control
+    invoke-static {}, Lcom/xj/winemu/sidebar/BhFrameGenWriter;->applyFromPrefsNoContext()V
+
     sget v2, Landroid/os/Build$VERSION;->SDK_INT:I
 
     const/16 v3, 0x1e

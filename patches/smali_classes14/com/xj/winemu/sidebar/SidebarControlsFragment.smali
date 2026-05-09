@@ -5489,6 +5489,13 @@
     .line 1
     invoke-super {p0}, Lcom/xj/base/base/fragment/LazyFragment;->onResume()V
 
+    # BannerHub: wire Frame Generation switch + gear button
+    invoke-virtual {p0}, Landroidx/fragment/app/Fragment;->getView()Landroid/view/View;
+
+    move-result-object v0
+
+    invoke-static {v0}, Lcom/xj/winemu/sidebar/BhFrameGenWiring;->bind(Landroid/view/View;)V
+
     .line 2
     .line 3
     .line 4

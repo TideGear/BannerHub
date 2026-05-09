@@ -3476,4 +3476,7 @@
     <item type="id" name="rts_action_option_2" />
     <item type="id" name="rts_action_option_2_text" />
     <item type="id" name="rts_action_option_2_check" />
+    <item type="id" name="frame_gen_container" />
+    <item type="id" name="switch_frame_gen" />
+    <item type="id" name="btn_frame_gen_settings" />
 </resources>
