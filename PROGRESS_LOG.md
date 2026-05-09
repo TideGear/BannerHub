@@ -4,6 +4,43 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [stable] — v3.7.0 — In-game AI Frame Generation menu + PC-accurate Vibration / Rumble (2026-05-09)
+**Tag:** `v3.7.0`  |  **Build:** `build.yml` (stable, all 9 variants)  |  **Branches merged:** `feature/framegen-menu` (--no-ff merge `9d4a594`) + PR #80 from `TideGear:Fix-Vibration` (merge `fb50345`)  |  **Release:** https://github.com/The412Banner/BannerHub/releases/tag/v3.7.0
+
+#### Headline
+Two new user-facing features over v3.6.1:
+1. **In-game AI Frame Generation menu** (originally v3.7.0-pre1, 2026-05-08) — sidebar entry + dialog for GameHub 6.0.1's built-in `libGameScopeVK` frame interpolation. 6 presets, 2×/3×/4× multiplier, 0.20–1.00 flow scale, optional FPS cap. Confirmed ~1.8–1.9× FPS scaling on device (42 → 75/80 FPS via overlay screenshots).
+2. **PC-accurate Vibration / Rumble** (originally v3.7.0-pre2, 2026-05-09) — XInput-shaped Wine controller rumble routed into Android's `VibratorManager`. Independent low/high motors on dual-motor pads, sustained holds (LD_PRELOAD shim defeats SDL2's 1s rumble expiration), instant release, multi-controller auto-wake up to 4 slots, Samsung HAL workaround, per-game **PC Vibration Settings** popup-menu entry. From TideGear's PR #80, originally landed on GameNative as PR #1214.
+
+#### What shipped (cumulative across pre1–pre2 over v3.6.1)
+
+**In-game AI Frame Generation menu (pre1)**
+- New `extension/BhFrameGenSettings.java`, `BhFrameGenWriter.java`, `BhFrameGenDialog.java`, `BhFrameGenWiring.java` — programmatic Dialog (no XML, avoids R.id cross-module coupling), mmap byte writer for `gamescope.control`, persisted SharedPrefs.
+- Smali hooks: `SidebarControlsFragment.onResume()` → `BhFrameGenWiring.bind(View)`; `WineActivity.onCreate()` → `BhFrameGenWriter.applyFromPrefsNoContext()` to re-apply settings before Wine starts (works around BannerHub's regenerator zeroing byte 0 every launch).
+- ICD JSON written at runtime using `ctx.getPackageName()`, so menu works on any installed APK package name (including manually-renamed APKs).
+- Master map § AI-FrameGen documents the full implementation.
+
+**PC-accurate Vibration / Rumble (pre2, PR #80)**
+- New `extension/BhVibrationController.java` — singleton dispatcher hooked into `GamepadServerManager.onRumble`, `GamepadDevice$Physical.h/g`, `GamepadManager.B0`, EnvironmentController.
+- New `extension/BhVibrationSettingsActivity.java` — Mode/Intensity dialog. Compact landscape layout with ScrollView capped at 85% screen height.
+- New `native/evshim/evshim.c` + `CMakeLists.txt` — Wine-side LD_PRELOAD shim that patches `winebus.so`'s `pSDL_JoystickRumble` + `pSDL_JoystickClose` `.bss` pointers, re-issues `SDL_JoystickRumble` every 500ms with 2s duration so SDL2's 1s `rumble_expiration` never fires mid-hold.
+- Multi-controller auto-wake via synthetic button-14 flicker through `GamepadServerManager.g`, gated on `Physical`-only with 200ms per-slot stagger.
+- Samsung Vibrator HAL workaround: 1ms supersede pulse before `VibratorManager.cancel()`.
+- Per-game settings stored in stock `pc_g_setting<gameId>` SharedPreferences under `bh_vibration_*` keys → existing Export/Import Config flow picks them up automatically.
+- Master map § Vibration-Rumble documents the full implementation.
+
+#### What is NOT in this release
+- **EOS Phase 2** (in-game Epic friends popup / notifications UI). Was attempted on `epic-eos-phase2` branch, scrubbed 2026-05-08 — Phase 1 auth shipped in v3.6.1 already covers online multiplayer / friends / leaderboards / matchmaking, the Phase 2 overlay is purely cosmetic UI chrome.
+- **Per-game frame-gen settings.** Frame Generation settings are global in v1; per-game scoping is a v2 candidate.
+- **DirectInput rumble.** Vibration covers the XInput API path only; DInput games (rare today) bypass our hook.
+
+#### Disclaimers (release-notes "Note for upgraders" content)
+1. **Frame Generation requires Adreno GPU.** GameHub 6.0.1's frame interpolation engine uses `VK_NV_optical_flow`, which on Android is currently only exposed by Qualcomm Adreno drivers. The menu controls work everywhere but the actual frame interpolation is silently skipped on non-Adreno GPUs (Mali, Xclipse, etc.).
+2. **Vibration is XInput-only.** Modern PC games using XInput (the standard) get full rumble. The handful of older or niche titles that use the DirectInput Force-Feedback API bypass our hook entirely and won't rumble.
+3. **Native-XInput controllers need Bluetooth for rumble.** DualSense and DualShock 4 rumble fine over USB and Bluetooth. Xbox-style pads and 8BitDo controllers in XInput mode rumble over Bluetooth but NOT over USB — Android's USB-HID driver for XInput devices doesn't expose the rumble feature report path. Workaround: connect those controllers via Bluetooth.
+
+---
+
 ### [pre] — v3.7.0-pre2 — Add PC-accurate Vibration / Rumble support (2026-05-08)
 **PR merged:** [#80](https://github.com/The412Banner/BannerHub/pull/80) from `TideGear:Fix-Vibration` (merge commit `fb50345`)  |  **Tag:** `v3.7.0-pre2`  |  **Build:** `build-quick.yml` (artifact-only)  |  **Variant:** Normal on `com.tencent.ig`
 

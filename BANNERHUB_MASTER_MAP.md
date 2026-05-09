@@ -7794,6 +7794,54 @@ The dialog UI is built programmatically (no XML layout) to avoid R.id cross-modu
 
 ---
 
+## § Vibration-Rumble — BannerHub PC Controller Rumble for Wine
+
+**PR:** [#80](https://github.com/The412Banner/BannerHub/pull/80) (TideGear:Fix-Vibration), merged into main 2026-05-09 as `fb50345`. Originally rebased from GameNative PR [#1214](https://github.com/utkarshdalal/GameNative/pull/1214) by the same author.
+
+**Hook point:** `GamepadServerManager.onRumble(slot, low, high)` — GameHub's chokepoint that already normalises any HID controller (DualShock, DS4, Switch Pro, native XInput, etc.) into the XInput-shaped `(low, high)` amplitude pair before our intercept sees it. Routing therefore covers any controller GameHub maps onto an XInput slot, regardless of the controller's underlying protocol.
+
+**Pipeline:**
+Wine game → `XInputSetState(slot, low, high)` → `xinput1.dll` → Wine HID layer → `winebus.so` → `libvfs.so` → `GamepadServerManager.onRumble` → **our hook** → Android `VibratorManager`.
+
+**Files:**
+| Path | Role |
+|---|---|
+| `extension/BhVibrationController.java` | Singleton dispatcher hooked from smali into the gamepad pipeline (`onRumble` rumble entry, `GamepadDevice$Physical.h` non-zero dispatch, `.g` stop hook for instant release, `GamepadManager.B0` connect hook for auto-wake, EnvironmentController for `libevshim.so` LD_PRELOAD prepend) |
+| `extension/BhVibrationSettingsActivity.java` | Mode/Intensity dialog. Compact landscape layout with title + game name on one row, Mode spinner + Intensity slider side-by-side, wrapped in a ScrollView capped at 85% screen height. Density cached in `onCreate` so `dp()` doesn't repeatedly hit Resources |
+| `native/evshim/evshim.c` | Wine-side LD_PRELOAD shim. Patches `winebus.so`'s `pSDL_JoystickRumble` + `pSDL_JoystickClose` `.bss` pointers (winebus dlopens libSDL2 and stashes function pointers — no PLT/GOT relocation to interpose against). `pthread_atfork` child handler for fork-no-exec survival. PT_GNU_RELRO-aware page perms. Gated to processes that load `winebus.so`. Writes a winedevice ready marker to host APK's `getFilesDir()` for Java-side wake-up sequencing |
+| `native/evshim/CMakeLists.txt` | NDK build config |
+| `patches/AndroidManifest.xml` | Registers `BhVibrationSettingsActivity` |
+| `patches/smali/com/xj/landscape/launcher/ui/gamedetail/BhVibrationLambda.smali` | `Function1` stub used by `GameDetailSettingMenu` popup option to launch the settings activity with resolved `gameId` (catalog id or `local_<uuid>`) + game name as extras |
+
+**Smali patches** (applied at `apktool b` time via anchor-based Python regex in `.github/workflows/build*.yml`):
+- `GamepadServerManager.onRumble` — rumble dispatch
+- `GamepadDevice$Physical.h` — non-zero amplitude dispatch
+- `GamepadDevice$Physical.g` — stop hook for instant release
+- `GamepadManager.B0` — connect hook for auto-wake (with null + `instanceof Physical` guards)
+- `GameDetailSettingMenu.W` — popup option insertion (with name-based "PC Game Settings" search + tail-append fallback for non-English locales)
+- `EnvironmentController` — LD_PRELOAD prepend for `libevshim.so`
+
+**Sustained rumble — the LD_PRELOAD shim:**
+SDL2 has an internal 1-second `rumble_expiration` that auto-stops the motor unless `SDL_JoystickRumble` is re-issued. Games hold rumble by leaving low/high non-zero in their per-frame `XInputSetState` — they don't re-trigger it. Without the shim, sustained rumble dies after 1s. The shim re-issues `SDL_JoystickRumble` every 500ms with a 2s duration so the expiration never fires while the game is holding.
+
+**Multi-controller auto-wake:**
+Synthetic button-14 flicker on the slot's `GamepadState` (reflected through Tencent's `GamepadServerManager.g`) triggers libvfs's lazy `SDL_JOYDEVICEADDED` so rumble works on a freshly-connected controller without requiring the user to press anything first. Wake-ups are gated on a winedevice readiness marker written by libevshim and staggered 200ms per slot ascending so libvfs has time to register each before the next stimulus arrives — required for 3+ controller setups where the third slot won't accept the wake-up until lower slots are SDL-registered.
+
+**Physical-only wake-up:**
+Hook gates on `GamepadDevice$Physical` only — skipped for `$Virtual` (touch overlay) so toggling Touch Controls or launching with no real controller doesn't trip `GamepadManager`'s "Virtual gamepad already exists in slot 0" branch (which would later crash WineActivity startup with "Virtual gamepad enabled but no controller found").
+
+**Samsung Vibrator HAL workaround:**
+1ms minimum-amplitude supersede pulse before `VibratorManager.cancel()`, which alone doesn't reliably halt in-flight BT-HID effects on Samsung's `InputDevice` vibrator path.
+
+**Settings persistence:**
+Reuses stock `pc_g_setting<gameId>` SharedPreferences files under prefixed keys `bh_vibration_mode` + `bh_vibration_intensity`. Existing `BhSettingsExporter` Export/Import flow picks them up automatically. Older config files lacking these keys fall through to global defaults — no migration required.
+
+**Scope and limitations:**
+- **XInput API path only.** DInput games (HID Force-Feedback feature reports through `dinput8.dll`) bypass `GamepadServerManager.onRumble` entirely; would need a separate intercept point with a richer protocol than XInput's `(low, high)`. Almost no modern PC game ships DInput-only rumble.
+- **USB vs Bluetooth for rumble depends on the controller.** DualSense and DS4 rumble fine over USB and BT. Native-XInput controllers (8BitDo Pro 2 in XInput mode, Xbox-style pads) rumble over Bluetooth but NOT over USB — Android's USB-HID driver for XInput devices doesn't expose the rumble feature report path.
+
+---
+
 ## §287 — SteamAgentController: Status Events and App Launch Detection
 
 **File:** `com/winemu/core/controller/SteamAgentController.java`

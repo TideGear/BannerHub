@@ -36,7 +36,9 @@ Before any stable release is published, all changes are manually debugged and te
   - [External Storage — SD Card](#external-storage--sd-card)
   - [Winlator HUD Overlay](#winlator-hud-overlay) (Normal + Extra Detailed + Konkr Style)
   - [Performance Sidebar Toggles](#performance-sidebar-toggles)
+  - [AI Frame Generation Menu](#ai-frame-generation-menu)
   - [RTS Touch Controls](#rts-touch-controls)
+  - [PC Vibration / Rumble](#pc-vibration--rumble)
   - [VRAM Limit Unlock](#vram-limit-unlock)
   - [Community Game Configs](#community-game-configs)
   - [Per-Game Config Export / Import](#per-game-config-export--import)
@@ -440,6 +442,29 @@ echo 0 > /sys/class/kgsl/kgsl-3d0/devfreq/min_freq
 
 ---
 
+### AI Frame Generation Menu
+
+Enable via the **Performance tab** in the in-game sidebar (above Dual Battery Mode). Drives GameHub 6.0.1's built-in `libGameScopeVK` frame interpolation engine — generates AI-interpolated frames between real ones to roughly double your FPS.
+
+#### Settings dialog
+
+Tap the gear icon next to the toggle to open the AI Frame Generation settings:
+
+| Setting | Range / Options | Notes |
+|---------|-----------------|-------|
+| Preset | Eco / Flow / Bal / Boost / Clear / Max | 6 quality presets matching GameHub 6.0.1's `AiFrameInterpolationMode` |
+| Multiplier | 2× / 3× / 4× | Target frame multiplier |
+| Custom flow scale | 0.20–1.00 | AI optical-flow strength |
+| FPS limit | Toggle + 30–144 | Optional cap |
+
+Settings are global (per-game scoping is a v2 candidate). They persist across launches via a launch hook that re-applies them after BannerHub's container regenerator runs.
+
+> **Note — requires Adreno GPU.** GameHub 6.0.1's frame interpolation uses `VK_NV_optical_flow`, which on Android is currently only exposed by Qualcomm Adreno drivers. The menu controls work on any device but the actual frame interpolation is silently skipped on Mali, Xclipse, and other non-Adreno GPUs.
+
+Real-world result on a working device: roughly **1.8–1.9× FPS scaling on 2× multiplier** (e.g. 42 FPS off → 75–80 FPS on, validated via overlay screenshots).
+
+---
+
 ### RTS Touch Controls
 
 *Thanks to [@Nightwalker743](https://github.com/Nightwalker743) for making this possible.*
@@ -458,6 +483,40 @@ Enable via the **Controls tab** in the in-game sidebar. Adds a full gesture over
 | Pinch to zoom | Mouse wheel scroll up/down (configurable) |
 
 Tap the **gear icon** in the Controls tab to configure pan direction and pinch-to-zoom scroll direction.
+
+---
+
+### PC Vibration / Rumble
+
+*Thanks to [@TideGear](https://github.com/TideGear) for [PR #80](https://github.com/The412Banner/BannerHub/pull/80) — originally landed on GameNative as PR #1214.*
+
+Routes Wine's `XInputSetState(slot, low, high)` rumble calls into Android's `VibratorManager` so PC games actually shake your controller.
+
+#### What works
+
+- **Independent low/high motors** on dual-motor pads (DualSense, DualShock 4) via `CombinedVibration.startParallel`
+- **Single-motor blend fallback** (`low × 0.80 + high × 0.33`) on 1-motor pads and the phone vibrator
+- **Sustained holds** — a Wine-side LD_PRELOAD shim re-issues `SDL_JoystickRumble` every 500 ms with a 2 s duration so SDL2's 1 s rumble expiration never auto-stops the motor mid-hold
+- **Instant release** on let-go (no phantom-suppression timer)
+- **Multi-controller auto-wake** up to XInput's 4-slot cap, with 200 ms per-slot stagger for clean 3+ controller setups (no button presses required after connect)
+- **Samsung HAL workaround** — 1 ms supersede pulse before `VibratorManager.cancel()`, since Samsung's BT-HID effect path doesn't reliably halt on bare cancel
+
+#### Per-game settings dialog
+
+A new **PC Vibration Settings** entry appears in each game's popup options menu, right after **PC Game Settings**:
+
+| Setting | Options |
+|---------|---------|
+| Mode | Off / Controller / Device / Both |
+| Intensity | 0–100% slider |
+
+Settings live in the stock `pc_g_setting<gameId>` SharedPreferences under `bh_vibration_*` keys, so the existing **Export / Import Config** flow picks them up automatically.
+
+#### Scope notes
+
+- **XInput API path only.** Modern PC games using XInput (the standard) get full rumble. The handful of older or niche titles using DirectInput Force-Feedback bypass our hook entirely.
+- **Native-XInput controllers need Bluetooth, not USB.** DualSense and DS4 rumble fine over both. Xbox-style pads and 8BitDo controllers in XInput mode rumble over Bluetooth but NOT over USB — Android's USB-HID driver for XInput devices doesn't expose the rumble feature report path.
+- **Tested setups:** Samsung devices with DualSense (Sony HID), DualShock 4 (Sony HID), and 8BitDo Pro 2 (XInput mode) across single, dual, and triple-controller configurations.
 
 ---
 
