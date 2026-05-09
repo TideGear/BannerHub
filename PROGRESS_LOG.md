@@ -4,6 +4,44 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [pre] — v3.7.0-pre2 — Add PC-accurate Vibration / Rumble support (2026-05-08)
+**PR merged:** [#80](https://github.com/The412Banner/BannerHub/pull/80) from `TideGear:Fix-Vibration` (merge commit `fb50345`)  |  **Tag:** `v3.7.0-pre2`  |  **Build:** `build-quick.yml` (artifact-only)  |  **Variant:** Normal on `com.tencent.ig`
+
+#### Why
+PC games on Wine expect XInput-shaped rumble (`XInputSetState(slot, low, high)`). The stock `GamepadServerManager.onRumble` chokepoint in GameHub doesn't drive Android's vibrators, so games either get no rumble or auto-stopped rumble (SDL2's internal 1s `rumble_expiration` cuts the motor while the game is still holding it). PR #80 routes the existing chokepoint through Android's `VibratorManager` + a Wine-side LD_PRELOAD shim that re-issues `SDL_JoystickRumble` every 500ms with a 2s duration so sustained holds survive.
+
+#### What shipped (cumulative on top of v3.7.0-pre1)
+- All v3.7.0-pre1 content (in-game AI Frame Generation menu — framegen sidebar entry + dialog, runtime ICD JSON write).
+- **PR #80 (vibration / rumble)** — full XInput-shaped controller rumble for Wine games:
+  - Independent low/high motor control on dual-motor pads via `CombinedVibration.startParallel`; single-motor blend (`low*0.80 + high*0.33`) fallback on 1-motor devices and the phone vibrator.
+  - Sustained holds via guest-side `libevshim.so` LD_PRELOAD shim — patches `winebus.so`'s SDL function pointers (no PLT/GOT relocation; `pSDL_JoystickRumble` + `pSDL_JoystickClose` in `.bss`) and re-issues rumble every 500ms with 2s duration.
+  - Instant release on let-go (no phantom-suppression timer).
+  - Multi-controller auto-wake — synthetic button-14 flicker through `GamepadServerManager.g` triggers libvfs's lazy `SDL_JOYDEVICEADDED` so freshly-connected controllers rumble without requiring any button press. Staggered 200ms per slot ascending so 3+ controller setups register cleanly.
+  - Wake-up hook gated on `GamepadDevice$Physical` only — skips `$Virtual` (touch overlay) so toggling Touch Controls or launching with no real controller doesn't crash with "Virtual gamepad already exists in slot 0".
+  - Samsung Vibrator HAL workaround — 1ms minimum-amplitude supersede pulse before `VibratorManager.cancel()`.
+  - Per-game **PC Vibration Settings** dialog (Mode: Off / Controller / Device / Both, Intensity slider) inserted right after "PC Game Settings" in the popup options menu. Settings stored in stock `pc_g_setting<gameId>` SharedPreferences under `bh_vibration_*` keys so existing `BhSettingsExporter` Export/Import flow picks them up automatically.
+
+#### Files added / changed by PR #80
+| Path | Role |
+|---|---|
+| `extension/BhVibrationController.java` | Singleton dispatcher hooked from smali into the gamepad pipeline (rumble entry, non-zero dispatch, stop hook, connect hook for auto-wake, EnvironmentController LD_PRELOAD prepend) |
+| `extension/BhVibrationSettingsActivity.java` | Mode/Intensity dialog (compact landscape layout, ScrollView capped at 85% screen height) |
+| `native/evshim/evshim.c` + `CMakeLists.txt` | Wine-side LD_PRELOAD shim — patches `winebus.so` SDL pointers, `pthread_atfork` child handler for fork-no-exec survival, PT_GNU_RELRO-aware page perms, gated to processes that load `winebus.so`, writes winedevice ready marker for Java-side wake-up sequencing |
+| `patches/AndroidManifest.xml` | Registers `BhVibrationSettingsActivity` |
+| `patches/smali/com/xj/landscape/launcher/ui/gamedetail/BhVibrationLambda.smali` | Function1 stub for popup option launch with resolved `gameId` + game name extras |
+| `.github/workflows/build*.yml` | NDK build step for `libevshim.so` + anchor-based Python regex smali patches at `apktool b` time covering `GamepadServerManager.onRumble`, `GamepadDevice$Physical.h/g`, `GamepadManager.B0` (with null + instanceof Physical guards), `GameDetailSettingMenu.W` popup option insertion (with name-based "PC Game Settings" search and tail-append fallback for non-English locales), and EnvironmentController LD_PRELOAD prepend |
+
+#### Scope and limitations (from PR description)
+- **XInput API path only.** DirectInput games (HID Force-Feedback feature reports through `dinput8.dll`) bypass `GamepadServerManager.onRumble` entirely. Almost no modern PC game is DInput-only for rumble, but it's worth noting.
+- **USB vs Bluetooth for rumble depends on the controller.** DualSense and DS4 rumble fine over USB and BT. Native-XInput controllers (8BitDo Pro 2 in XInput mode, Xbox-style pads) rumble over Bluetooth but NOT over USB — Android's USB-HID driver for XInput devices doesn't expose the rumble feature report path the way the BT HID profile does. Workaround: connect XInput-mode pads via Bluetooth.
+
+#### Pre-merge test status
+PR #80 was test-built on branch `test/vibration-pr80` (CI run 25531977830 ✅, 2026-05-08), merged onto pre-framegen main. Author-tested on Samsung with DualSense + DS4 + 8BitDo Pro 2 across single, dual, and triple-controller setups; sustained holds, instant release, taps, and post-connect wake-up confirmed; triple-controller staggered slot-0 → slot-1 → slot-2 wake-up at +0/+200/+400ms validated via logcat. Touch Controls toggle and zero-controller launch crashes confirmed fixed.
+
+This v3.7.0-pre2 build is the first integration test of vibration on top of the framegen menu (pre1).
+
+---
+
 ### [pre] — v3.7.0-pre1 — In-game AI Frame Generation menu (2026-05-08)
 **Branch merged:** `feature/framegen-menu` (--no-ff into main, merge commit `9d4a594`)  |  **Tag:** `v3.7.0-pre1` on the merge commit  |  **Build:** `build-quick.yml` (artifact-only — no GitHub Release per pre-release policy)  |  **Variant:** Normal on `com.tencent.ig` (pre/beta isolation package)
 
