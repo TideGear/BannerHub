@@ -73,26 +73,26 @@ public class BhFrameGenDialog extends Dialog {
         LinearLayout panel = new LinearLayout(ctx);
         panel.setOrientation(LinearLayout.VERTICAL);
         FrameLayout.LayoutParams panelLp = new FrameLayout.LayoutParams(
-                dp(460), ViewGroup.LayoutParams.WRAP_CONTENT);
+                dp(320), ViewGroup.LayoutParams.WRAP_CONTENT);
         panelLp.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
         panelLp.rightMargin = dp(24);
         panel.setLayoutParams(panelLp);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.parseColor("#ff1f1f24"));
-        bg.setCornerRadius(dp(12));
+        bg.setCornerRadius(dp(10));
         panel.setBackground(bg);
-        panel.setPadding(0, dp(12), 0, dp(12));
+        panel.setPadding(0, dp(8), 0, dp(8));
         root.addView(panel);
 
         // Title
         TextView title = new TextView(ctx);
         title.setText("AI Frame Generation");
         title.setTextColor(Color.WHITE);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
         title.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        titleLp.bottomMargin = dp(12);
+        titleLp.bottomMargin = dp(8);
         title.setLayoutParams(titleLp);
         panel.addView(title);
 
@@ -100,8 +100,8 @@ public class BhFrameGenDialog extends Dialog {
         ScrollView scroll = new ScrollView(ctx);
         LinearLayout.LayoutParams scrollLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        scrollLp.leftMargin = dp(24);
-        scrollLp.rightMargin = dp(24);
+        scrollLp.leftMargin = dp(16);
+        scrollLp.rightMargin = dp(16);
         scroll.setLayoutParams(scrollLp);
         panel.addView(scroll);
 
@@ -115,7 +115,7 @@ public class BhFrameGenDialog extends Dialog {
         Switch swEnable = new Switch(ctx);
         swEnable.setText("Enable frame generation");
         swEnable.setTextColor(Color.WHITE);
-        swEnable.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+        swEnable.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
         swEnable.setLayoutParams(rowLp());
         swEnable.setChecked(settings.enabled);
         swEnable.setOnCheckedChangeListener((b, isChecked) -> {
@@ -132,13 +132,13 @@ public class BhFrameGenDialog extends Dialog {
         TextView presetHeader = new TextView(ctx);
         presetHeader.setText("Preset");
         presetHeader.setTextColor(Color.WHITE);
-        presetHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+        presetHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
         presetHeader.setLayoutParams(headerLp());
         body.addView(presetHeader);
 
         tvPresetLabel = new TextView(ctx);
         tvPresetLabel.setTextColor(Color.parseColor("#ffaaaaaa"));
-        tvPresetLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
+        tvPresetLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f);
         tvPresetLabel.setLayoutParams(headerLp());
         body.addView(tvPresetLabel);
 
@@ -170,7 +170,7 @@ public class BhFrameGenDialog extends Dialog {
             TextView tv = new TextView(ctx);
             tv.setText(p.label);
             tv.setTextColor(Color.parseColor("#ff888e99"));
-            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f);
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f);
             tv.setGravity(Gravity.CENTER);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
                     ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
@@ -181,7 +181,7 @@ public class BhFrameGenDialog extends Dialog {
 
         tvPresetDesc = new TextView(ctx);
         tvPresetDesc.setTextColor(Color.parseColor("#ff888e99"));
-        tvPresetDesc.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f);
+        tvPresetDesc.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f);
         LinearLayout.LayoutParams descLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         descLp.topMargin = dp(6);
@@ -195,7 +195,7 @@ public class BhFrameGenDialog extends Dialog {
         TextView mulHeader = new TextView(ctx);
         mulHeader.setText("Frame multiplier");
         mulHeader.setTextColor(Color.WHITE);
-        mulHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+        mulHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
         mulHeader.setLayoutParams(headerLp());
         body.addView(mulHeader);
 
@@ -208,7 +208,7 @@ public class BhFrameGenDialog extends Dialog {
             RadioButton rb = new RadioButton(ctx);
             rb.setText(mults[i] + "×");
             rb.setTextColor(Color.WHITE);
-            rb.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+            rb.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
             rb.setId(0x1bf60000 + mults[i]);
             LinearLayout.LayoutParams rbLp = new LinearLayout.LayoutParams(0,
                     ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
@@ -236,7 +236,7 @@ public class BhFrameGenDialog extends Dialog {
         TextView flowHeader = new TextView(ctx);
         flowHeader.setText("Flow scale");
         flowHeader.setTextColor(Color.WHITE);
-        flowHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+        flowHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
         LinearLayout.LayoutParams flowHeaderLp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         flowHeader.setLayoutParams(flowHeaderLp);
@@ -244,7 +244,7 @@ public class BhFrameGenDialog extends Dialog {
 
         tvFlowScaleValue = new TextView(ctx);
         tvFlowScaleValue.setTextColor(Color.parseColor("#ffaaaaaa"));
-        tvFlowScaleValue.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
+        tvFlowScaleValue.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f);
         tvFlowScaleValue.setText(formatFloat(settings.flowScale));
         flowHeaderRow.addView(tvFlowScaleValue);
 
@@ -272,14 +272,14 @@ public class BhFrameGenDialog extends Dialog {
         TextView btnClose = new TextView(ctx);
         btnClose.setText("Close");
         btnClose.setTextColor(Color.parseColor("#fff0f0f0"));
-        btnClose.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+        btnClose.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
         btnClose.setGravity(Gravity.CENTER);
         btnClose.setBackgroundColor(Color.parseColor("#ff3b82f6"));
         LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(35));
-        btnLp.topMargin = dp(12);
-        btnLp.leftMargin = dp(60);
-        btnLp.rightMargin = dp(60);
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(30));
+        btnLp.topMargin = dp(10);
+        btnLp.leftMargin = dp(40);
+        btnLp.rightMargin = dp(40);
         btnClose.setLayoutParams(btnLp);
         btnClose.setOnClickListener(v -> dismiss());
         panel.addView(btnClose);
