@@ -4,6 +4,62 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [pre] — v3.7.0-pre1 — In-game AI Frame Generation menu (2026-05-08)
+**Branch merged:** `feature/framegen-menu` (--no-ff into main, merge commit `9d4a594`)  |  **Tag:** `v3.7.0-pre1` on the merge commit  |  **Build:** `build-quick.yml` (artifact-only — no GitHub Release per pre-release policy)  |  **Variant:** Normal on `com.tencent.ig` (pre/beta isolation package)
+
+#### Note on prior v3.7.0-pre1
+The earlier `v3.7.0-pre1` tag (EOS Phase 2 sub-phases 2A–2F overlay work, originally on commit `fabbc67`) was deleted from origin and locally on 2026-05-08. EOS Phase 2 has been scrubbed and will not be carried forward. The `v3.7.0-pre1` label is now reused for this framegen pre-release. The Phase 2 commits remain available on the `epic-eos-phase2` branch for archaeology but no longer participate in any release line.
+
+#### Why
+First user-facing surface for the in-game AI Frame Generation feature added in v3.6.x research. Users can now toggle frame generation, pick a preset, set a multiplier, and tune flow scale from a sidebar entry without manually editing `gamescope.control` or the ICD JSON. Settings survive BannerHub's `gamescope.control` regenerator (which zeros byte 0 every launch) via a smali hook in `EnvironmentController.smali` that re-applies the saved values on each game launch.
+
+#### What shipped (6 commits, ordered)
+1. `55308ab` — initial scaffolding: in-game AI Frame Generation settings menu
+2. `0e214de` — move launch hook from classes6 to classes15 (correct dex slot for `WineActivity.onCreate` post-6.0.1 letter remap)
+3. `5a9ab56` — drive sidebar switch via `setSwitch()` reflection; remove FPS section
+4. `12195fc` — dock settings dialog to right edge, vertically centered
+5. `902ec82` — compact dialog layout (320dp wide, smaller text + paddings)
+6. `7af2a70` — write `GameScopeVK_icd.json` with runtime package name (`ctx.getPackageName()`); makes the ICD JSON path correct on first launch with no manual edit, and works for any installed package name including manually-renamed APKs
+
+#### Files added
+| Path | Role |
+|---|---|
+| `extension/BhFrameGenSettings.java` | Settings + 6-preset enum |
+| `extension/BhFrameGenWriter.java` | mmap byte writer (per-byte + full + `applyFromPrefsNoContext()` for smali hook); also writes `GameScopeVK_icd.json` per-package |
+| `extension/BhFrameGenDialog.java` | Programmatic dialog UI (no XML — avoids R.id cross-module coupling) |
+| `extension/BhFrameGenWiring.java` | Binds sidebar widgets via `getResources().getIdentifier()` |
+| `patches/smali_classes14/com/xj/winemu/sidebar/SidebarControlsFragment.smali` | onResume hook → `BhFrameGenWiring.bind(getView())` |
+| `patches/smali_classes6/com/winemu/core/controller/EnvironmentController.smali` | Tail of `n()` method → `BhFrameGenWriter.applyFromPrefsNoContext()` |
+| `patches/res/layout/winemu_sidebar_controls_fragment.xml` | Adds `frame_gen_container` row |
+| `patches/res/values/ids.xml` | + `frame_gen_container`, `switch_frame_gen`, `btn_frame_gen_settings` |
+| `patches/res/values/strings.xml` | + `bh_framegen_title`, `bh_framegen_settings_open` |
+| `BANNERHUB_MASTER_MAP.md` | § 286 corrected to 10-byte protocol; new § AI-FrameGen added |
+
+#### Storage
+- SharedPreferences file: `bh_framegen.xml`
+- Global (not per-game) settings in v1
+- Keys: `enabled`, `preset`, `multiplier`, `flowScale`, `model`, `fpsLimitEnabled`, `fpsLimitValue`
+
+#### Preset → byte mapping
+| Preset | model | flowScale |
+|---|---|---|
+| ECO | 0 | 0.2 |
+| FLOW | 0 | 0.4 |
+| BAL | 0 | 0.6 (default) |
+| BOOST | 0 | 0.8 |
+| CLEAR | 1 | 0.6 |
+| MAX | 1 | 0.8 |
+
+#### Device test status (2026-05-08)
+✅ Fresh install on a manually-renamed package (matches the `com.tencent.ig` path the build-quick.yml builds): user installed the build from CI run 25586514867, opened the in-game frame-gen menu, and confirmed activation works end-to-end. Earlier overlay screenshots (2026-05-08 20:30) had already shown 42 → 75 / 80 FPS (~1.8–1.9× on 2× multiplier) on the same code path.
+
+#### Known caveats / pending
+- Settings are global; per-game scoping is a v2 candidate
+- Dialog is built programmatically with hardcoded English; localization TBD
+- Master map § 26.8.4 notes that multiplier=1 is silently coerced to 2 at the IPC layer; multiplier=3/4 is documented but not yet observed working in our tests
+
+---
+
 ### [stable] — v3.6.1 — Epic Online Services support (2026-05-05)
 **Tag:** v3.6.1  |  **Build:** `build.yml` (stable, all 9 variants)  |  **Branch merged:** `epic-eos`  |  **CI:** [run 25395902373](https://github.com/The412Banner/BannerHub/actions/runs/25395902373) ✅  |  **Release:** https://github.com/The412Banner/BannerHub/releases/tag/v3.6.1
 
