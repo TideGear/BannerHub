@@ -223,25 +223,51 @@ Practical takeaway: multiplier=3 and 4 are documented in the protocol but not ye
 
 ## 6. The `VK_NV_optical_flow` ↔ Adreno bridge (master map § 26.8.6)
 
-`VK_NV_optical_flow` is normally an NVIDIA-only Vulkan extension. NVIDIA Ada Lovelace / RTX 40-series GPUs have dedicated optical-flow accelerators; the extension exposes them.
+> **For the full driver-nerd writeup see `gamehub_reports/VK_NV_OPTICAL_FLOW_ON_ADRENO.md`.** This section is the summary version.
 
-XiaoJi's Mesa Turnip fork (`libvulkan_freedreno.so`, also bundled in the imagefs) implements **the same extension on Qualcomm Adreno**. Confirmed by symbol presence in the binary:
+`VK_NV_optical_flow` is **not a hardware lock — it's a Vulkan extension specification.** Anyone whose driver can answer `vkCreateOpticalFlowSessionNV` and friends can advertise it. NVIDIA designed the spec around their RTX 40-series fixed-function Optical Flow Accelerator (OFA), but XiaoJi's Mesa Turnip fork (`libvulkan_freedreno.so`, also bundled in the imagefs — 13 MB, NDK r29, Android 34) reimplements the same ABI as **plain Vulkan compute shaders** on Adreno's regular shader cores.
+
+### 6.1 Confirmed by symbol presence in `libvulkan_freedreno.so`
+
+C++ template instantiations for **three Adreno chip families**:
 
 ```
-libvulkan_freedreno.so:
-  tu_CreateOpticalFlowSessionNV<chip 6>
-  tu_CreateOpticalFlowSessionNV<chip 7>
-  tu_CreateOpticalFlowSessionNV<chip 8>
-  tu_DestroyOpticalFlowSessionNV<...>
-  tu_BindOpticalFlowSessionImageNV<...>
-  VkPhysicalDeviceOpticalFlowFeaturesNV
+tu_CreateOpticalFlowSessionNV<chip 6>          Adreno 6xx (S855/S865/S888 — A640/650/660/680)
+tu_CreateOpticalFlowSessionNV<chip 7>          Adreno 7xx (S8 Gen 2/3 — A730/740/750)   ← our verified device
+tu_CreateOpticalFlowSessionNV<chip 8>          Adreno 8xx / Adreno X1 (S8 Elite, X Elite)
+tu_DestroyOpticalFlowSessionNV<chip 6/7/8>
+tu_BindOpticalFlowSessionImageNV<chip 6/7/8>
+tu_CmdOpticalFlowExecuteNV<chip 6/7/8>
 ```
 
-`chip 6/7/8` are Turnip codenames for Adreno generations. Our verified-working device (Adreno 750) targets chip 7. The implementation runs as compute shaders on the GPU's existing CV / image-processing units rather than a dedicated optical-flow accelerator.
+Plus the spec's struct-type strings (`VkPhysicalDeviceOpticalFlowFeaturesNV`, `VK_STRUCTURE_TYPE_OPTICAL_FLOW_SESSION_CREATE_INFO_NV`, etc.) and the Vulkan loader-facing entry points (`vkCreateOpticalFlowSessionNV`, `vkCmdOpticalFlowExecuteNV`, `vkGetPhysicalDeviceOpticalFlowImageFormatsNV`, …) — i.e. Turnip advertises the extension via `vkEnumerateDeviceExtensionProperties` and exposes the feature struct via `vkGetPhysicalDeviceFeatures2`. From the application's perspective the device looks identical to an RTX 40-series.
 
-**This is the core piece of magic** that makes AI frame-gen work on phone GPUs. Without it, `libGameScopeVK` would fail at `vkCreateOpticalFlowSessionNV` and frame-gen would silently no-op.
+### 6.2 The per-chip dispatch is not cosmetic
 
-**Critical implication for users:** AI frame-gen requires the Turnip Mesa fork. Devices on stock vendor Vulkan drivers (vendor Qualcomm / ARM / PowerVR) almost certainly **won't** advertise `VK_NV_optical_flow`. The "Custom GPU driver" toggle in PC Game Settings must be ON, pointing at a Turnip variant with optical-flow symbols. We confirmed `Turnip_v26.2.0_R3` exposes the symbols (chip 6/7/8) for our 2026-05-08 successful run.
+The `IL4chip{6,7,8}EE` template parameter is Mesa's standard "compile this function separately per Adreno generation" pattern. Generations vary in wave width, FP16 dot-product accumulator widths, texture-gather ISA, and image-store coherency rules — so each chip gets its own ISA generator path. `tu_physical_device->info->chip` indexes into the right specialisation at session-create time. **One Turnip build covers Adreno 6xx through Adreno X1.**
+
+### 6.3 What `libGameScopeVK` is actually doing with it
+
+`libGameScopeVK.so` is a **Vulkan ICD shim** (NEEDED list: only `libvulkan`, `libandroid`, `liblog`, `libEGL`, `libGLES*`, `libX11*`, `libxcb*`, `libm/dl/c` — **no NCNN/ONNX/TFLite/CUDA**). On init it `dlopen`s whatever path is in `GAMESCOPE_DRIVER_PATH` and forwards device-level Vulkan calls. On `vkQueuePresentKHR` it:
+
+1. Calls `vkCmdOpticalFlowExecuteNV` against the chained driver to compute motion vectors between frames N-1 and N.
+2. Dispatches its embedded inference network — visible as compute pipeline names in the binary's strings: `delta0..delta9` (10 stages) + `gamma0..gamma4` and `gamma23` (likely a fused 2/3 stage) — consuming the OF vectors as one input alongside the two reference frames.
+3. Blits the synthetic mid-frame into the swapchain before forwarding Present.
+
+The `delta`/`gamma` weights load via a "warmup" pass at first use (`warmup ingest failed`, `warmup submit failed` are the failure strings; weights are likely BCN-compressed textures decoded into SSBOs).
+
+### 6.4 Critical implication for users
+
+AI frame-gen requires **both** halves of the chain:
+
+- An imagefs that ships a frame-gen-capable `libGameScopeVK.so` (1.3.5+, ~2.2 MB; pre-1.3.5 ships a 950 KB stub with no AI codepath)
+- A Vulkan ICD that advertises `VK_NV_optical_flow` — i.e. XiaoJi's bundled Turnip fork or another Turnip build with the OF feature flag enabled
+
+Devices on stock vendor Vulkan drivers (Qualcomm / ARM / PowerVR) **won't** advertise `VK_NV_optical_flow`. The "Custom GPU driver" toggle in PC Game Settings must be ON, pointing at a Turnip variant with the chip-6/7/8 symbols. We confirmed `Turnip_v26.2.0_R3` exposes the symbols for our 2026-05-08 successful run.
+
+### 6.5 Why this isn't "hacking around" the extension
+
+It's the opposite — Mesa **legitimately implements** the extension. Vulkan extension names are namespaced (`KHR`/`EXT`/`<vendor>`) by *who proposed* the spec, but the ABI is open. Any vendor's driver can answer the same entrypoints and advertise support. NVIDIA shipped the dedicated silicon; Mesa shipped a pure-compute reimplementation; the Vulkan loader and the consuming application can't tell the difference at the API layer. The performance is different (~10–20% extra GPU cost on Adreno vs near-free on RTX OFA), but the contract is identical.
 
 ---
 
@@ -451,6 +477,7 @@ Observations:
 ## 14. Cross-references
 
 - `BANNERHUB_MASTER_MAP.md` § 26.8 — full GameHub 6.0.1 deep-dive (data classes, persistence, mmap IPC, libGameScopeVK ICD, VK_NV_optical_flow on Adreno, UI strings, capability gating)
+- `gamehub_reports/VK_NV_OPTICAL_FLOW_ON_ADRENO.md` — dedicated driver-nerd writeup of the OF extension reimplementation (chip 6/7/8 dispatch, Turnip internals, ICD chain, embedded delta/gamma compute pipelines)
 - `BANNERHUB_API_6.0_INTEGRATION.md` — relates to the broader 6.0.1 hotfix work (v1.0.1-601)
 - `project_lsfg_android.md` — separate frame-gen project (LSFG-VK), unrelated DLL-based approach
 - `project_bannerhub.md` — overall BannerHub state and release status

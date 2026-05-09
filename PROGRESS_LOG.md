@@ -4,6 +4,18 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [docs] — `VK_NV_optical_flow` on Adreno deep-dive report (2026-05-08)
+
+Added a dedicated driver-nerd writeup explaining how Mesa Turnip reimplements the NV-prefixed Vulkan extension on Adreno, and what BannerHub 3.7.0's AI Frame Generation actually depends on at the driver layer.
+
+- **New:** `gamehub_reports/VK_NV_OPTICAL_FLOW_ON_ADRENO.md` — 8 sections covering the per-chip dispatch (chip 6/7/8 templates), `libGameScopeVK.so` ICD shim internals (NEEDED list, `delta0..9` + `gamma0..4` + `gamma23` embedded compute pipelines, env-var config, ICD chaining via `GAMESCOPE_DRIVER_PATH`), end-to-end runtime chain diagram, silent-fail gate + verification recipe, and what BannerHub itself contributes vs what comes from imagefs.
+- **Updated:** `AI_FRAME_GENERATION_REPORT.md` § 6 — replaced terse summary with expanded 6.1–6.5 subsections (chip table, NEEDED list, delta/gamma pipelines, "why this isn't hacking the API"). Added cross-ref to dedicated report.
+- **Updated:** `gamehub_reports/GAMEHUB_600_MASTER_MAP.md` § 26.8.6 — same expansion in-context, with pointer at the top to the dedicated report.
+
+Source for all claims: direct symbol/string analysis of `imagefs_136.zst:usr/lib/{libGameScopeVK.so, libvulkan_freedreno.so}`. Cross-checked against `imagefs.zst` (older, pre-1.3.5) which ships a 950 KB `libGameScopeVK.so` stub with no AI codepath — confirms 3.7.0's frame-gen requires 1.3.5+ firmware.
+
+---
+
 ### [stable] — v3.7.0 — In-game AI Frame Generation menu + PC-accurate Vibration / Rumble (2026-05-09)
 **Tag:** `v3.7.0`  |  **Build:** `build.yml` (stable, all 9 variants)  |  **Branches merged:** `feature/framegen-menu` (--no-ff merge `9d4a594`) + PR #80 from `TideGear:Fix-Vibration` (merge `fb50345`)  |  **Release:** https://github.com/The412Banner/BannerHub/releases/tag/v3.7.0
 
