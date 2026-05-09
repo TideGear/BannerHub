@@ -74,7 +74,8 @@ public class BhFrameGenDialog extends Dialog {
         panel.setOrientation(LinearLayout.VERTICAL);
         FrameLayout.LayoutParams panelLp = new FrameLayout.LayoutParams(
                 dp(460), ViewGroup.LayoutParams.WRAP_CONTENT);
-        panelLp.gravity = Gravity.CENTER;
+        panelLp.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
+        panelLp.rightMargin = dp(24);
         panel.setLayoutParams(panelLp);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.parseColor("#ff1f1f24"));
