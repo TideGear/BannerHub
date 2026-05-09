@@ -6,14 +6,12 @@ import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
-import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.CompoundButton;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
@@ -269,65 +267,6 @@ public class BhFrameGenDialog extends Dialog {
         });
         body.addView(sbFlowScale);
 
-        body.addView(divider());
-
-        // ── Section 5: FPS limit ─────────────────────────────────────────
-        Switch swFpsLimit = new Switch(ctx);
-        swFpsLimit.setText("Enable FPS limit");
-        swFpsLimit.setTextColor(Color.WHITE);
-        swFpsLimit.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
-        swFpsLimit.setLayoutParams(rowLp());
-        swFpsLimit.setChecked(settings.fpsLimitEnabled);
-        body.addView(swFpsLimit);
-
-        LinearLayout fpsRow = new LinearLayout(ctx);
-        fpsRow.setOrientation(LinearLayout.HORIZONTAL);
-        fpsRow.setLayoutParams(rowLp());
-
-        TextView fpsHeader = new TextView(ctx);
-        fpsHeader.setText("FPS limit");
-        fpsHeader.setTextColor(Color.WHITE);
-        fpsHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
-        LinearLayout.LayoutParams fpsHdLp = new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        fpsHeader.setLayoutParams(fpsHdLp);
-        fpsRow.addView(fpsHeader);
-
-        TextView tvFpsLimitValue = new TextView(ctx);
-        tvFpsLimitValue.setTextColor(Color.parseColor("#ffaaaaaa"));
-        tvFpsLimitValue.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
-        tvFpsLimitValue.setText(settings.fpsLimitValue + " FPS");
-        fpsRow.addView(tvFpsLimitValue);
-
-        body.addView(fpsRow);
-
-        SeekBar sbFps = new SeekBar(ctx);
-        sbFps.setMax(114); // 30..144
-        sbFps.setProgress(clampInt(settings.fpsLimitValue, 30, 144) - 30);
-        sbFps.setLayoutParams(seekBarLp());
-        sbFps.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
-                int v = 30 + progress;
-                tvFpsLimitValue.setText(v + " FPS");
-                if (!fromUser) return;
-                settings.fpsLimitValue = v;
-                if (settings.fpsLimitEnabled) {
-                    BhFrameGenWriter.writeFpsLimit(controlPath, v);
-                }
-                settings.save(getContext());
-            }
-            @Override public void onStartTrackingTouch(SeekBar b) {}
-            @Override public void onStopTrackingTouch(SeekBar b) {}
-        });
-        body.addView(sbFps);
-
-        // FPS-limit listener has to come after the seekbar reference is in scope
-        swFpsLimit.setOnCheckedChangeListener((b, isChecked) -> {
-            settings.fpsLimitEnabled = isChecked;
-            BhFrameGenWriter.writeFpsLimit(controlPath, isChecked ? settings.fpsLimitValue : 0);
-            settings.save(getContext());
-        });
-
         // ── Close button ─────────────────────────────────────────────────
         TextView btnClose = new TextView(ctx);
         btnClose.setText("Close");
@@ -395,10 +334,6 @@ public class BhFrameGenDialog extends Dialog {
         if (m < 2) return 2;
         if (m > 4) return 4;
         return m;
-    }
-
-    private static int clampInt(int v, int lo, int hi) {
-        return Math.max(lo, Math.min(hi, v));
     }
 
     private static int flowScaleToProgress(float flowScale) {

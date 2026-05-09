@@ -14,9 +14,9 @@ import java.nio.channels.FileChannel;
  * GAMEHUB_600_MASTER_MAP § 26.8.3.
  *
  * Byte layout (LE):
- *   0-1: uint16 FPS limit
+ *   0-1: uint16 FPS limit            — owned by separate sidebar control, NOT touched here
  *   2:   enabled flag (0/1)
- *   3:   NativeRenderingMode (0=Auto, 1=Never, 2=Always) — preserved here
+ *   3:   NativeRenderingMode         — owned by host launcher, NOT touched here
  *   4-7: float flowScale (clamped 0.2..1.0)
  *   8:   AI model byte (0=standard, 1=clear)
  *   9:   AI multiplier byte (clamped 2..4)
@@ -42,7 +42,8 @@ public class BhFrameGenWriter {
         } catch (Exception ignored) {}
     }
 
-    /** Write all settings except byte 3 (NativeRenderingMode) to gamescope.control. */
+    /** Write our owned bytes (2, 4-7, 8, 9) to gamescope.control. Bytes 0-1 (FPS limit)
+     *  and byte 3 (NativeRenderingMode) are owned by other components and left alone. */
     public static void write(String controlPath, BhFrameGenSettings s) {
         if (controlPath == null || controlPath.isEmpty() || s == null) return;
         try {
@@ -55,10 +56,7 @@ public class BhFrameGenWriter {
                 MappedByteBuffer buf = ch.map(FileChannel.MapMode.READ_WRITE, 0, 10);
                 buf.order(ByteOrder.LITTLE_ENDIAN);
 
-                int fps = s.fpsLimitEnabled ? clampInt(s.fpsLimitValue, 0, 65535) : 0;
-                buf.putShort(0, (short) fps);
                 buf.put(2, (byte) (s.enabled ? 1 : 0));
-                // byte 3 (NativeRenderingMode) intentionally NOT touched
                 buf.putFloat(4, clampFloat(s.flowScale, 0.2f, 1.0f));
                 buf.put(8, (byte) (s.model & 0x01));
                 buf.put(9, (byte) clampInt(s.multiplier, 2, 4));
@@ -89,17 +87,6 @@ public class BhFrameGenWriter {
             MappedByteBuffer buf = raf.getChannel().map(FileChannel.MapMode.READ_WRITE, 0, 10);
             buf.order(ByteOrder.LITTLE_ENDIAN);
             buf.putFloat(4, clampFloat(flowScale, 0.2f, 1.0f));
-            buf.force();
-        } catch (Exception ignored) {}
-    }
-
-    /** Write the 16-bit FPS limit at bytes 0-1 (LE). Pass 0 to disable. */
-    public static void writeFpsLimit(String controlPath, int fps) {
-        try (RandomAccessFile raf = new RandomAccessFile(controlPath, "rw")) {
-            if (raf.length() < 10) raf.setLength(10);
-            MappedByteBuffer buf = raf.getChannel().map(FileChannel.MapMode.READ_WRITE, 0, 10);
-            buf.order(ByteOrder.LITTLE_ENDIAN);
-            buf.putShort(0, (short) clampInt(fps, 0, 65535));
             buf.force();
         } catch (Exception ignored) {}
     }

@@ -7774,9 +7774,9 @@ The control file at `<imageFs>/etc/gamescope.control` was expanded from 4 bytes 
 - `patches/res/values/ids.xml` — adds `frame_gen_container`, `switch_frame_gen`, `btn_frame_gen_settings`
 - `patches/res/values/strings.xml` — adds `bh_framegen_title`, `bh_framegen_settings_open`
 
-**SharedPreferences:** `bh_framegen.xml` stores global settings (not per-game in v1). Keys: `enabled`, `preset`, `multiplier`, `flowScale`, `model`, `fpsLimitEnabled`, `fpsLimitValue`.
+**SharedPreferences:** `bh_framegen.xml` stores global settings (not per-game in v1). Keys: `enabled`, `preset`, `multiplier`, `flowScale`, `model`. The FPS limit is owned by a separate sidebar control (bytes 0-1 of `gamescope.control`); we deliberately don't touch those bytes to avoid clobbering it.
 
-**Persistence model:** every dialog control writes to `gamescope.control` immediately AND saves to SharedPrefs. The `EnvironmentController` smali hook re-applies all SharedPrefs values to the file on every game launch (after BannerHub's own regenerator zeroes byte 0).
+**Persistence model:** every dialog control writes to `gamescope.control` immediately AND saves to SharedPrefs. The `WineActivity` launch hook re-applies all SharedPrefs values to bytes 2/4-7/8/9 on every game launch (after BannerHub's own regenerator runs).
 
 **Preset values** (matches GameHub 6.0.1 `AiFrameInterpolationMode` enum):
 | Preset | model | flowScale | UI label |

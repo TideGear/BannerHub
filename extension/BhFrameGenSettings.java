@@ -42,8 +42,6 @@ public class BhFrameGenSettings {
     public int multiplier = 2;          // byte 9, clamped 2..4
     public float flowScale = 0.6f;      // bytes 4-7, clamped 0.2..1.0
     public int model = 0;               // byte 8, 0..1
-    public boolean fpsLimitEnabled = false;
-    public int fpsLimitValue = 60;      // bytes 0-1 uint16 LE
 
     public static BhFrameGenSettings load(Context ctx) {
         SharedPreferences sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
@@ -54,8 +52,6 @@ public class BhFrameGenSettings {
         s.multiplier = sp.getInt("multiplier", 2);
         s.flowScale = sp.getFloat("flowScale", s.preset.flowScale);
         s.model = sp.getInt("model", s.preset.model);
-        s.fpsLimitEnabled = sp.getBoolean("fpsLimitEnabled", false);
-        s.fpsLimitValue = sp.getInt("fpsLimitValue", 60);
         return s;
     }
 
@@ -66,8 +62,6 @@ public class BhFrameGenSettings {
         ed.putInt("multiplier", multiplier);
         ed.putFloat("flowScale", flowScale);
         ed.putInt("model", model);
-        ed.putBoolean("fpsLimitEnabled", fpsLimitEnabled);
-        ed.putInt("fpsLimitValue", fpsLimitValue);
         ed.apply();
     }
 
