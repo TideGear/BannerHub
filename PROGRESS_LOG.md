@@ -39,6 +39,12 @@ Two new user-facing features over v3.6.1:
 2. **Vibration is XInput-only.** Modern PC games using XInput (the standard) get full rumble. The handful of older or niche titles that use the DirectInput Force-Feedback API bypass our hook entirely and won't rumble.
 3. **Native-XInput controllers need Bluetooth for rumble.** DualSense and DualShock 4 rumble fine over USB and Bluetooth. Xbox-style pads and 8BitDo controllers in XInput mode rumble over Bluetooth but NOT over USB — Android's USB-HID driver for XInput devices doesn't expose the rumble feature report path. Workaround: connect those controllers via Bluetooth.
 
+#### Post-release doc trail (no APK rebuild — release body edited via `gh release edit`)
+- `63d4b07` — added `gamehub_reports/GAMEHUB_600_MASTER_MAP.md` (3,040-line GameHub 6.0.0 → 6.0.1 reverse-engineering report) to the repo and expanded README's AI Frame Generation Menu section with how-it-works, expanded settings dialog table, practical guidance, persistence model, caveats. Linked § 26.8 of the new report from the README for the deep technical dive.
+- `0cf7d81` — credited the GameHub team for the AI frame interpolation engine (`libGameScopeVK`, `VK_NV_optical_flow` Adreno path, optical-flow synthesis pipeline, 6 quality presets) in both the README's frame-gen section and the release body, mirroring the GameNative Phase-1 credit style from v3.6.1 and the TideGear vibration credit in this release.
+- `129258e` — dropped FPS-limit references from README + master map + PROGRESS_LOG + release body + Reddit post + memory. The FPS-limit UI was scaffolded in `55308ab` but removed in `5a9ab56` ("remove FPS section"); bytes 0–1 of `gamescope.control` stay owned by GameHub's separate sidebar FPS-limit control. README now points users at that existing GameHub control instead.
+- Reddit announcement post drafted at `/data/data/com.termux/files/home/BannerHub-v3.7.0-reddit-post.txt` with full credits, repo links, README anchors, and "My other projects" section (Banners-Turnip, winlator-contents).
+
 ---
 
 ### [pre] — v3.7.0-pre2 — Add PC-accurate Vibration / Rumble support (2026-05-08)
