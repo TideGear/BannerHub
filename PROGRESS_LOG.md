@@ -8,7 +8,7 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 **Branch merged:** `feature/framegen-menu` (--no-ff into main, merge commit `9d4a594`)  |  **Tag:** `v3.7.0-pre1` on the merge commit  |  **Build:** `build-quick.yml` (artifact-only — no GitHub Release per pre-release policy)  |  **Variant:** Normal on `com.tencent.ig` (pre/beta isolation package)
 
 #### Note on prior v3.7.0-pre1
-The earlier `v3.7.0-pre1` tag (EOS Phase 2 sub-phases 2A–2F overlay work, originally on commit `fabbc67`) was deleted from origin and locally on 2026-05-08. EOS Phase 2 has been scrubbed and will not be carried forward. The `v3.7.0-pre1` label is now reused for this framegen pre-release. The Phase 2 commits remain available on the `epic-eos-phase2` branch for archaeology but no longer participate in any release line.
+The earlier `v3.7.0-pre1` tag (EOS Phase 2 sub-phases 2A–2F overlay work, originally on commit `fabbc67`) was deleted from origin and locally on 2026-05-08. EOS Phase 2 has been scrubbed and will not be carried forward. The `v3.7.0-pre1` label is now reused for this framegen pre-release. The `epic-eos-phase2` branch was also deleted on 2026-05-08; the Phase 2 commits are now unreachable from any ref and will be garbage-collected by git in due course.
 
 #### Why
 First user-facing surface for the in-game AI Frame Generation feature added in v3.6.x research. Users can now toggle frame generation, pick a preset, set a multiplier, and tune flow scale from a sidebar entry without manually editing `gamescope.control` or the ICD JSON. Settings survive BannerHub's `gamescope.control` regenerator (which zeros byte 0 every launch) via a smali hook in `EnvironmentController.smali` that re-applies the saved values on each game launch.
