@@ -9,7 +9,7 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 #### Headline
 Two new user-facing features over v3.6.1:
-1. **In-game AI Frame Generation menu** (originally v3.7.0-pre1, 2026-05-08) — sidebar entry + dialog for GameHub 6.0.1's built-in `libGameScopeVK` frame interpolation. 6 presets, 2×/3×/4× multiplier, 0.20–1.00 flow scale, optional FPS cap. Confirmed ~1.8–1.9× FPS scaling on device (42 → 75/80 FPS via overlay screenshots).
+1. **In-game AI Frame Generation menu** (originally v3.7.0-pre1, 2026-05-08) — sidebar entry + dialog for GameHub 6.0.1's built-in `libGameScopeVK` frame interpolation. 6 presets, 2×/3×/4× multiplier, 0.20–1.00 flow scale. Confirmed ~1.8–1.9× FPS scaling on device (42 → 75/80 FPS via overlay screenshots).
 2. **PC-accurate Vibration / Rumble** (originally v3.7.0-pre2, 2026-05-09) — XInput-shaped Wine controller rumble routed into Android's `VibratorManager`. Independent low/high motors on dual-motor pads, sustained holds (LD_PRELOAD shim defeats SDL2's 1s rumble expiration), instant release, multi-controller auto-wake up to 4 slots, Samsung HAL workaround, per-game **PC Vibration Settings** popup-menu entry. From TideGear's PR #80, originally landed on GameNative as PR #1214.
 
 #### What shipped (cumulative across pre1–pre2 over v3.6.1)
@@ -113,7 +113,7 @@ First user-facing surface for the in-game AI Frame Generation feature added in v
 #### Storage
 - SharedPreferences file: `bh_framegen.xml`
 - Global (not per-game) settings in v1
-- Keys: `enabled`, `preset`, `multiplier`, `flowScale`, `model`, `fpsLimitEnabled`, `fpsLimitValue`
+- Keys: `enabled`, `preset`, `multiplier`, `flowScale`, `model` (the FPS-limit UI was scaffolded but removed before pre1; bytes 0–1 of `gamescope.control` stay owned by GameHub's separate FPS-limit sidebar control)
 
 #### Preset → byte mapping
 | Preset | model | flowScale |

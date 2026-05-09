@@ -469,17 +469,18 @@ Open any PC game's in-game sidebar and tap the **Performance** tab. You'll see a
 | **Preset** | Eco / Flow / Bal / Boost / Clear / Max | 6 named profiles that bundle a quality model and flow-scale value. Map: Eco=`model 0/flow 0.2`, Flow=`0/0.4`, **Bal=`0/0.6` (default)**, Boost=`0/0.8`, Clear=`1/0.6`, Max=`1/0.8`. Mirrors GameHub 6.0.1's `AiFrameInterpolationMode` enum |
 | **Multiplier** | 2× / 3× / 4× | How many displayed frames per rendered frame. **2× is the validated path**; 3× and 4× are wired up at the IPC layer but not yet observed working on any tested device. The platform also silently coerces `1×` → `2×` at the IPC layer, so there's no "off via multiplier=1" trick — use the master toggle |
 | **Custom flow scale** | 0.20–1.00 | AI optical-flow strength. Lower = cheaper, more artifacts on fast motion. Higher = cleaner but more GPU cost. Defaults to whatever the chosen preset says; moving the slider overrides it |
-| **FPS limit** | Toggle + 30–144 | Optional output framerate cap. Useful when frame-gen pushes you above your panel's refresh rate or when you want to keep input latency bounded |
 
 Every change is **applied immediately** to the running game (writes through `gamescope.control` mmap) and **saved to SharedPreferences** so the value persists.
+
+The FPS-limit byte (bytes 0–1 of `gamescope.control`) is owned by GameHub's separate sidebar control — our writer deliberately leaves it alone so toggling frame-gen never clobbers your existing FPS cap.
 
 #### Practical guidance
 
 - **Start with `Bal` preset, 2× multiplier.** This is the default for a reason — clean output without spending much GPU on the optical-flow pass.
 - **Drop to `Eco` or `Flow`** if you're already GPU-bound and frame-gen costs more than it gains.
 - **Try `Clear` or `Max`** if you have GPU headroom and want the cleanest possible interpolated frames (uses model `1`, the higher-quality compositor path).
-- **Use the FPS limit** if you're on a 60Hz or 90Hz panel and don't want frame-gen pushing you to 120+ for no benefit. It also helps keep input latency predictable.
 - **Native FPS matters.** Frame generation works best when the game's real framerate is already at least ~30 FPS. Below that, the interpolated frames have too much motion between samples and artifacts become noticeable.
+- **Pair it with the existing FPS-limit sidebar control** if you want to cap output framerate — that control is GameHub's, lives separately, and the frame-gen menu deliberately doesn't touch its bytes.
 
 #### Real-world result
 
@@ -489,7 +490,7 @@ On a working device, **roughly 1.8–1.9× FPS scaling at 2× multiplier** — e
 
 Settings are global (per-game scoping is a v2 candidate). They persist across game launches via two layers:
 
-1. SharedPreferences in `bh_framegen.xml` (keys: `enabled`, `preset`, `multiplier`, `flowScale`, `model`, `fpsLimitEnabled`, `fpsLimitValue`).
+1. SharedPreferences in `bh_framegen.xml` (keys: `enabled`, `preset`, `multiplier`, `flowScale`, `model`).
 2. A smali hook at `WineActivity.onCreate` re-applies all saved values to `gamescope.control` on every launch, **after** BannerHub's container regenerator runs (the regenerator zeros byte 0 every launch, which is why the toggle would otherwise reset). The Vulkan ICD JSON is also re-written at launch using your APK's actual package name, so the menu works on any installed package — including manually-renamed APKs.
 
 > **Note — requires Adreno GPU.** GameHub 6.0.1's frame interpolation engine uses `VK_NV_optical_flow`, which on Android is currently only exposed by Qualcomm Adreno drivers. The menu controls work on any device but the actual frame interpolation is silently skipped on Mali, Xclipse, and other non-Adreno GPUs — you'll see the toggle move but not the FPS gain.

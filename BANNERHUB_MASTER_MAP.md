@@ -7762,7 +7762,7 @@ The control file at `<imageFs>/etc/gamescope.control` was expanded from 4 bytes 
 |---|---|
 | `extension/BhFrameGenSettings.java` | Persisted settings + 6 preset enum (Eco/Flow/Bal/Boost/Clear/Max) — values mirror GameHub 6.0.1 `AiFrameInterpolationMode` |
 | `extension/BhFrameGenWriter.java` | mmap byte writer to `gamescope.control`. Per-byte setters + `applyFromPrefs(Context)` + `applyFromPrefsNoContext()` for smali launch hook |
-| `extension/BhFrameGenDialog.java` | Programmatic Dialog with toggle + preset slider + multiplier picker + flowScale slider + FPS-limit toggle/value. Writes immediately on every change |
+| `extension/BhFrameGenDialog.java` | Programmatic Dialog with toggle + preset slider + multiplier picker + flowScale slider. Writes immediately on every change. (FPS-limit UI was removed in commit `5a9ab56` — bytes 0-1 are owned by GameHub's separate sidebar control and we deliberately don't touch them.) |
 | `extension/BhFrameGenWiring.java` | Wires the in-game sidebar switch + gear button to settings + dialog. Called from fragment `onResume` |
 
 **Smali patches:**
