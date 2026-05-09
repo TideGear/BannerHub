@@ -444,24 +444,55 @@ echo 0 > /sys/class/kgsl/kgsl-3d0/devfreq/min_freq
 
 ### AI Frame Generation Menu
 
-Enable via the **Performance tab** in the in-game sidebar (above Dual Battery Mode). Drives GameHub 6.0.1's built-in `libGameScopeVK` frame interpolation engine — generates AI-interpolated frames between real ones to roughly double your FPS.
+A new sidebar entry that drives GameHub 6.0.1's built-in `libGameScopeVK` AI frame-interpolation engine — generates synthetic in-between frames using Vulkan-side optical-flow vectors so your effective frame rate roughly doubles on supported hardware. No more hex-editing `gamescope.control` to use it.
+
+> 📖 **For the full technical breakdown** — data classes, the 10-byte `gamescope.control` mmap protocol, libGameScopeVK Vulkan ICD, the `VK_NV_optical_flow` Adreno path, per-GPU capability gating, and the action/state classes — see [`gamehub_reports/GAMEHUB_600_MASTER_MAP.md` § 26.8 (AI Frame Generation — Technical Deep Dive)](gamehub_reports/GAMEHUB_600_MASTER_MAP.md#268--ai-frame-generation--technical-deep-dive).
+
+#### How it works (in plain English)
+
+When the renderer produces a real frame, libGameScopeVK uses Adreno's hardware optical-flow extension (`VK_NV_optical_flow`) to compute motion vectors between the previous real frame and the current one, then synthesises one (or more) interpolated frame(s) in between. Those synthetic frames are pushed into the swapchain so the displayed framerate is a multiple of the rendered framerate. The GPU never has to draw the in-between frames from scratch — the real bottleneck (your game's CPU/GPU rendering work) is unchanged, but the screen sees twice (or more) the frames.
+
+#### Where to find it
+
+Open any PC game's in-game sidebar and tap the **Performance** tab. You'll see a new **AI Frame Generation** row above Dual Battery Mode, with:
+
+- A **switch** for master on/off (writes byte 2 of `gamescope.control` and persists)
+- A **gear icon** that opens the full settings dialog
 
 #### Settings dialog
 
-Tap the gear icon next to the toggle to open the AI Frame Generation settings:
+| Setting | Range / Options | What it does |
+|---------|-----------------|--------------|
+| **Enable toggle** | On / Off | Top-level switch. Same as the sidebar toggle — kept on the dialog for convenience |
+| **Preset** | Eco / Flow / Bal / Boost / Clear / Max | 6 named profiles that bundle a quality model and flow-scale value. Map: Eco=`model 0/flow 0.2`, Flow=`0/0.4`, **Bal=`0/0.6` (default)**, Boost=`0/0.8`, Clear=`1/0.6`, Max=`1/0.8`. Mirrors GameHub 6.0.1's `AiFrameInterpolationMode` enum |
+| **Multiplier** | 2× / 3× / 4× | How many displayed frames per rendered frame. **2× is the validated path**; 3× and 4× are wired up at the IPC layer but not yet observed working on any tested device. The platform also silently coerces `1×` → `2×` at the IPC layer, so there's no "off via multiplier=1" trick — use the master toggle |
+| **Custom flow scale** | 0.20–1.00 | AI optical-flow strength. Lower = cheaper, more artifacts on fast motion. Higher = cleaner but more GPU cost. Defaults to whatever the chosen preset says; moving the slider overrides it |
+| **FPS limit** | Toggle + 30–144 | Optional output framerate cap. Useful when frame-gen pushes you above your panel's refresh rate or when you want to keep input latency bounded |
 
-| Setting | Range / Options | Notes |
-|---------|-----------------|-------|
-| Preset | Eco / Flow / Bal / Boost / Clear / Max | 6 quality presets matching GameHub 6.0.1's `AiFrameInterpolationMode` |
-| Multiplier | 2× / 3× / 4× | Target frame multiplier |
-| Custom flow scale | 0.20–1.00 | AI optical-flow strength |
-| FPS limit | Toggle + 30–144 | Optional cap |
+Every change is **applied immediately** to the running game (writes through `gamescope.control` mmap) and **saved to SharedPreferences** so the value persists.
 
-Settings are global (per-game scoping is a v2 candidate). They persist across launches via a launch hook that re-applies them after BannerHub's container regenerator runs.
+#### Practical guidance
 
-> **Note — requires Adreno GPU.** GameHub 6.0.1's frame interpolation uses `VK_NV_optical_flow`, which on Android is currently only exposed by Qualcomm Adreno drivers. The menu controls work on any device but the actual frame interpolation is silently skipped on Mali, Xclipse, and other non-Adreno GPUs.
+- **Start with `Bal` preset, 2× multiplier.** This is the default for a reason — clean output without spending much GPU on the optical-flow pass.
+- **Drop to `Eco` or `Flow`** if you're already GPU-bound and frame-gen costs more than it gains.
+- **Try `Clear` or `Max`** if you have GPU headroom and want the cleanest possible interpolated frames (uses model `1`, the higher-quality compositor path).
+- **Use the FPS limit** if you're on a 60Hz or 90Hz panel and don't want frame-gen pushing you to 120+ for no benefit. It also helps keep input latency predictable.
+- **Native FPS matters.** Frame generation works best when the game's real framerate is already at least ~30 FPS. Below that, the interpolated frames have too much motion between samples and artifacts become noticeable.
 
-Real-world result on a working device: roughly **1.8–1.9× FPS scaling on 2× multiplier** (e.g. 42 FPS off → 75–80 FPS on, validated via overlay screenshots).
+#### Real-world result
+
+On a working device, **roughly 1.8–1.9× FPS scaling at 2× multiplier** — e.g. 42 FPS off → 75–80 FPS on (validated via the in-game overlay during testing).
+
+#### Persistence — why settings stick
+
+Settings are global (per-game scoping is a v2 candidate). They persist across game launches via two layers:
+
+1. SharedPreferences in `bh_framegen.xml` (keys: `enabled`, `preset`, `multiplier`, `flowScale`, `model`, `fpsLimitEnabled`, `fpsLimitValue`).
+2. A smali hook at `WineActivity.onCreate` re-applies all saved values to `gamescope.control` on every launch, **after** BannerHub's container regenerator runs (the regenerator zeros byte 0 every launch, which is why the toggle would otherwise reset). The Vulkan ICD JSON is also re-written at launch using your APK's actual package name, so the menu works on any installed package — including manually-renamed APKs.
+
+> **Note — requires Adreno GPU.** GameHub 6.0.1's frame interpolation engine uses `VK_NV_optical_flow`, which on Android is currently only exposed by Qualcomm Adreno drivers. The menu controls work on any device but the actual frame interpolation is silently skipped on Mali, Xclipse, and other non-Adreno GPUs — you'll see the toggle move but not the FPS gain.
+
+> **Caveats.** Frame interpolation can introduce mild visual artifacts on fast camera motion or particle-heavy scenes, and adds a small amount of input-to-display latency by definition (the displayed frame is half a real frame "behind" the engine). Both are inherent to interpolated frame generation, not BannerHub-specific.
 
 ---
 
