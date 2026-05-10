@@ -4,6 +4,32 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [pre-release] — v3.7.1-pre1 — Stub the Settings → About → Check Update row (2026-05-09)
+**Tag:** `v3.7.1-pre1`  |  **Branch:** `feature/stub-upgrade-check`  |  **Workflow:** `build-quick.yml` (Normal variant only, artifact-only per pre-release policy)
+
+#### Why
+Upstream GameHub now ships **6.0.1 / versionCode 110**. Every BannerHub variant on the 5.3.5 base ships **versionCode 78**. The Settings → About → "Check Update" row auto-fires `POST /upgrade/getAppUpgradeApk` against GameHub's official server on bind, which now returns a non-empty `ApkUpdateEntity` pointing at stock 6.0.1 GameHub. The row shows a red "New" badge and tapping it would attempt to download stock GameHub from GameHub's CDN — install fails on signature mismatch with the BannerHub keystore, but the prompt itself is wrong (claims "BannerHub update available" when it isn't).
+
+#### Patch
+One anchored find/replace in `smali_classes8/com/xj/landscape/launcher/ui/setting/holder/SettingUpgradeHolder$onBind$1$1.smali`. Replaces the 5-instruction `AppUpgradeRepo.getAppUpgradeApk()` suspend call (lines 365–382 of the base decompile) with a single `const/4 p1, 0x0` so the result is always `null`. Existing `if-eqz p1` checks in the same method then take the "no update" branch:
+- Row text → "Already the latest version" (gray, no badge)
+- Tap → toast: "You're already on the latest version" (existing fallback in the click handler's `:cond_1`)
+
+No network probe ever fires. Steam-card visibility, login, store, prices, achievements — every other GameHub endpoint — completely untouched (those flow through the user-selected API as today).
+
+#### Files
+- `.github/workflows/build-quick.yml` — new "Apply Stub Upgrade Check smali patch" step, inserted after AppUtils phone-home patches
+- `.github/workflows/build.yml` — same step, same position (so stable build inherits when ready)
+
+#### Test plan (device)
+1. Sideload pre-release APK
+2. Open app → Settings → About
+3. **Expected:** "Check Update" row shows gray "Already the latest version" text, no red "New" badge
+4. Tap the row → toast "You're already on the latest version", no dialog
+5. Logcat should show **no** `SignUtils clientparams` line containing `is_active=2&...&versionCode=` between launch and post-Settings-open — i.e. no `/upgrade/getAppUpgradeApk` call
+
+---
+
 ### [docs] — `VK_NV_optical_flow` on Adreno deep-dive report (2026-05-08)
 
 Added a dedicated driver-nerd writeup explaining how Mesa Turnip reimplements the NV-prefixed Vulkan extension on Adreno, and what BannerHub 3.7.0's AI Frame Generation actually depends on at the driver layer.

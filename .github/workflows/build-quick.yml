@@ -115,6 +115,50 @@ jobs:
           print("AppUtils phone-home patches applied.")
           PYEOF
 
+      - name: Apply Stub Upgrade Check smali patch
+        run: |
+          python3 << 'PYEOF'
+          import sys
+
+          def patch(path, old, new, label):
+              try:
+                  content = open(path, encoding='utf-8').read()
+              except UnicodeDecodeError:
+                  content = open(path, encoding='latin-1').read()
+              if old not in content:
+                  print(f"ERROR: anchor not found in {path} for: {label}")
+                  sys.exit(1)
+              open(path, 'w', encoding='utf-8').write(content.replace(old, new, 1))
+              print(f"OK: {label}")
+
+          patch(
+              'apktool_out/smali_classes8/com/xj/landscape/launcher/ui/setting/holder/SettingUpgradeHolder$onBind$1$1.smali',
+              '    sget-object p1, Lcom/xj/landscape/launcher/data/repository/AppUpgradeRepo;->a:Lcom/xj/landscape/launcher/data/repository/AppUpgradeRepo;\n'
+              '\n'
+              '    .line 32\n'
+              '    .line 33\n'
+              '    iput-object v0, p0, Lcom/xj/landscape/launcher/ui/setting/holder/SettingUpgradeHolder$onBind$1$1;->L$0:Ljava/lang/Object;\n'
+              '\n'
+              '    .line 34\n'
+              '    .line 35\n'
+              '    iput v3, p0, Lcom/xj/landscape/launcher/ui/setting/holder/SettingUpgradeHolder$onBind$1$1;->label:I\n'
+              '\n'
+              '    .line 36\n'
+              '    .line 37\n'
+              '    invoke-virtual {p1, v3, p0}, Lcom/xj/landscape/launcher/data/repository/AppUpgradeRepo;->b(ILkotlin/coroutines/Continuation;)Ljava/lang/Object;\n'
+              '\n'
+              '    .line 38\n'
+              '    .line 39\n'
+              '    .line 40\n'
+              '    move-result-object p1\n',
+              '    # BannerHub: stub upgrade check — never call AppUpgradeRepo, force null entity\n'
+              '    const/4 p1, 0x0\n',
+              'SettingUpgradeHolder: stub AppUpgradeRepo.getAppUpgradeApk() -> null'
+          )
+
+          print("Stub Upgrade Check patch applied.")
+          PYEOF
+
       - name: Apply Grant Root Access smali patches
         run: |
           python3 << 'PYEOF'

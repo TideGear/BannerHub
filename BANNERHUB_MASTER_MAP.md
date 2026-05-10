@@ -5392,6 +5392,8 @@ All POST/GET endpoints discovered through full repository scan (base: `https://l
 |---|---|
 | `upgrade/getAppUpgradeApk` | Check for app APK update |
 
+> **BannerHub patch (v3.7.1-pre1+):** This call is **stubbed** in BannerHub. `SettingUpgradeHolder$onBind$1$1.invokeSuspend` has the `AppUpgradeRepo.getAppUpgradeApk()` suspend invocation replaced with `const/4 p1, 0x0`, forcing the result to `null`. Existing `if-eqz` checks in the same method then take the "no update" branch unconditionally (row reads "Already the latest version", tap toasts the same). No probe is sent to GameHub's upgrade endpoint, regardless of which API the user has selected. This avoids the footgun where upstream's 6.0.1 / versionCode 110 response would otherwise prompt 5.3.5-base BannerHub variants (versionCode 78) to download stock GameHub. See `PROGRESS_LOG.md` § v3.7.1-pre1.
+
 ---
 
 ### §202 — Epic Games Launcher User-Agent Impersonation
