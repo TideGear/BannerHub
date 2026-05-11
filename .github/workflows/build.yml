@@ -130,7 +130,7 @@ jobs:
               print(f"OK: {label}")
 
           patch(
-              'apktool_out/smali_classes8/com/xj/landscape/launcher/ui/setting/holder/SettingUpgradeHolder$onBind$1$1.smali',
+              'apktool_out_base/smali_classes8/com/xj/landscape/launcher/ui/setting/holder/SettingUpgradeHolder$onBind$1$1.smali',
               '    sget-object p1, Lcom/xj/landscape/launcher/data/repository/AppUpgradeRepo;->a:Lcom/xj/landscape/launcher/data/repository/AppUpgradeRepo;\n'
               '\n'
               '    .line 32\n'
