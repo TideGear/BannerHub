@@ -3,6 +3,8 @@
 </p>
 
 # BannerHub
+[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/n8S4G2WZQ4)
+
 
 **GameHub 5.3.5 ReVanced** — extended with GOG Games, Amazon Games, and Epic Games Store library tabs, a full Component Manager, in-app component downloader, background download service with in-app cross-store download manager, SD card / external storage routing for store game downloads, Winlator HUD overlay (Normal + Extra Detailed + Konkr style with CPU/GPU/RAM/SWAP/temp/per-core metrics), in-game performance toggles, RTS touch controls, VRAM unlock, per-game CPU core affinity, root access management, offline Steam launch, community game configs browser, per-game config export/import with Frontend Export, Japanese locale, and more. Built entirely with apktool smali patching — no source code, no external library injection.
 
@@ -868,3 +870,7 @@ All APKs are signed with AOSP testkey (`testkey.pk8` / `testkey.x509.pem`), v1 +
 
 <sub>☕ [Support on Ko-fi](https://ko-fi.com/the412banner)</sub>
 
+
+## Community
+
+Join our Discord: https://discord.gg/n8S4G2WZQ4
