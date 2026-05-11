@@ -5,7 +5,10 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 ---
 
 ### [stable] — v3.7.1 — Hotfix: stub the Settings → About → Check Update row (2026-05-10)
-**Tag:** `v3.7.1`  |  **Build:** `build.yml` (stable, all 9 variants)  |  **Branches merged:** `feature/stub-upgrade-check` (merge `33830b8` into main on 2026-05-09)  |  **Release:** https://github.com/The412Banner/BannerHub/releases/tag/v3.7.1
+**Tag:** `v3.7.1`  |  **Build:** `build.yml` run [25644181499](https://github.com/The412Banner/BannerHub/actions/runs/25644181499) ✅ on head `b8b95f4` (stable, all 9 variants)  |  **Branches merged:** `feature/stub-upgrade-check` (merge `33830b8` into main on 2026-05-09)  |  **Release:** https://github.com/The412Banner/BannerHub/releases/tag/v3.7.1
+
+#### Release-day note (2026-05-10/11)
+First v3.7.1 tag (on `26dc8c6`) failed CI at "Apply Stub Upgrade Check smali patch" with `FileNotFoundError: apktool_out/...`. Root cause: `build.yml` line 133 used `apktool_out/` but every other smali patch in the same prepare job (ClientParams, TokenInterceptor, SettingBtnHolder, SettingItemEntity, GamepadServerManager, etc.) uses `apktool_out_base/` — the prepare job decompiles to `apktool_out_base/` and only the per-variant build job downstream operates on `apktool_out/`. Fixed in `b8b95f4`, v3.7.1 tag force-replaced, re-triggered build → succeeded, release published.
 
 #### Headline
 Hotfix for v3.7.0. No new features. Promotes the v3.7.1-pre1 device-confirmed patch to a stable release across all 9 APK variants.
