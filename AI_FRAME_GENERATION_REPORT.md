@@ -4,6 +4,8 @@
 
 **Shipping in:** v3.7.0-pre1 (merged 2026-05-08 as commit `9d4a594`) and v3.7.0-pre2 (2026-05-09), pre-release artifact-only per pre-release policy.
 
+**Latest firmware tracked:** imagefs 1.3.7 (released 2026-05-10) — drop-in `libGameScopeVK.so` rebuild, behaviorally identical to 1.3.6 for users; see § 3.6 for the delta.
+
 ---
 
 ## 1. What this is, in plain English
@@ -57,13 +59,16 @@ That's it. No firmware bundling, no Turnip rebuild, no native code shipped in ou
 
 ### 3.1 What it is
 
-A **Vulkan ICD (Installable Client Driver) shim**. Originally from Tencent's GameHub 6.0.1 firmware (1.3.6 AI build). It ships *inside the imagefs* — i.e., bundled into the container's root filesystem, not in our APK.
+A **Vulkan ICD (Installable Client Driver) shim**. Originally from Tencent's GameHub 6.0.1 firmware (1.3.6 AI build), refreshed in 1.3.7. It ships *inside the imagefs* — i.e., bundled into the container's root filesystem, not in our APK.
 
 | Property | Value |
 |---|---|
 | Path on device | `/data/data/<pkg>/files/usr/lib/libGameScopeVK.so` |
 | Size (1.3.6 AI build) | 2,218,904 bytes (`-16 B` vs 1.3.5 — different MD5, same Vulkan API version) |
-| Architecture | ARM64 ELF, NDK r28-beta1 |
+| Size (1.3.7 AI build) | 2,219,144 bytes (`+240 B` vs 1.3.6 — see § 3.6) |
+| Architecture | ARM64 ELF, aarch64, built by NDK r27 (12077973), targets Android 26 |
+| BuildID (1.3.6) | `173d02fd23ee0509ae5994cca4da314bcf216788` |
+| BuildID (1.3.7) | `956f6693e9cca5587a2266737bc331a17be83f60` |
 | Internal name | `GameScopeVK` |
 | Build origin (DWARF leak) | `/Users/me/Documents/GameScopeVK/gamescope/...` (someone's macOS dev tree, home dir literally `me`) |
 | Vulkan ICD API version | 1.3.216 |
@@ -144,6 +149,28 @@ Failure modes:
 - `Compute pipeline creation failed`
 - `Compute pipeline failure info dumped to {}` (when `GAMESCOPE_DUMP_FAILURES=1`)
 - `GameScopeVK: [BYPASS_XSERVER] Status changed: {}`
+
+New in 1.3.7:
+- `DirectRendering: present failed, dropping frame` — handles failed `vkQueuePresentKHR` / image-acquire by dropping the synthetic frame instead of whatever 1.3.6 did. Sole behavioral addition in this rebuild.
+
+### 3.6 Firmware version history of `libGameScopeVK.so`
+
+XiaoJi has shipped four distinct revisions of this single library since 1.3.5; everything else in the imagefs has been stable. Every bump has been a defensive iteration on the AI frame-gen / present path, not a feature change.
+
+| Firmware | Size | BuildID | AI codepath | Notes |
+|---|---|---|---|---|
+| pre-1.3.5 (older `imagefs.zst`) | 972,456 B | — | ❌ Placeholder | 950 KB stub, no AI symbols / no `delta`/`gamma` pipelines |
+| 1.3.5 | ~2,218,920 B | — | ✅ Yes | First AI-capable shim |
+| 1.3.6 | 2,218,904 B | `173d02fd…6788` | ✅ Yes | `-16 B` rebuild of 1.3.5, identical surface |
+| 1.3.7 (2026-05-10) | 2,219,144 B | `956f6693…3f60` | ✅ Yes | `+240 B` vs 1.3.6, drop-in replacement, adds one failure-path log line |
+
+**1.3.6 → 1.3.7 binary diff** (verified 2026-05-10 by extracting both archives and diffing end-to-end, 6801 files each):
+- `usr/lib/libGameScopeVK.so` is the **only** substantive file change — every other file in the imagefs is byte-identical
+- 39 dynamic symbols unchanged → drop-in replacement for any consumer
+- Section deltas: `.text +160 B`, `.rodata +48 B`, `.gcc_except_table +32 B`, `.relro_padding −240 B`
+- One new diagnostic string (see § 3.5 above)
+
+**Operational takeaway for BannerHub:** v3.7.0 does not bundle `libGameScopeVK.so` — it ships in the user's installed imagefs. Whether AI frame-gen does anything for a given user therefore depends entirely on *which* imagefs they installed. 1.3.5, 1.3.6, and 1.3.7 all expose the same working ICD surface; pre-1.3.5 is a no-op even with everything else wired correctly.
 
 ---
 
@@ -260,7 +287,7 @@ The `delta`/`gamma` weights load via a "warmup" pass at first use (`warmup inges
 
 AI frame-gen requires **both** halves of the chain:
 
-- An imagefs that ships a frame-gen-capable `libGameScopeVK.so` (1.3.5+, ~2.2 MB; pre-1.3.5 ships a 950 KB stub with no AI codepath)
+- An imagefs that ships a frame-gen-capable `libGameScopeVK.so` (1.3.5, 1.3.6, or 1.3.7 — all ~2.2 MB and behaviorally equivalent; pre-1.3.5 ships a 950 KB stub with no AI codepath). See § 3.6 for the version history.
 - A Vulkan ICD that advertises `VK_NV_optical_flow` — i.e. XiaoJi's bundled Turnip fork or another Turnip build with the OF feature flag enabled
 
 Devices on stock vendor Vulkan drivers (Qualcomm / ARM / PowerVR) **won't** advertise `VK_NV_optical_flow`. The "Custom GPU driver" toggle in PC Game Settings must be ON, pointing at a Turnip variant with the chip-6/7/8 symbols. We confirmed `Turnip_v26.2.0_R3` exposes the symbols for our 2026-05-08 successful run.
@@ -471,6 +498,7 @@ Observations:
 - **`Extreme` preset's `multiplier=1` quirk** — the upstream enum value will be silently coerced to 2× by the IPC writer. Either drop "Extreme" from our preset list or document that "Max" preset still runs at 2× in v2.
 - **No graceful "device unsupported" UX** — if `VK_NV_optical_flow` isn't available, the toggle works but does nothing. We should detect via Vulkan extension query and disable the toggle with an explanatory tooltip.
 - **`GAMESCOPE_DUMP_FAILURES=1`** is a useful debug knob we haven't yet wired into the BannerHub UI. Could go in a hidden dev-tools menu.
+- **Firmware tracker** — monitor future imagefs bumps for `libGameScopeVK.so` changes; the diff has been single-library-only for three consecutive releases (1.3.5 → 1.3.6 → 1.3.7), so it's worth checking each new firmware for new failure strings or behavior changes.
 
 ---
 
