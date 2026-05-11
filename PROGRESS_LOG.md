@@ -4,6 +4,57 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [docs] — AI_FRAME_GENERATION_REPORT.md — § 3.7 disassembled 1.3.7 patch (2026-05-11)
+**Commit:** `1d86a98` on `main`  |  **No build / no release**
+
+#### What changed
+Follow-up to commit `821e4be` (same day). Disassembled both libGameScopeVK.so binaries with `llvm-objdump` and isolated the exact 1.3.7 patch. Findings:
+
+- **It's a behavioral change, not a defensive log.** Earlier wording in § 3.6 ("drop-in replacement, adds one failure-path log line") understated what's going on.
+- **Patched function:** `DirectRendering::Present()` — `0x19548c` in 1.3.6, `0x1954dc` in 1.3.7 (source file `direct_rendering_client.cpp`).
+- **What changed:** when `DirectRenderingClient::WriteImageIndex(idx)` returns 0 (compositor pipe dead / EPIPE / short-write):
+  - 1.3.6: silently falls through to the same `xcb_present_pixmap` + `xcb_flush` fallback the disabled/bootstrap state uses → user sees a sudden FPS halving + likely visual artifacts but no stall, and no log.
+  - 1.3.7: logs `D gamescope: DirectRendering: present failed, dropping frame` and skips the present entirely; the next `WriteImageIndex` retries. The `xcb_present_pixmap` fallback at `0x195540` is still reachable from the disabled/null/status-error path but no longer from a `WriteImageIndex` failure.
+- **Policy:** consistency over availability. 1.3.6 fragmented the stream between two presenters mid-game; 1.3.7 keeps either-compositor-or-nothing semantics.
+- **Byte accounting** for the +240 B delta is now exact:
+  - `.text +160 B` = new log+drop block (10 ish instructions + 2 BLs + SSO branch + unwind to shared cleanup) and the retargeted branch
+  - `.rodata +48 B` = the new 48-byte string `"DirectRendering: present failed, dropping frame\0"`
+  - `.gcc_except_table +32 B` = one new unwind entry for the `std::string` temporary between ctor at `0x1955e8` and `operator delete` at `0x195604`
+  - `.relro_padding −240 B` = loader gave back exactly what the other three sections gained (`160+48+32 = 240`)
+- **Corrections to § 3.6:**
+  - File diff: 7,799 entries / 6,801 regular files (the earlier "6,801 files" number was the regular-file slice)
+  - Dynamic symbol count: 175 entries, `diff` empty (the earlier "39 dyn symbols" was an undercount from a partial subset)
+
+#### Practical takeaway for BannerHub debugging
+A burst of `DirectRendering: present failed, dropping frame` in a 1.3.7 user's logcat now specifically indicates compositor-pipe trouble — was invisible in 1.3.6 (silent fallback). Useful new diagnostic surface.
+
+#### Files touched
+- `AI_FRAME_GENERATION_REPORT.md` (§ 3.6 corrections + new § 3.7)
+- Memory: `project_imagefs_136_vs_old.md` updated with the patch detail; `MEMORY.md` index hook reworded
+
+---
+
+### [docs] — AI_FRAME_GENERATION_REPORT.md — track imagefs 1.3.7 (2026-05-11)
+**Commit:** `821e4be` on `main`  |  **No build / no release**
+
+#### What changed
+Documentation-only update to `AI_FRAME_GENERATION_REPORT.md`. No code change, no APK rebuild.
+- **§ 3.1 properties table**: added a 1.3.7 row — `libGameScopeVK.so` is now `2,219,144 B` (`+240 B` vs 1.3.6), BuildID `956f6693e9cca5587a2266737bc331a17be83f60`
+- **§ 3.1 architecture line**: corrected "NDK r28-beta1" → "built by NDK r27 (12077973), targets Android 26" per the actual ELF metadata read off our local 1.3.6 copy
+- **§ 3.1**: added BuildID rows for both 1.3.6 and 1.3.7
+- **§ 3.5 diagnostic strings**: one new failure-path log line in 1.3.7 — `"DirectRendering: present failed, dropping frame"` (drops the synthetic frame when `vkQueuePresentKHR` / image-acquire fails, instead of whatever 1.3.6 did)
+- **New § 3.6 firmware version history**: 4-row table covering pre-1.3.5 stub → 1.3.5 → 1.3.6 → 1.3.7, plus the end-to-end binary diff (`.text +160 B`, `.rodata +48 B`, `.gcc_except_table +32 B`, `.relro_padding −240 B`; 39 dynamic symbols unchanged; 6801 files in the imagefs and `libGameScopeVK.so` is the only substantive change)
+- **§ 6.4 capability gating**: bumped the "1.3.5+" wording to explicitly cover 1.3.5/1.3.6/1.3.7 as behaviorally equivalent
+- **§ 13 open issues**: added a firmware-tracker item noting three consecutive single-library bumps
+
+#### Why
+Memory entry `project_imagefs_136_vs_old.md` had the full 1.3.7 analysis from 2026-05-10 but the public report still referenced 1.3.6 as the latest. User flagged the gap.
+
+#### Files touched
+- `AI_FRAME_GENERATION_REPORT.md`
+
+---
+
 ### [stable] — v3.7.1 — Hotfix: stub the Settings → About → Check Update row (2026-05-10)
 **Tag:** `v3.7.1`  |  **Build:** `build.yml` run [25644181499](https://github.com/The412Banner/BannerHub/actions/runs/25644181499) ✅ on head `b8b95f4` (stable, all 9 variants)  |  **Branches merged:** `feature/stub-upgrade-check` (merge `33830b8` into main on 2026-05-09)  |  **Release:** https://github.com/The412Banner/BannerHub/releases/tag/v3.7.1
 
