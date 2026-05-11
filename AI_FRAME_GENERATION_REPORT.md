@@ -162,15 +162,103 @@ XiaoJi has shipped four distinct revisions of this single library since 1.3.5; e
 | pre-1.3.5 (older `imagefs.zst`) | 972,456 B | — | ❌ Placeholder | 950 KB stub, no AI symbols / no `delta`/`gamma` pipelines |
 | 1.3.5 | ~2,218,920 B | — | ✅ Yes | First AI-capable shim |
 | 1.3.6 | 2,218,904 B | `173d02fd…6788` | ✅ Yes | `-16 B` rebuild of 1.3.5, identical surface |
-| 1.3.7 (2026-05-10) | 2,219,144 B | `956f6693…3f60` | ✅ Yes | `+240 B` vs 1.3.6, drop-in replacement, adds one failure-path log line |
+| 1.3.7 (2026-05-10) | 2,219,144 B | `956f6693…3f60` | ✅ Yes | `+240 B` vs 1.3.6; one behavioral change in `DirectRendering::Present()` — see § 3.7 |
 
-**1.3.6 → 1.3.7 binary diff** (verified 2026-05-10 by extracting both archives and diffing end-to-end, 6801 files each):
-- `usr/lib/libGameScopeVK.so` is the **only** substantive file change — every other file in the imagefs is byte-identical
-- 39 dynamic symbols unchanged → drop-in replacement for any consumer
-- Section deltas: `.text +160 B`, `.rodata +48 B`, `.gcc_except_table +32 B`, `.relro_padding −240 B`
-- One new diagnostic string (see § 3.5 above)
+**1.3.6 → 1.3.7 binary diff** (verified 2026-05-11 by extracting both archives and diffing end-to-end):
+- Both archives: 7,799 entries / 6,801 regular files, identical layout
+- `usr/lib/libGameScopeVK.so` is the **only** file that differs — every other path in the imagefs is byte-identical (no additions, no removals, no size changes elsewhere)
+- 175 dynamic symbols, `diff` is empty → ABI-clean drop-in for any consumer
+- Section deltas: `.text +160 B`, `.rodata +48 B`, `.gcc_except_table +32 B`, `.relro_padding −240 B` (every byte accounted for — see § 3.7)
+- One new diagnostic string (see § 3.5 above) and one re-targeted branch (see § 3.7)
 
 **Operational takeaway for BannerHub:** v3.7.0 does not bundle `libGameScopeVK.so` — it ships in the user's installed imagefs. Whether AI frame-gen does anything for a given user therefore depends entirely on *which* imagefs they installed. 1.3.5, 1.3.6, and 1.3.7 all expose the same working ICD surface; pre-1.3.5 is a no-op even with everything else wired correctly.
+
+### 3.7 The 1.3.7 patch in detail — `DirectRendering::Present()`
+
+The +240 B is not a defensive add-on. It's a single deliberate behavioral change in `DirectRendering::Present()` (the function from `direct_rendering_client.cpp`) that swaps a silent X11-fallback for an explicit frame-drop. Verified by disassembling both binaries with `llvm-objdump` and isolating the diff.
+
+**The function lives at:**
+- `0x19548c` in 1.3.6
+- `0x1954dc` in 1.3.7
+
+Both versions have the same three-way dispatch before issuing a present:
+
+| Pre-write state | Action (both 1.3.6 + 1.3.7) |
+|---|---|
+| Direct-rendering subsystem disabled (`*(this+0x75a)` clear) | Skip the pipe; fall back to local `xcb_present_pixmap` + `xcb_flush` |
+| Status pointer null or error bit set (`*(this+0x7a0)` null or `*(this+0x7a0)*[0]` MSB set) | Same fallback to `xcb_present_pixmap` |
+| Enabled and healthy | Call `DirectRenderingClient::WriteImageIndex(idx)` and branch on its 1/0 return |
+
+`WriteImageIndex` (at `0x19a4c0` / `0x19a510`) does a 4-byte `write()` of the image index over a pipe FD to a separate compositor process. Returns 1 on success, 0 on EPIPE / short-write / already-dead-connection (in which case it also logs `"DirectRendering: Failed to write image index: {}"` and closes all the FDs).
+
+The behavioral split is in the third case — what happens when `WriteImageIndex` returns 0:
+
+**1.3.6** — silent degradation to local X presents:
+
+```asm
+1954d0:  bl   WriteImageIndex
+1954d4:  mov  w21, w0
+1954d8:  add  x0, x19, #0x774
+1954dc:  bl   mutex_unlock
+1954e0:  tbz  w21, #0x0, 0x195504    ; w21==0 (fail) → fall through to xcb path
+1954e4:  ... return-no-present       ; w21==1 (success) → done, compositor handled it
+195504:  ... set up xcb_present_pixmap args
+195558:  bl   xcb_present_pixmap@plt
+19555c:  bl   xcb_flush@plt
+```
+
+When the compositor pipe dies, 1.3.6 falls through to **the same `xcb_present_pixmap` fallback that the disabled / bootstrap state uses** — i.e., it tries to keep the game alive by presenting straight to X. This avoids a stall but means the user sees a sudden FPS halving (no more 2× synthesis) and likely visual breakage (wrong window owner, compositor swapchain out of sync).
+
+**1.3.7** — explicit drop with log:
+
+```asm
+19552c:  bl   WriteImageIndex
+195530:  tbz  w0, #0x0, 0x1955d0     ; w0==0 → NEW BLOCK
+195534:  add  x0, x19, #0x774
+195538:  bl   mutex_unlock
+19553c:  b    0x1955a8                ; w0==1 → return-no-present (unchanged)
+195540:  ... xcb_present_pixmap fallback (still reachable from disabled / null / error)
+...
+1955d0:  adrp x0, 0x1d000             ; ← NEW BLOCK STARTS HERE
+1955d4:  add  x0, x0, #0x893          ;   → "DirectRendering: present failed, dropping frame"
+1955d8:  sub  x8, x29, #0x38
+1955dc:  sub  x3, x29, #0x20
+1955e0:  mov  w1, #0x2f               ; length = 47 (matches the string exactly)
+1955e4:  mov  x2, xzr
+1955e8:  bl   <std::string ctor>
+1955ec:  sub  x1, x29, #0x38
+1955f0:  mov  w0, #0x3                ; ANDROID_LOG_DEBUG (priority 3)
+1955f4:  bl   <gamescope log fn>
+1955f8:  tbz  w8, #0x0, 0x195608      ; SSO bit — is the string heap-allocated?
+195600:  bl   operator delete
+195608:  add  x0, x19, #0x6a8
+19560c:  bl   <cleanup>               ; same cleanup as the success path
+195610:  add  x0, x19, #0x774
+195614:  bl   mutex_unlock            ; still releases the mutex
+```
+
+The `xcb_present_pixmap` fallback at `0x195540` is **still present** for the bootstrap / disabled / status-error case (the initial frames before the compositor pipe is even up). It's no longer reachable from the `WriteImageIndex==0` path.
+
+#### What the change means in practice
+
+1.3.6 had a silent-degradation policy: if the compositor crashed mid-stream, the shim quietly bypassed frame-gen and kept handing frames to X11 directly. The user saw a sudden FPS halving and possibly artifacts, but the game wouldn't stall.
+
+1.3.7 picks **consistency over availability**: drop the frame, leave a breadcrumb in logcat (`D gamescope: DirectRendering: present failed, dropping frame`), and let the next `WriteImageIndex` retry. The stream stays coherent — either the compositor is feeding it or it isn't — instead of fragmenting between two presenters mid-game.
+
+For BannerHub-side debugging: a sudden burst of these log lines now indicates compositor-pipe trouble specifically. On 1.3.6 the same condition was invisible in logcat (the silent fallback) and only diagnosable from the FPS drop.
+
+#### Byte accounting
+
+Every byte of the +240 B delta is accounted for by this single patch:
+
+| Section | Delta | Source |
+|---|---|---|
+| `.text` | +160 B | New log+drop block (10 instructions setting up the string, 2 BLs to ctor and log, SSO check + delete branch, unwind to shared cleanup) plus the retargeted branch and small reflow around the call site |
+| `.rodata` | +48 B | The new string `"DirectRendering: present failed, dropping frame\0"` is 48 bytes |
+| `.gcc_except_table` | +32 B | One additional unwind entry — the new `std::string` temporary needs cleanup on async cancel / throw between the ctor at `0x1955e8` and the delete at `0x195604` |
+| `.relro_padding` | −240 B | The loader gave back exactly what the other three sections gained (`160 + 48 + 32 = 240`) |
+
+One function, one branch retargeted, one log call inserted. That is the entirety of imagefs 1.3.7.
 
 ---
 
