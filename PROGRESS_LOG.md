@@ -4,6 +4,34 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [stable] — v3.7.1 — Hotfix: stub the Settings → About → Check Update row (2026-05-10)
+**Tag:** `v3.7.1`  |  **Build:** `build.yml` (stable, all 9 variants)  |  **Branches merged:** `feature/stub-upgrade-check` (merge `33830b8` into main on 2026-05-09)  |  **Release:** https://github.com/The412Banner/BannerHub/releases/tag/v3.7.1
+
+#### Headline
+Hotfix for v3.7.0. No new features. Promotes the v3.7.1-pre1 device-confirmed patch to a stable release across all 9 APK variants.
+
+The Settings → About → "Check Update" row no longer auto-fires `POST /upgrade/getAppUpgradeApk` against GameHub's official server. It now reads "Already the latest version" unconditionally and never probes upstream — closing the footgun where users on the 5.3.5/vc78 BannerHub base were being offered a stock GameHub 6.0.1/vc110 download (which would have replaced BannerHub with stock GameHub and broken the Steam-card pinning everything else in this fork depends on).
+
+#### Why hotfix
+- v3.7.0 still had the live upgrade probe — any user who opened Settings → About after install saw a red "New" badge and a prompt that would have pulled stock GameHub from GameHub's CDN.
+- All 9 BannerHub variants ship `versionCode 78` permanently (Steam-card visibility depends on staying on the 5.3.5 base), so upstream `versionCode 110` is always going to look like an available upgrade to that row.
+- The fix is a single 5-instruction smali patch — there is no behavior change for any other surface (login, store, prices, achievements, Steam card all unaffected). Worth shipping immediately rather than waiting on the next feature train.
+
+#### Patch
+See v3.7.1-pre1 entry below for the smali-level details. Same patch, same anchor — `smali_classes8/com/xj/landscape/launcher/ui/setting/holder/SettingUpgradeHolder$onBind$1$1.smali`, suspend call return value replaced with `const/4 p1, 0x0` so the `if-eqz p1` no-update branch is always taken.
+
+#### Test plan (device)
+1. Install any v3.7.1 variant fresh (or over a v3.7.0 install of the same variant — no certificate change)
+2. Open app → Settings → About → "Check Update"
+3. **Expected:** row is gray "Already the latest version", no red badge; tapping shows "You're already on the latest version" toast and never opens a download dialog
+4. Logcat shows no `getAppUpgradeApk` traffic from `SignUtils clientparams` between launch and post-Settings-open
+
+#### Notes
+- Pre-release policy resumes: every build after v3.7.1 is artifact-only / no GH Release until the user explicitly calls "stable" again.
+- No README feature section needed; FAQ entry added explaining the new Check Update behavior.
+
+---
+
 ### [pre-release] — v3.7.1-pre1 — Stub the Settings → About → Check Update row (2026-05-09)
 **Tag:** `v3.7.1-pre1`  |  **Branch:** `feature/stub-upgrade-check`  |  **Workflow:** `build-quick.yml` (Normal variant only, artifact-only per pre-release policy)
 

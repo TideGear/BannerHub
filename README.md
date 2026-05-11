@@ -801,6 +801,10 @@ By default, inside the app's private storage: `Android/data/<package>/files/gog_
 
 Yes. BannerHub detects the authorization code directly in the redirect URL regardless of which intermediate pages Amazon routes through during OTP/2FA, so login completes correctly with or without 2FA enabled on your account.
 
+**Q: Settings → About → Check Update always says "Already the latest version" — is that broken?**
+
+No, that is intentional. BannerHub is pinned to the GameHub 5.3.5 / `versionCode 78` base so the Steam shopping card stays visible. The upstream GameHub upgrade endpoint now serves 6.0.x builds, and following that prompt would replace BannerHub with stock GameHub. The Check Update row was stubbed in v3.7.1 to read "Already the latest version" unconditionally and never call GameHub's upgrade endpoint. Track BannerHub releases via this GitHub repo or Obtainium instead.
+
 ---
 
 ## BannerHub Lite
