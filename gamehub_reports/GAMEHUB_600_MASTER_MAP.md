@@ -76,6 +76,16 @@
     - 26.20 Native Library Refresh (Steam/Epic SDKs)
     - 26.21 Manifest Correction (USB host)
     - 26.22 Additional Sidebar Features (gyro calibration state machine, force-exit, trackpad sensitivity, virtual gamepad toggle)
+27. 6.0.1/6.0.2 → 6.0.4 Deltas (added 2026-05-12)
+    - 27.1 APK Identity Bump (versionCode 110 → 114, minSdk 31 → 29)
+    - 27.2 New MTDataFiles SDK (Matryoshka file-content provider)
+    - 27.3 AI Frame Interpolation Mode Enum (new beans, 6 modes)
+    - 27.4 Native Library Refresh (libsteamkit_core.so 9.6 → 11 MB; libwinemu.so -3.7%)
+    - 27.5 New Resource Qualifier Folders (`values-en`, `values-v30`, `values-v31`)
+    - 27.6 Alipay SDK Pruning (APM Security + Android-app SDK removed)
+    - 27.7 R8 Class-Letter Remap Update (NavigationInterceptor `Lar0` → `Lixo`; BaseAndroidApp deobfuscated)
+    - 27.8 New `org/` Package — BouncyCastle Post-Quantum Crypto
+    - 27.9 Smali Class Count Growth (+715 classes, 1.3% growth)
 
 ---
 
@@ -3050,4 +3060,123 @@ One-line fix: `android.hardware.usb.host` was incorrectly declared as `<uses-per
 - **Trackpad sensitivity slider** — `winemu_sidebar_touch_input_trackpad_sensitivity` (separate slider from `key_trackpad_pointer_speed` MMKV key in §26 main string list — sensitivity is the multiplier, pointer speed is the absolute speed).
 - **Virtual gamepad toggle** — `winemu_sidebar_virtual_gamepad_enable` — in-sidebar on/off for the virtual on-screen gamepad overlay (alongside the existing `WineInGameSettingType.VirtualGamepadVibration`).
 - **Mouse speed description** — `winemu_sidebar_mouse_speed_desc` (new help-text body for an existing slider).
+
+
+---
+
+## 27. 6.0.1/6.0.2 → 6.0.4 Deltas (added 2026-05-12)
+
+Audit basis: 6.0.4 apktool decompile at `gamehub-6.0.4-nologin/apktool_out/` vs the 6.0.0/6.0.2 reference at `gamehub-6.0-decompile/` + `gamehub-600-jadx/`. APK source: `/storage/emulated/0/Download/GameHub_6.0.4-Patched.apk` (141,518,945 B).
+
+### 27.1 APK Identity Bump
+
+| Field | 6.0.0/6.0.1 | 6.0.4 |
+|---|---|---|
+| versionCode | 110 | **114** |
+| versionName | 6.0.0 / 6.0.1 | **6.0.4** |
+| minSdkVersion | 31 | **29** (Android 10 — broader device support) |
+| targetSdkVersion | 36 | 36 (unchanged) |
+
+The minSdk widening from 31 → 29 is paired with new legacy Bluetooth permissions gated to `maxSdkVersion=30`:
+
+- `android.permission.BLUETOOTH` (maxSdkVersion=30)
+- `android.permission.BLUETOOTH_ADMIN` (maxSdkVersion=30)
+
+These are the pre-Android-12 BT perms; on API 31+ the runtime `BLUETOOTH_CONNECT`/`BLUETOOTH_SCAN` flow handles permissions, but legacy SDK paths still need the old perms declared for ≤30.
+
+### 27.2 New MTDataFiles SDK
+
+New third-party SDK: **Matryoshka MTDataFiles** (`bin.mt.file.content.*`), a SAF-style file-content provider that exposes the app's game-data directory to Android's Documents UI. This is the same SDK used by mt-manager and similar Chinese file-manager apps.
+
+New manifest entries:
+
+- **Activity:** `bin.mt.file.content.MTDataFilesWakeUpActivity` (exported, taskAffinity=`com.xiaoji.egggame.MTDataFilesWakeUp`)
+- **Provider:** `bin.mt.file.content.MTDataFilesProvider` (authorities=`com.xiaoji.egggame.MTDataFilesProvider`, exported, grantUriPermissions=true, requires `android.permission.MANAGE_DOCUMENTS`)
+- **Intent filter:** new action `android.content.action.DOCUMENTS_PROVIDER` on the provider
+
+Effect: third-party file managers can browse the app's external files dir directly through the SAF picker. Likely added so power users can install/manage Wine mods and game saves from their preferred file manager without needing root.
+
+### 27.3 AI Frame Interpolation Mode Enum (Beans)
+
+New smali beans formalize the AI frame-gen mode selection that was UI-only in 6.0.1 ([[GAMEHUB_600_MASTER_MAP § 26.8]]):
+
+- `smali_classes4/com/xiaoji/egggame/common/winemu/bean/AiFrameInterpolation.smali`
+- `smali_classes4/com/xiaoji/egggame/common/winemu/bean/AiFrameInterpolationMode.smali`
+- `smali_classes4/com/xiaoji/egggame/common/winemu/bean/AiFrameInterpolationMode$Companion.smali`
+
+New string keys for the six modes:
+
+| Internal key | English label | ZH label (existing) |
+|---|---|---|
+| `ai_frame_interpolation_mode_disabled` | (off) | (off) |
+| `ai_frame_interpolation_mode_fast` | Fast | (existing) |
+| `ai_frame_interpolation_mode_balanced` | Balanced | (existing) |
+| `ai_frame_interpolation_mode_enhanced` | Enhanced | (existing) |
+| `ai_frame_interpolation_mode_smooth` | Smooth | (existing) |
+| `ai_frame_interpolation_mode_extreme` | Extreme | (existing) |
+
+Plus short label strings for compact UI: `ai_frame_interpolation_label_eco`/`_bal`/`_flow`/`_boost`/`_clear`/`_max`. Header string `ai_frame_interpolation_header` = "Frame Generation".
+
+**No new VK_NV_optical_flow or mmap-protocol strings detected** in smali or resources — the underlying frame-gen runtime stays inside `libwinemu.so` + the imagefs-shipped `libGameScopeVK.so` (see § 26.8). The 6.0.4 deltas are surface-level (mode selection + localization), not pipeline changes.
+
+### 27.4 Native Library Refresh
+
+`lib/arm64-v8a/` count unchanged at 27. Two libs got refreshed:
+
+| Lib | 6.0.1 | 6.0.4 | Δ |
+|---|---|---|---|
+| `libsteamkit_core.so` | 10,522,712 B (~10.0 MB) | ~11 MB | **+~500 KB** (continued Steam SDK refresh) |
+| `libwinemu.so` | 668 KB | 643 KB | -3.7% (minor optimization) |
+
+All other libs (`libhaima_rtc_so.so`, `libaom.so`, `libepickit_core.so`, etc.) byte-stable.
+
+### 27.5 New Resource Qualifier Folders
+
+| Folder | Purpose |
+|---|---|
+| `res/values-en/` | English-specific strings (split from default — previously English lived in `res/values/` as fallback) |
+| `res/values-v30/` | API 30+ resource overrides |
+| `res/values-v31/` | API 31+ resource overrides |
+
+The English split lets XiaoJi maintain English translations cleanly without falling back to the Chinese-first default. The `-v30`/`-v31` folders pair with the minSdk widening to 29: certain styles/strings need version-gated variants now that the app runs on API 29 too.
+
+### 27.6 Alipay SDK Pruning
+
+Two Alipay subpackages removed:
+
+- `com.alipay.apmobilesecuritysdk` — Alipay APM (Antifraud / Mobile Security SDK)
+- `com.alipay.android` — Alipay Android app framework
+
+Retained: lightweight payment SDKs (`com.alipay.sdk`, `com.alipay.mobile`, `com.alipay.tscenter`). Likely a size/security optimization — the removed SDKs are device-fingerprinting + antifraud telemetry that bloat the APK without contributing to actual payment flow.
+
+### 27.7 R8 Class-Letter Remap Update
+
+Hand-spot-checked re-anchoring of known-cited classes against § 26.2 / § 26.5:
+
+| Old (6.0.0/6.0.1) | New (6.0.4) | Identity |
+|---|---|---|
+| `Lar0;` | **`Lixo;`** | NavigationInterceptor (was 6.0.1-only — see § 26.5) |
+| `defpackage/{various}` | `com.xiaoji.egggame.BaseAndroidApp` | **BaseAndroidApp now deobfuscated** in 6.0.4 (kept in plain package, was previously R8-renamed to defpackage in some passes) |
+
+Same R8 build id is in play (`r8-map-id-6a5cde6143fc8cf76f6f3a447d0fececd4794d83066e6ead7a9537e6527b057b` source line on most defpackage classes), so the bulk of the remap is incremental, not a wholesale shuffle. Anyone re-anchoring smali patches from 6.0.1 to 6.0.4 should grep for the symbolic identity (string literal it operates on, layout id it inflates) rather than blindly porting letter names.
+
+### 27.8 New `org/` Package — BouncyCastle Post-Quantum Crypto
+
+New top-level smali package: `smali/org/bouncycastle/` ships BouncyCastle. The agent did not find evidence of size change, so this is likely the same BC version that was previously bundled inside other packages — surfaced into its canonical `org.bouncycastle.*` namespace in 6.0.4 (which makes it easier to call directly and supports the PQ-crypto interfaces that newer Android/Java toolchains expect).
+
+No new functional surface for the GameHub side; this is a dependency-organization change.
+
+### 27.9 Smali Class Count Growth
+
+| | 6.0.0/6.0.1 | 6.0.4 | Δ |
+|---|---|---|---|
+| Total `.smali` files across all `smali*/` dirs | 53,053 | 53,768 | **+715 (+1.3%)** |
+
+Most of the +715 lives in:
+
+- New `bin.mt.file.content.*` (MTDataFiles SDK, § 27.2)
+- New `org.bouncycastle.*` (PQ-crypto, § 27.8)
+- New `com.xiaoji.egggame.common.winemu.bean.AiFrameInterpolation*` (§ 27.3)
+- Internal R8 lambda/synthetic churn (the source build-id changed, so many `defpackage/` lambdas got fresh names even where behavior is unchanged)
+
 
