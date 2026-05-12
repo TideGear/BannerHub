@@ -4,6 +4,40 @@ Tracks every commit, patch, and change applied to the GameHub 5.3.5 ReVanced APK
 
 ---
 
+### [stable] — v3.7.2 — Hotfix: stub launch-time auto-update dialog (2026-05-12)
+**Tag:** `v3.7.2`  |  **Build:** `build.yml` triggered on stable tag, head of `main` after merge of `feature/stub-launch-upgrade-dialog` (`3575b15`)  |  **Branches merged:** `feature/stub-launch-upgrade-dialog` (merge `543c2d0` into main, 2026-05-12)  |  **Release:** auto-published by build.yml
+
+#### Headline
+Hotfix for v3.7.1. No new features. Promotes the device-confirmed launch-time auto-dialog stub to a stable release across all 9 APK variants.
+
+The auto-fired upgrade dialog that pops on app launch no longer probes GameHub's upgrade endpoint either. v3.7.1 only stubbed the Settings → About → Check Update *row*; the auto-dialog fires through a separate code path (`ApkUpdateUtils.checkUpdate` → `ApkUpdateUtils$checkUpdate$1$1.invokeSuspend`) that still hit the live upgrade endpoint on every launch and offered users an upgrade to stock GameHub 6.0.1 (`versionCode 110`). v3.7.2 closes that second mouth.
+
+#### Why hotfix
+- v3.7.1 closed one of two surfaces. The Settings row was the *manual* probe; the launch-time auto-dialog is the *automatic* probe and ran on every cold start.
+- All 9 BannerHub variants stay on `versionCode 78` permanently for Steam-card visibility — upstream `versionCode 110` will always look like an available upgrade to this code path.
+- The fix is one extra 5-instruction smali anchor-patch in the same shape as v3.7.1 (same `AppUpgradeRepo.b()` singleton, same `const/4 p1, 0x0` substitution, different inner class). No behavior change for any other surface. Worth shipping immediately rather than waiting on the next feature train.
+
+#### Patch
+`smali_classes6/com/xj/landscape/launcher/utils/ApkUpdateUtils$checkUpdate$1$1.smali` — the suspend invocation `invoke-virtual ... AppUpgradeRepo->b(I, Continuation)` plus its `move-result-object p1` is replaced with `const/4 p1, 0x0`, so the suspend resumes with a null `ApkUpdateEntity`. `ApkUpdateUtils.e()` already null-checks at line 336 (`if-eqz p1, :cond_2`) and returns without invoking the dialog — well-defined null path, no crash, no dialog.
+
+Anchor verified against `bannerhub-base-decoded/` (534 chars, 1 occurrence). Same python3 anchor-patch shape used by every other smali patch in `build.yml` and `build-quick.yml`. Path differs between workflows: `build.yml` patches `apktool_out_base/`, `build-quick.yml` patches `apktool_out/` (consistent with the rest of the prepare-vs-build job split — see v3.7.1 lesson).
+
+#### What's preserved unchanged
+- v3.7.1 stub-upgrade-check (Settings row) — still in place
+- v3.7.0 AI Frame Generation menu + Vibration / Rumble
+- v3.6.1 Epic Online Services Phase 1
+- Every other endpoint (login, store, prices, achievements, Steam card)
+
+#### Test plan (device)
+1. Cold-start any v3.7.2 variant fresh — **expected:** no update dialog appears on app launch (previously: dialog offered stock GameHub 6.0.1 download)
+2. Open Settings → About → Check Update — **expected:** unchanged from v3.7.1, reads "Already the latest version"
+3. Launch Steam catalog — **expected:** card still visible (still on 5.3.5 base)
+
+#### Surfaced as pre-release first
+Earlier on `feature/stub-launch-upgrade-dialog`, build-quick.yml CI run [25696474905](https://github.com/The412Banner/BannerHub/actions/runs/25696474905) ✅ produced the artifact-only pre-build (no GH release, workflow_dispatch). User device-tested → confirmed working → promoted to v3.7.2 stable.
+
+---
+
 ### [docs] — AI_FRAME_GENERATION_REPORT.md — § 3.7 disassembled 1.3.7 patch (2026-05-11)
 **Commit:** `1d86a98` on `main`  |  **No build / no release**
 
