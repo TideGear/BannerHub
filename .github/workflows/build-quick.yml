@@ -156,6 +156,30 @@ jobs:
               'SettingUpgradeHolder: stub AppUpgradeRepo.getAppUpgradeApk() -> null'
           )
 
+          patch(
+              'apktool_out/smali_classes6/com/xj/landscape/launcher/utils/ApkUpdateUtils$checkUpdate$1$1.smali',
+              '    sget-object p1, Lcom/xj/landscape/launcher/data/repository/AppUpgradeRepo;->a:Lcom/xj/landscape/launcher/data/repository/AppUpgradeRepo;\n'
+              '\n'
+              '    .line 28\n'
+              '    .line 29\n'
+              '    iput v2, p0, Lcom/xj/landscape/launcher/utils/ApkUpdateUtils$checkUpdate$1$1;->label:I\n'
+              '\n'
+              '    .line 30\n'
+              '    .line 31\n'
+              '    const/4 v1, 0x2\n'
+              '\n'
+              '    .line 32\n'
+              '    invoke-virtual {p1, v1, p0}, Lcom/xj/landscape/launcher/data/repository/AppUpgradeRepo;->b(ILkotlin/coroutines/Continuation;)Ljava/lang/Object;\n'
+              '\n'
+              '    .line 33\n'
+              '    .line 34\n'
+              '    .line 35\n'
+              '    move-result-object p1\n',
+              '    # BannerHub: stub launch-time upgrade dialog — never call AppUpgradeRepo, force null entity\n'
+              '    const/4 p1, 0x0\n',
+              'ApkUpdateUtils.checkUpdate: stub AppUpgradeRepo.getAppUpgradeApk() -> null'
+          )
+
           print("Stub Upgrade Check patch applied.")
           PYEOF
 
