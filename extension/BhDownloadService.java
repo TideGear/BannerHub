@@ -376,6 +376,27 @@ public class BhDownloadService extends Service {
 
         CountDownLatch latch = new CountDownLatch(1);
 
+        // Resolve install path up-front and mark this game as PARTIAL before any
+        // files are written. If the download fails or the process dies mid-flight,
+        // the gog_partial_<id> pref lets all 3 UIs (detail page, library tile,
+        // download manager) surface an Uninstall button so the user can clean up
+        // and retry. Cleared on onComplete; cleared on onCancelled (the cancel
+        // handle deletes the dir itself, so no orphan files). Left set on onError.
+        final String partialSanitized;
+        {
+            String s = (title != null ? title : "").replaceAll("[^a-zA-Z0-9 \\-_]", "").trim();
+            if (s.isEmpty()) s = "game_" + (gogGameId != null ? gogGameId.hashCode() : 0);
+            partialSanitized = s;
+        }
+        final String partialPath;
+        {
+            File gogDir = GogInstallPath.getInstallDir(this, partialSanitized);
+            partialPath = (gogDir != null) ? gogDir.getAbsolutePath() : "";
+        }
+        if (gogGameId != null && !partialPath.isEmpty()) {
+            GogInstallPath.markPartial(getSharedPreferences("bh_gog_prefs", 0), gogGameId, partialPath);
+        }
+
         int gogThreadCount = intent.getIntExtra(EXTRA_THREADS, BhDownloadConfig.DEFAULT_THREADS);
         Runnable cancelHandle = GogDownloadManager.startDownload(this, game,
                 new GogDownloadManager.Callback() {
@@ -388,23 +409,32 @@ public class BhDownloadService extends Service {
                             .edit().putString("gog_exe_" + gogGameId, exePath).apply();
                 }
                 // Resolve and store install dir (used by library/uninstall)
-                String installDirPath = "";
-                String sanitized = (title != null ? title : "").replaceAll("[^a-zA-Z0-9 \\-_]", "").trim();
-                if (sanitized.isEmpty()) sanitized = "game_" + (gogGameId != null ? gogGameId.hashCode() : 0);
-                File gogDir = GogInstallPath.getInstallDir(BhDownloadService.this, sanitized);
-                if (gogDir != null) {
-                    installDirPath = gogDir.getAbsolutePath();
+                String installDirPath = partialPath;
+                if (!installDirPath.isEmpty()) {
                     getSharedPreferences("bh_gog_prefs", 0)
                             .edit().putString("gog_dir_" + gogGameId, installDirPath).apply();
+                }
+                // Download fully succeeded — gog_dir_ is now authoritative,
+                // clear the PARTIAL marker so state transitions to INSTALLED.
+                if (gogGameId != null) {
+                    GogInstallPath.clearPartial(getSharedPreferences("bh_gog_prefs", 0), gogGameId);
                 }
                 notifyComplete(gameId, installDirPath);
                 latch.countDown();
             }
             @Override public void onError(String msg) {
+                // Leave gog_partial_<id> set — the 3 UIs read it to surface
+                // the Uninstall button so the user can clean up and retry.
                 notifyError(gameId, msg);
                 latch.countDown();
             }
             @Override public void onCancelled() {
+                // User-triggered cancel — GogDownloadManager.cancelHandle already
+                // deletes the install dir, so no orphan files remain. Clear the
+                // PARTIAL marker so state goes back to NONE.
+                if (gogGameId != null) {
+                    GogInstallPath.clearPartial(getSharedPreferences("bh_gog_prefs", 0), gogGameId);
+                }
                 notifyCancelled(gameId);
                 latch.countDown();
             }

@@ -497,17 +497,17 @@ public class GogGameDetailActivity extends Activity {
     }
 
     private void doUninstall() {
-        String dirName = prefs.getString("gog_dir_" + gameId, null);
+        // Use the shared helper so PARTIAL state (failed download) cleans up
+        // identically to INSTALLED — same path resolution, same pref clearing,
+        // same UX regardless of whether the user is wiping a working install
+        // or recovering from a failed one.
+        String dirName = GogInstallPath.getInstallOrPartialPath(prefs, gameId);
         if (dirName == null) return;
         AlertDialog progress = showUninstallProgress();
         new Thread(() -> {
             File installPath = new File(dirName);
             deleteDir(installPath);
-            prefs.edit()
-                .remove("gog_dir_" + gameId)
-                .remove("gog_exe_" + gameId)
-                .remove("gog_cover_" + gameId)
-                .apply();
+            GogInstallPath.clearAll(prefs, gameId);
             uiHandler.post(() -> {
                 progress.dismiss();
                 setResult(RESULT_REFRESH);
@@ -542,11 +542,13 @@ public class GogGameDetailActivity extends Activity {
 
     private void refreshActionState() {
         if (exeNameTV == null) return;
-        String exe = prefs.getString("gog_exe_" + gameId, null);
-        String dir = prefs.getString("gog_dir_" + gameId, null);
-        boolean installed = (exe != null && dir != null);
+        GogInstallPath.State state = GogInstallPath.checkState(prefs, gameId);
+        boolean installed = (state == GogInstallPath.State.INSTALLED);
+        boolean partial   = (state == GogInstallPath.State.PARTIAL);
 
         if (installed) {
+            String exe = prefs.getString("gog_exe_" + gameId, null);
+            String dir = prefs.getString("gog_dir_" + gameId, null);
             exeNameTV.setText(".exe: " + new File(exe).getName());
             exeNameTV.setVisibility(View.VISIBLE);
             updateStorageBadge(dir);
@@ -557,9 +559,15 @@ public class GogGameDetailActivity extends Activity {
 
         launchBtn.setVisibility(installed ? View.VISIBLE : View.GONE);
         installBtn.setVisibility(installed ? View.GONE : View.VISIBLE);
-        if (!installed) installBtn.setText("Install");
+        // PARTIAL state: gen2 resume logic skips files that already exist, so
+        // "Resume install" tells the user the next install picks up where it
+        // left off rather than re-downloading the full game.
+        if (partial)         installBtn.setText("Resume install");
+        else if (!installed) installBtn.setText("Install");
         setExeBtn.setVisibility(installed ? View.VISIBLE : View.GONE);
-        uninstallBtn.setVisibility(installed ? View.VISIBLE : View.GONE);
+        // Uninstall available for INSTALLED *and* PARTIAL so the user can wipe
+        // a failed-download folder and start over from a clean state.
+        uninstallBtn.setVisibility((installed || partial) ? View.VISIBLE : View.GONE);
         copyBtn.setVisibility(installed ? View.VISIBLE : View.GONE);
     }
 
@@ -638,7 +646,11 @@ public class GogGameDetailActivity extends Activity {
     private View makeUpdatesCard() {
         LinearLayout card = makeCard();
 
-        boolean installed = prefs.getString("gog_exe_" + gameId, null) != null;
+        // Updates card is meaningful only for INSTALLED — PARTIAL has no working
+        // build to compare against. Use the unified state helper so the check
+        // matches the rest of the activity (refreshActionState above).
+        boolean installed =
+                GogInstallPath.checkState(prefs, gameId) == GogInstallPath.State.INSTALLED;
 
         if (!installed) {
             TextView tv = new TextView(this);
