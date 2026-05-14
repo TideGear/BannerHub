@@ -4851,3 +4851,32 @@ Read via `getlog --cat /storage/emulated/0/Android/data/com.tencent.ig/files/bh_
 - Credits doc `gamehub_reports/GAMENATIVE_GOG_PORT_CREDITS.md` status fields bump to `🚀 Shipped in v3.7.3` + `📱 device-confirmed 2026-05-14`
 - Release notes call out the 4 upstream `utkarshdalal/GameNative` contributors per the credits doc — Utkarsh Dalal (#1220, #1219), Bart Zaalberg (#1215), Joshua Tam (#1277), co-author Jeremy Bernstein (#1219)
 - `BANNERHUB_MASTER_MAP.md` update per the master-map-on-every-release rule
+
+---
+
+### [fix] — FrameGen: re-apply on resume + gear-visible-only-when-ON (2026-05-14)
+**Branch:** `fix/framegen-onresume` (off main `cb7b9cc`)  |  **Ported from:** [Bannerhub-Lite PR #5 by teldommm](https://github.com/The412Banner/Bannerhub-Lite/pull/5)
+
+#### Bugs being fixed
+1. **FrameGen settings dropped on resume.** `BhFrameGenWriter.applyFromPrefsNoContext()` was only called from `WineActivity.onCreate` (`patches/smali_classes15/com/xj/winemu/WineActivity.smali` line 6052). After app suspension, resuming the game never re-wrote `gamescope.control` bytes — sidebar switch showed "enabled" but the AI overlay was inactive.
+2. **Gear button always visible.** `patches/res/layout/winemu_sidebar_controls_fragment.xml` had no `android:visibility` on `btn_frame_gen_settings`, and `BhFrameGenWiring.bind()` unconditionally called `setVisibility(View.VISIBLE)`. Gear remained visible even with the FrameGen switch OFF — inconsistent with the RTS gesture button pattern in the same sidebar.
+
+#### Changes
+- `patches/smali_classes15/com/xj/winemu/WineActivity.smali` — added one `invoke-static` after `invoke-super` in `onResume()V` (line 8679 anchor). Uses the Context-accepting `applyFromPrefs(Landroid/content/Context;)V` variant per the PR; passes `p0`. No `.locals` change needed.
+- `patches/res/layout/winemu_sidebar_controls_fragment.xml` — added `android:visibility="gone"` on `btn_frame_gen_settings` (line 22).
+- `extension/BhFrameGenWiring.java` — `bind()` now resolves both gear + switch first, then ties gear visibility to switch state in two places: initial bind (mirrors loaded `settings.enabled`) and switch click handler (mirrors new state). Idempotent; safe to call on every onResume.
+
+#### Why we don't need a workflow change like the upstream PR
+The upstream PR adds a Python-based smali injection to `build-bhapi.yml`. BannerHub's framegen WineActivity hook is *not* applied via workflow patching — it lives as a static pre-edited file in `patches/smali_classes15/com/xj/winemu/WineActivity.smali` that `cp -r patches/. apktool_out_base/` overlays. Adding the onResume `invoke-static` line directly to that static file is the BannerHub-native equivalent — no Python step, no workflow change.
+
+#### PR pieces NOT ported (separate decisions)
+The upstream PR also includes:
+- Removal of the multiplier (2x/3x/4x) picker — hardcodes byte 9 to 2x. May be intentional for Lite; BannerHub currently exposes the picker and the verified working multiplier values, so this is a behavior change rather than a fix.
+- Dialog background tweak (FLAG_DIM_BEHIND vs solid color) — cosmetic.
+Both held back pending user decision.
+
+#### Test plan (device)
+1. Enable FrameGen in sidebar → gear button appears, overlay activates
+2. Exit + re-enter game → overlay remains active (was: dropped on resume)
+3. Disable FrameGen → gear button disappears immediately (was: stayed visible)
+4. Re-enable → gear reappears immediately

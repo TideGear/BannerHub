@@ -8678,6 +8678,9 @@
     .line 3
     invoke-super {p0}, Landroidx/fragment/app/FragmentActivity;->onResume()V
 
+    # BannerHub: re-apply persisted Frame Generation settings on every resume
+    invoke-static {p0}, Lcom/xj/winemu/sidebar/BhFrameGenWriter;->applyFromPrefs(Landroid/content/Context;)V
+
     .line 4
     .line 5
     iget-object v0, p0, Lcom/xj/winemu/WineActivity;->h:Lcom/winemu/openapi/WinUIBridge;
