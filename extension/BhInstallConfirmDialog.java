@@ -216,7 +216,7 @@ public final class BhInstallConfirmDialog {
                                        AtomicReference<Boolean> probing) {
         List<BhCdnHelper.ProbeResult> probed = probedRef.get();
         if (probed != null) {
-            renderCdnPicker(activity, probed, cdnTV, cdnPref);
+            renderCdnPicker(activity, probed, cdnTV, cdnPref, probedRef, probing);
             return;
         }
         if (Boolean.TRUE.equals(probing.get())) return;          // already in-flight
@@ -231,7 +231,7 @@ public final class BhInstallConfirmDialog {
                     probing.set(Boolean.FALSE);
                     cdnTV.setEnabled(true);
                     cdnTV.setText("CDN:  " + cdnLabelFor(cdnPref.get(), probe) + "  ▾");
-                    renderCdnPicker(activity, probe, cdnTV, cdnPref);
+                    renderCdnPicker(activity, probe, cdnTV, cdnPref, probedRef, probing);
                 });
             }, "bh-cdn-probe").start();
         });
@@ -240,7 +240,9 @@ public final class BhInstallConfirmDialog {
     private static void renderCdnPicker(Activity activity,
                                          List<BhCdnHelper.ProbeResult> probed,
                                          TextView cdnTV,
-                                         AtomicReference<String> cdnPref) {
+                                         AtomicReference<String> cdnPref,
+                                         AtomicReference<List<BhCdnHelper.ProbeResult>> probedRef,
+                                         AtomicReference<Boolean> probing) {
         int count = probed.size();
         // Picker has [Auto] + N entries
         String[] labels = new String[count + 1];
@@ -275,8 +277,47 @@ public final class BhInstallConfirmDialog {
                     cdnTV.setText("CDN:  " + cdnLabelFor(cdnPref.get(), probed) + "  ▾");
                     d.dismiss();
                 })
+                // ↻ Refresh re-probes the SAME URL list (no secure_link re-fetch
+                // needed; the URL list is stable for the dialog session). Closes
+                // the current picker, briefly shows "Refreshing…" on the inline
+                // row, then re-opens with fresh latency numbers.
+                .setNeutralButton("↻ Refresh", (d, w) -> {
+                    refreshAndReopenCdnPicker(activity, probed, cdnTV, cdnPref, probedRef, probing);
+                })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    /**
+     * Re-runs HEAD probes against the existing CDN URL list, updates the cached
+     * probedRef, and re-opens the picker with the fresh latency numbers.
+     * No-op if a probe is already in flight (race protection).
+     */
+    private static void refreshAndReopenCdnPicker(Activity activity,
+                                                   List<BhCdnHelper.ProbeResult> prevProbed,
+                                                   TextView cdnTV,
+                                                   AtomicReference<String> cdnPref,
+                                                   AtomicReference<List<BhCdnHelper.ProbeResult>> probedRef,
+                                                   AtomicReference<Boolean> probing) {
+        if (Boolean.TRUE.equals(probing.get())) return;
+        probing.set(Boolean.TRUE);
+        cdnTV.setEnabled(false);
+        cdnTV.setText("CDN:  Refreshing…  ▾");
+
+        // Extract URLs from the previous probe (re-probe same hosts).
+        final java.util.List<String> urls = new java.util.ArrayList<>(prevProbed.size());
+        for (BhCdnHelper.ProbeResult p : prevProbed) urls.add(p.url);
+
+        new Thread(() -> {
+            List<BhCdnHelper.ProbeResult> fresh = BhCdnHelper.probeAndRank(urls, 1500);
+            activity.runOnUiThread(() -> {
+                probedRef.set(fresh);
+                probing.set(Boolean.FALSE);
+                cdnTV.setEnabled(true);
+                cdnTV.setText("CDN:  " + cdnLabelFor(cdnPref.get(), fresh) + "  ▾");
+                renderCdnPicker(activity, fresh, cdnTV, cdnPref, probedRef, probing);
+            });
+        }, "bh-cdn-probe-refresh").start();
     }
 
     /** Short label for the inline row — host name or "Auto". */
