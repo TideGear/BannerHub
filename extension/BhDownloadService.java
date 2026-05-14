@@ -71,6 +71,8 @@ public class BhDownloadService extends Service {
     public static final String EXTRA_GOG_DEVELOPER  = "gog_dev";
     public static final String EXTRA_GOG_CATEGORY   = "gog_cat";
     public static final String EXTRA_GOG_GENERATION = "gog_gen";
+    /** "AUTO" (default) for multi-CDN rank+cycle, or a specific CDN base URL. */
+    public static final String EXTRA_GOG_CDN_PREF   = "gog_cdn_pref";
     // Amazon extras
     public static final String EXTRA_AMAZON_PRODUCT_ID = "amz_pid";
     public static final String EXTRA_AMAZON_ENT_ID     = "amz_eid";
@@ -398,6 +400,9 @@ public class BhDownloadService extends Service {
         }
 
         int gogThreadCount = intent.getIntExtra(EXTRA_THREADS, BhDownloadConfig.DEFAULT_THREADS);
+        String gogCdnPref = intent.getStringExtra(EXTRA_GOG_CDN_PREF);
+        if (gogCdnPref == null || gogCdnPref.isEmpty()) gogCdnPref = GogDownloadManager.CDN_PREF_AUTO;
+        final String finalCdnPref = gogCdnPref;
         Runnable cancelHandle = GogDownloadManager.startDownload(this, game,
                 new GogDownloadManager.Callback() {
             @Override public void onProgress(String msg, int pct) {
@@ -442,7 +447,7 @@ public class BhDownloadService extends Service {
                                                java.util.function.Consumer<String> onSelected) {
                 onSelected.accept(candidates.isEmpty() ? null : candidates.get(0));
             }
-        }, gogThreadCount);
+        }, gogThreadCount, finalCdnPref);
 
         cancelHandles.put(gameId, cancelHandle);
         try {

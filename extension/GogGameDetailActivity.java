@@ -390,18 +390,30 @@ public class GogGameDetailActivity extends Activity {
 
     private void startInstall() {
         GogGame previewGame = makeGogGame();
+        BhInstallConfirmDialog.Callback cb = new BhInstallConfirmDialog.Callback() {
+            @Override public void onConfirm(int threadCount) {
+                launchInstallWithThreads(threadCount, BhInstallConfirmDialog.CDN_PREF_AUTO);
+            }
+            @Override public void onConfirmWithCdn(int threadCount, String cdnPref) {
+                launchInstallWithThreads(threadCount, cdnPref);
+            }
+        };
         BhInstallConfirmDialog.showAsync(this,
                 title != null ? title : (previewGame.title != null ? previewGame.title : gameId),
                 "gog_games",
-                this::launchInstallWithThreads,
+                cb,
                 /* initialSizeBytes = */ 0L,
                 sizeCallback -> new Thread(() -> {
                     long size = GogDownloadManager.fetchGameSize(this, previewGame);
                     runOnUiThread(() -> sizeCallback.onSize(size));
+                }).start(),
+                cdnListCallback -> new Thread(() -> {
+                    java.util.List<String> urls = GogDownloadManager.fetchCdnUrls(this, gameId);
+                    runOnUiThread(() -> cdnListCallback.onCdnList(urls));
                 }).start());
     }
 
-    private void launchInstallWithThreads(int threadCount) {
+    private void launchInstallWithThreads(int threadCount, String cdnPref) {
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
                 checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
                 != android.content.pm.PackageManager.PERMISSION_GRANTED) {
@@ -425,6 +437,7 @@ public class GogGameDetailActivity extends Activity {
         svc.putExtra(BhDownloadService.EXTRA_GAME_ID, dlKey);
         svc.putExtra(BhDownloadService.EXTRA_GAME_NAME, title != null ? title : gameId);
         svc.putExtra(BhDownloadService.EXTRA_THREADS, threadCount);
+        svc.putExtra(BhDownloadService.EXTRA_GOG_CDN_PREF, cdnPref);
         svc.putExtra(BhDownloadService.EXTRA_GOG_GAME_ID, game.gameId);
         svc.putExtra(BhDownloadService.EXTRA_GOG_TITLE, game.title);
         svc.putExtra(BhDownloadService.EXTRA_GOG_IMAGE_URL, game.imageUrl);

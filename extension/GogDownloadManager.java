@@ -83,11 +83,24 @@ public final class GogDownloadManager {
         return startDownload(ctx, game, cb, BhDownloadConfig.DEFAULT_THREADS);
     }
 
+    /** CDN preference sentinel meaning "use the multi-CDN rank+cycle behavior". */
+    public static final String CDN_PREF_AUTO = "AUTO";
+
     public static Runnable startDownload(Context ctx, GogGame game, Callback cb, int threadCount) {
+        return startDownload(ctx, game, cb, threadCount, CDN_PREF_AUTO);
+    }
+
+    /**
+     * @param cdnPref {@link #CDN_PREF_AUTO} for multi-CDN rank+cycle, or a
+     *                specific CDN base URL (from the picker) to use that one
+     *                exclusively. Null treated as AUTO.
+     */
+    public static Runnable startDownload(Context ctx, GogGame game, Callback cb, int threadCount, String cdnPref) {
         final int threads = BhDownloadConfig.clamp(threadCount);
+        final String effectivePref = (cdnPref == null || cdnPref.isEmpty()) ? CDN_PREF_AUTO : cdnPref;
         AtomicBoolean cancelled = new AtomicBoolean(false);
         AtomicReference<File> installDirRef = new AtomicReference<>(null);
-        Thread t = new Thread(() -> doDownload(ctx, game, cb, cancelled, installDirRef, threads),
+        Thread t = new Thread(() -> doDownload(ctx, game, cb, cancelled, installDirRef, threads, effectivePref),
                 "gog-dl-" + game.gameId);
         t.start();
         return () -> {
@@ -104,7 +117,7 @@ public final class GogDownloadManager {
 
     private static void doDownload(Context ctx, GogGame game, Callback cb,
                                     AtomicBoolean cancelled, AtomicReference<File> installDirRef,
-                                    int threadCount) {
+                                    int threadCount, String cdnPref) {
         StringBuilder dbg = new StringBuilder();
         dbg.append("=== BH GOG Debug === game=").append(game.gameId)
            .append(" title=").append(game.title).append("\n");
@@ -141,7 +154,7 @@ public final class GogDownloadManager {
 
             String gen2Err = null;
             if (buildsJson != null) {
-                gen2Err = runGen2(ctx, game, token, buildsJson, cb, dbg, cancelled, installDirRef, threadCount);
+                gen2Err = runGen2(ctx, game, token, buildsJson, cb, dbg, cancelled, installDirRef, threadCount, cdnPref);
                 if (gen2Err == null) { writeDebug(ctx, dbg); return; }
                 dbg.append("gen2_failed=").append(gen2Err).append("\n");
             }
@@ -226,7 +239,7 @@ public final class GogDownloadManager {
     private static String runGen2(Context ctx, GogGame game, String token,
                                    String buildsJson, Callback cb, StringBuilder dbg,
                                    AtomicBoolean cancelled, AtomicReference<File> installDirRef,
-                                   int threadCount) {
+                                   int threadCount, String cdnPref) {
         try {
             dbg.append("\n--- Gen2 ---\n");
             JSONObject builds = new JSONObject(buildsJson);
@@ -354,11 +367,27 @@ public final class GogDownloadManager {
                 return "cdnBase null; secure_link_response=" + (secureLinkJson == null ? "NULL"
                         : secureLinkJson.substring(0, Math.min(200, secureLinkJson.length())));
 
-            // HEAD-probe + rank. 1.5s per-probe timeout — generous enough for
-            // typical mobile networks; if a CDN is THAT slow on a HEAD it's
-            // not going to serve chunks well anyway.
-            java.util.List<String> cdnBases =
-                    BhCdnHelper.rankByLatency(cdnBasesAll, 1500);
+            // CDN selection: AUTO (default) does HEAD-probe rank + retry
+            // cycling. A specific CDN base URL from the picker overrides:
+            // we match by host on the URL list and use ONLY that CDN. If the
+            // user-picked CDN isn't in the secure_link response anymore
+            // (token expired, GOG rotated the list, etc.), fall back to AUTO
+            // and log it so the user sees what happened.
+            java.util.List<String> cdnBases;
+            if (cdnPref != null && !CDN_PREF_AUTO.equals(cdnPref)) {
+                cdnBases = pickSpecificCdn(cdnBasesAll, cdnPref);
+                if (cdnBases.isEmpty()) {
+                    dbg.append("cdn_pref_miss=").append(cdnPref).append(" not in raw list, falling back to AUTO\n");
+                    cdnBases = BhCdnHelper.rankByLatency(cdnBasesAll, 1500);
+                } else {
+                    dbg.append("cdn_pref_match=").append(cdnBases).append("\n");
+                }
+            } else {
+                // HEAD-probe + rank. 1.5s per-probe timeout — generous enough
+                // for typical mobile networks; if a CDN is THAT slow on a HEAD
+                // it's not going to serve chunks well anyway.
+                cdnBases = BhCdnHelper.rankByLatency(cdnBasesAll, 1500);
+            }
             dbg.append("cdn_bases_ranked=").append(cdnBases.size()).append(": ").append(cdnBases).append("\n");
             if (cdnBases.isEmpty())
                 return "cdn rank produced empty list; raw=" + cdnBasesAll;
@@ -1019,6 +1048,40 @@ public final class GogDownloadManager {
     }
 
     /**
+     * Match a user-picked CDN preference against the freshly-fetched URL list.
+     * The picker stored the base URL it saw earlier (possibly with an expired
+     * token), but secure_link has since been re-fetched with a fresh token.
+     * Match by HOST so a re-issued token doesn't cause a false miss.
+     *
+     * Returns a single-element list with the fresh URL on match, or empty list
+     * if the picked host isn't in the fresh response.
+     */
+    private static java.util.List<String> pickSpecificCdn(java.util.List<String> freshUrls, String pickedUrl) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        String pickedHost = hostOf(pickedUrl);
+        if (pickedHost == null) return out;
+        for (String u : freshUrls) {
+            if (pickedHost.equalsIgnoreCase(hostOf(u))) {
+                out.add(u);
+                return out;
+            }
+        }
+        return out;
+    }
+
+    private static String hostOf(String url) {
+        if (url == null) return null;
+        int schemeEnd = url.indexOf("://");
+        int start = schemeEnd >= 0 ? schemeEnd + 3 : 0;
+        int pathStart = url.indexOf('/', start);
+        int queryStart = url.indexOf('?', start);
+        int end = url.length();
+        if (pathStart > 0 && pathStart < end) end = pathStart;
+        if (queryStart > 0 && queryStart < end) end = queryStart;
+        return url.substring(start, end);
+    }
+
+    /**
      * Appends a chunk path to a CDN base URL, preserving any ?token=... query
      * string. Ported from utkarshdalal/GameNative GOGManifestParser.kt
      * appendPathBeforeQuery (PR #1215 by Bart Zaalberg). Replaces our previous
@@ -1278,6 +1341,46 @@ public final class GogDownloadManager {
      * Returns -1 if the size cannot be determined.
      * Runs on the calling thread — call from a background thread.
      */
+    /**
+     * Pre-fetch the CDN URL list for this game so the install-confirm dialog
+     * can show a CDN picker before the download starts. Returns the parsed
+     * (unranked) list — caller probably wants BhCdnHelper.probeAndRank() on
+     * top to attach latency badges.
+     *
+     * Synchronous; call from a background thread.
+     *
+     * @return ordered list of CDN base URLs (empty list on any failure)
+     */
+    public static java.util.List<String> fetchCdnUrls(Context ctx, String gameId) {
+        java.util.List<String> empty = java.util.Collections.emptyList();
+        try {
+            SharedPreferences prefs = ctx.getSharedPreferences("bh_gog_prefs", 0);
+            String token = prefs.getString("access_token", null);
+            if (token == null) return empty;
+            int loginTime  = prefs.getInt("bh_gog_login_time", 0);
+            int expiresIn  = prefs.getInt("bh_gog_expires_in", 3600);
+            int nowSec     = (int) (System.currentTimeMillis() / 1000L);
+            if (loginTime == 0 || nowSec >= loginTime + expiresIn) {
+                String newToken = GogTokenRefresh.refresh(ctx);
+                if (newToken == null) return empty;
+                token = newToken;
+            }
+
+            // Picker time: we don't have the manifest yet, so use gameId as the
+            // baseProductId. For 99% of titles this matches what runGen2 sees
+            // later. Worst case (DLC base mismatch) the picker shows CDNs for
+            // the wrong product — only affects display; the actual download
+            // still uses the real baseProductId.
+            String secureLinkUrl = "https://content-system.gog.com/products/" + gameId
+                    + "/secure_link?_version=2&generation=2&path=/";
+            String json = httpGet(secureLinkUrl, token);
+            if (json == null) return empty;
+            return parseCdnUrls(json);
+        } catch (Exception e) {
+            return empty;
+        }
+    }
+
     public static long fetchGameSize(Context ctx, GogGame game) {
         try {
             SharedPreferences prefs = ctx.getSharedPreferences("bh_gog_prefs", 0);

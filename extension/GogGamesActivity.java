@@ -744,7 +744,7 @@ public class GogGamesActivity extends Activity {
                 if (exePath != null) GogLaunchHelper.triggerLaunch(this, exePath);
                 return;
             }
-            showInstallConfirm(game, threadCount -> {
+            showInstallConfirm(game, (threadCount, cdnPref) -> {
                 cancelRef1[0] = null;
                 actionBtn.setEnabled(true);
                 actionBtn.setText("Cancel");
@@ -803,7 +803,7 @@ public class GogGamesActivity extends Activity {
                                                        java.util.function.Consumer<String> onSelected) {
                         showExePicker(candidates, onSelected);
                     }
-                }, threadCount);
+                }, threadCount, cdnPref);
             });
         });
 
@@ -1008,7 +1008,7 @@ public class GogGamesActivity extends Activity {
                 if (exe != null) GogLaunchHelper.triggerLaunch(this, exe);
                 return;
             }
-            showInstallConfirm(game, threadCount -> {
+            showInstallConfirm(game, (threadCount, cdnPref) -> {
                 cancelRef2[0] = null;
                 actionBtn.setEnabled(true);
                 actionBtn.setText("Cancel");
@@ -1057,7 +1057,7 @@ public class GogGamesActivity extends Activity {
                                                        java.util.function.Consumer<String> onSelected) {
                         showExePicker(candidates, onSelected);
                     }
-                }, threadCount);
+                }, threadCount, cdnPref);
             });
         });
 
@@ -1197,7 +1197,7 @@ public class GogGamesActivity extends Activity {
                     if (cancelRef3[0] != null) cancelRef3[0].run();
                     return;
                 }
-                showInstallConfirm(game, threadCount -> {
+                showInstallConfirm(game, (threadCount, cdnPref) -> {
                 cancelRef3[0] = null;
                 customInstall.setEnabled(true);
                 customInstall.setText("Cancel");
@@ -1259,7 +1259,7 @@ public class GogGamesActivity extends Activity {
                                                        java.util.function.Consumer<String> onSelected) {
                         showExePicker(candidates, onSelected);
                     }
-                }, threadCount);
+                }, threadCount, cdnPref);
                 }); // end showInstallConfirm
             });
             return; // dialog already shown above
@@ -1271,10 +1271,14 @@ public class GogGamesActivity extends Activity {
     // ── Service-backed download (routes through BhDownloadService) ───────────
 
     private Runnable startViaServiceGog(GogGame game, GogDownloadManager.Callback cb) {
-        return startViaServiceGog(game, cb, BhDownloadConfig.DEFAULT_THREADS);
+        return startViaServiceGog(game, cb, BhDownloadConfig.DEFAULT_THREADS, BhInstallConfirmDialog.CDN_PREF_AUTO);
     }
 
     private Runnable startViaServiceGog(GogGame game, GogDownloadManager.Callback cb, int threadCount) {
+        return startViaServiceGog(game, cb, threadCount, BhInstallConfirmDialog.CDN_PREF_AUTO);
+    }
+
+    private Runnable startViaServiceGog(GogGame game, GogDownloadManager.Callback cb, int threadCount, String cdnPref) {
         String dlKey = "gog_" + game.gameId;
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
                 checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -1287,6 +1291,7 @@ public class GogGamesActivity extends Activity {
         svc.putExtra(BhDownloadService.EXTRA_GAME_ID, dlKey);
         svc.putExtra(BhDownloadService.EXTRA_GAME_NAME, game.title);
         svc.putExtra(BhDownloadService.EXTRA_THREADS, threadCount);
+        svc.putExtra(BhDownloadService.EXTRA_GOG_CDN_PREF, cdnPref);
         svc.putExtra(BhDownloadService.EXTRA_GOG_GAME_ID, game.gameId);
         svc.putExtra(BhDownloadService.EXTRA_GOG_TITLE, game.title);
         svc.putExtra(BhDownloadService.EXTRA_GOG_IMAGE_URL, game.imageUrl);
@@ -1508,12 +1513,30 @@ public class GogGamesActivity extends Activity {
     }
 
     /** Shows a pre-install confirmation dialog with game size (async-fetched), available storage, and a per-download thread-count picker. */
-    private void showInstallConfirm(GogGame game, BhInstallConfirmDialog.Callback callback) {
-        BhInstallConfirmDialog.showAsync(this, game.title, "gog_games", callback,
+    /**
+     * GOG install-confirm helper. The callback receives the user's chosen
+     * thread count AND CDN preference ("AUTO" or a specific CDN base URL
+     * from the picker). Caller passes both into startViaServiceGog so the
+     * download service can honor the CDN choice.
+     */
+    private void showInstallConfirm(GogGame game, java.util.function.BiConsumer<Integer, String> onConfirm) {
+        BhInstallConfirmDialog.Callback cb = new BhInstallConfirmDialog.Callback() {
+            @Override public void onConfirm(int threadCount) {
+                onConfirm.accept(threadCount, BhInstallConfirmDialog.CDN_PREF_AUTO);
+            }
+            @Override public void onConfirmWithCdn(int threadCount, String cdnPref) {
+                onConfirm.accept(threadCount, cdnPref);
+            }
+        };
+        BhInstallConfirmDialog.showAsync(this, game.title, "gog_games", cb,
                 /* initialSizeBytes = */ 0L,
                 sizeCallback -> new Thread(() -> {
                     long size = GogDownloadManager.fetchGameSize(this, game);
                     runOnUiThread(() -> sizeCallback.onSize(size));
+                }).start(),
+                cdnListCallback -> new Thread(() -> {
+                    java.util.List<String> urls = GogDownloadManager.fetchCdnUrls(this, game.gameId);
+                    runOnUiThread(() -> cdnListCallback.onCdnList(urls));
                 }).start());
     }
 
