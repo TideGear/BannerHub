@@ -4774,3 +4774,52 @@ BannerHub-v3.1.0-Normal.apk, Normal.GHL.apk, PuBG.apk, PuBG-CrossFire.apk, Gensh
 - #56 permissions not visible (cosmetic Android UI — user handled themselves)
 - #63 components not deleting (video evidence on inaccessible Discord — needs re-upload)
 - #48 Settings auto-null when selecting Proton 9 with Box64/FEX (has folder-swap workaround — refreshWineDependent logic to fix)
+
+
+### [feat+diag+port] — GOG download reliability overhaul (2026-05-14)
+**Branch:** `feature/gog-toast-diagnostic`
+**Commits (chronological):** `2cad8d8` → `2f80578` → `974508f` → `bbc04b5` → `1ba5a44` → `20f6f96`
+
+User reported a POSTAL 2 (GOG id 1207658755) download failing with toast "Download failed: no depot array in the manifest". Debug log analysis revealed the real cause was 2 of 1475 files refusing all retries on Fastly CDN (`Paradise Lost/Animations/ED_WeaponsToo.ukx`, `hart.ukx`); the gen1 fallback's "no depot array" message was misleading. Session work split into three layers — diagnostic visibility, UX recovery, and an actual fix ported from GameNative.
+
+#### Layer 1: Diagnostic toast + dbg log (`2cad8d8`, `2f80578`)
+- `runGen2` now tracks failed relative paths in a ConcurrentLinkedQueue
+- On gen2-files-failed-but-gen1-also-failed, toast prefers gen2's file-level message over gen1's misleading parser error
+- Toast text shortened to ~52 chars to fit Android toast width: `Download failed: 2/1475 files (ED_WeaponsToo.ukx +1)`
+- Toast text now also written to `bh_gog_debug.txt` as `toast=...` line on every error path
+
+#### Layer 2: Unified install-state model with PARTIAL recovery (`974508f`)
+- `extension/GogInstallPath.java` extended with `State` enum (INSTALLED / PARTIAL / NONE) + 4 helpers (`checkState`, `markPartial`, `clearPartial`, `clearAll`, `getInstallOrPartialPath`)
+- `BhDownloadService.runGog` writes `gog_partial_<id>` SharedPref at download start, clears on `onComplete`/`onCancelled`, leaves on `onError`
+- All 3 download-trigger UIs (`GogGameDetailActivity`, `GogGamesActivity` list / grid / dialog) and the inline `uninstall()` helper updated to use the shared state helper
+- PARTIAL state shows "Resume install" + Uninstall buttons (existing resume logic skips files already on disk; Uninstall wipes partial folder + clears prefs)
+- Survives app restart — process death mid-download leaves uninstallable state in SharedPrefs
+
+#### Layer 3: Multi-CDN download port from GameNative (`20f6f96`)
+After the diagnostic build (run `25867736845`) shipped `974508f` and the same user re-tested on `feature/gog-toast-diagnostic` device build, the new log `bh_gog_debug (1).txt` confirmed the hypothesis: 4 of 1475 files failed same-CDN retries (worse than before — same chunks blocked at Fastly edge). Ported 4 GameNative commits from `utkarshdalal/GameNative`:
+
+- **`extension/BhCdnHelper.java` (new)** — Java port of GameNative `CdnRankingUtils.kt` (PR #1220, Utkarsh Dalal). `probeAndRank()` for future picker UI; `rankByLatency()` for download path. Treats response 200..499 as reachable.
+- `parseCdnUrl(String) → String` replaced with `parseCdnUrls(String) → List<String>` — parses ALL secure_link.urls[] entries, not just first
+- New `appendPathBeforeQuery(base, path)` helper — Bart Zaalberg's URL builder from PR #1215. Handles trailing slashes + token-in-query-string preservation
+- `runGen2` HEAD-probe ranks CDNs at download start (1500ms per probe), captures ranked list, retries cycle through different CDNs: `attempt N → fCdnBases.get((attempt-1) % cdnCount)`
+- Max attempts auto-scaled to `min(6, max(3, 2 × cdnCount))` so each CDN gets at least one shot when multiple are available
+- Backoff capped at 8s (was uncapped exponential)
+- RETRY/FAIL log lines now include `cdn=<hostname>` so dbg traces show whether failures clustered on one edge or spanned multiple
+
+Credits doc: `gamehub_reports/GAMENATIVE_GOG_PORT_CREDITS.md` (commit `bbc04b5`, statuses flipped to ✅ Ported at `20f6f96`). All 4 contributors named with verified commit URLs + PR links.
+
+#### Build artifacts
+- `25867736845` — diagnostic build (Layers 1+2), device-confirmed hypothesis on PuBG variant
+- `25872444614` — multi-CDN build (all 3 layers), 135 MB Normal variant signed with debug key. Side-installs over existing v3.7.2 — version string shows `feature/gog-toast-diagnostic`.
+
+#### Verification (PuBG variant `com.tencent.ig`)
+Read via `getlog --cat /storage/emulated/0/Android/data/com.tencent.ig/files/bh_gog_debug.txt` after install — Citadel Remonstered (468 files) downloaded cleanly with new diagnostic lines:
+- `cdn_bases_raw=2: [fastly_url, gcdn.co_url]` — multi-URL parser working
+- `cdn_bases_ranked=2: [fastly, gcdn.co]` — HEAD probe + rank working
+- `gen2 download complete: 468 files OK` — no regression on success path
+- Fallback-to-second-CDN behavior not exercised (Fastly served all 468 cleanly), so confirmation of fallback awaits POSTAL 2 user retry
+
+#### Open follow-ups
+- CDN picker UI on same branch (Auto default + per-CDN options with latency badges + power-user pin-a-specific-CDN)
+- POSTAL 2 user retest with the multi-CDN build to confirm `ED_WeaponsToo.ukx` / `hart.ukx` now succeed on a non-Fastly retry
+- When ready for stable: rebase + cherry-pick port commits to a clean main-targeted PR (the current branch carries the diagnostic + install-state + port commits and is debug-key-signed)
