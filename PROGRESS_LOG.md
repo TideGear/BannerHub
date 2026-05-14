@@ -4748,3 +4748,29 @@ Promotes all v3.0.x pre-releases to stable. Bundles:
 BannerHub-v3.1.0-Normal.apk, Normal.GHL.apk, PuBG.apk, PuBG-CrossFire.apk, Genshin.apk, Ludashi.apk, AnTuTu.apk, alt-AnTuTu.apk, Original.apk
 
 
+
+
+### [docs+triage] — README badges expansion + issue triage sweep (2026-05-14)
+**Commits:** `aba0fbb` (feature branch), `67d10f2` (badges → main), `378c0e3` (latest-release link → main), `4467ce9` (for-the-badge upsize → main)
+
+#### README changes
+- Added two GitHub downloads badges (total + latest-release) alongside the existing Discord badge in the H1 header
+- Upsized all three to `for-the-badge` style, centered in a `<p align="center">` block matching the bannerhub-revanced layout
+- Added `📥 Latest stable: v3.7.2` link below the badge row, pointing at `/releases/latest` (auto-redirects, so URL never needs updating — only the visible vX.Y.Z text changes per release)
+- Layout now mirrors bannerhub-revanced and Bannerhub-Lite (all three repos standardized same day)
+
+#### Issue triage — 10 open → 6 open
+| # | Title | Action |
+|---|---|---|
+| #77 | Integrar a geração de frames (PT — feature request) | Closed completed — frame-gen shipped in v3.7.0, replied bilingually with link to latest release |
+| #78 | Launcher Support Assistance (SWG launcher) | Closed completed — user already had a workaround; provided cleaner alternative (vcredist2019 + vcredist2022 + mono + gecko on Wine 10 / Proton 9 container) |
+| #86 | button editor (port macros + per-button transparency from 6.0) | Closed not-planned — 6.0 on-screen-controls subsystem was rewritten between 5.3.5 and 6.0, apktool smali patching can't realistically retrofit it; pointed user at bannerhub-revanced which has both features natively |
+| #65 | No SD Card found (Xiaomi MIUI + RP5) | Closed completed — split into two scenarios (toggle scope clarification + MIUI "All Files Access" upgrade permission path) |
+| #87 | Frame generation not working | Replied + left open — gave 3-step triage (chipset check for VK_NV_optical_flow, imagefs ≥1.3.5, Mesa Turnip driver not stock blob); awaiting user device info |
+| #85 | Fails to launch under x64 with most translators | Replied + left open — solid 4-device repro (RP5/AYN Thor/Tab S7+/S20), confirmed by 2nd user; requested logcat + exhaustive Box64 version list. Box64-0.4.1-2 confirmed working as workaround |
+| #84 | Direct Launch broken from ES-DE/Beacons | Replied + left open — user already pin-pointed `DeepLinkRouterActivity` + `getLastLaunchType` returning invalid game id; need to confirm which app (Lite vs main) + exact intent string before backend fix |
+
+#### Still open (untouched this pass)
+- #56 permissions not visible (cosmetic Android UI — user handled themselves)
+- #63 components not deleting (video evidence on inaccessible Discord — needs re-upload)
+- #48 Settings auto-null when selecting Proton 9 with Box64/FEX (has folder-swap workaround — refreshWineDependent logic to fix)
