@@ -4972,3 +4972,32 @@ Stable release bundling the two device-confirmed fixes that landed during the 20
 - After build completes: edit the GitHub Release body with `release_notes.txt` content.
 - Memory updates: bump BannerHub master state to "v3.7.3 shipped 2026-05-14"; mark the framegen-onresume + GOG memories as SHIPPED; clear the stale v3.6.0-disclaimers memory (already shipped, never carried over).
 - Pre-release policy resumes after this stable.
+
+---
+
+### [ship] — v3.7.3 stable shipped end-to-end (2026-05-14)
+
+All post-tag outstanding items completed.
+
+#### Build outcome
+- [run 25879637817](https://github.com/The412Banner/BannerHub/actions/runs/25879637817) ✅ — `prepare` + 9 variant builds + `release` job all green.
+- 9 APK assets attached: `BannerHub-v3.7.3-{Normal, Normal.GHL, PuBG, PuBG-CrossFire, AnTuTu, alt-AnTuTu, Ludashi, Genshin, Original}.apk`.
+- Release auto-created with `isPrerelease=false` because the tag has no `-` suffix (softprops/action-gh-release@v2's `prerelease: ${{ contains(steps.tag.outputs.name, '-') }}` evaluates `false` for `v3.7.3`). The `if: github.event_name == 'push'` guard on the release job (workflow fix `215f044`) did its job — only the tag push reached the release step.
+
+#### Release body upload
+- `gh release edit v3.7.3 --notes-file release_notes.txt --latest -R The412Banner/BannerHub` succeeded.
+- Release URL: https://github.com/The412Banner/BannerHub/releases/tag/v3.7.3
+- Marked as the repository's latest release (passes the `> github.com/.../releases/latest` redirect that Obtainium + the README badge follow).
+
+#### Memory updates (per [[memory-update-workflow]])
+- `project_bannerhub.md` — current state section rewritten to "v3.7.3 SHIPPED 2026-05-14", with merge SHAs, tag commit `58f270a`, build run, release URL, and a note that pre-release policy resumes.
+- `project_bannerhub_gog_download.md` — frontmatter description updated to "SHIPPED in v3.7.3"; status summary line `🚀 SHIPPED in v3.7.3 stable 2026-05-14` added.
+- `project_bannerhub_framegen_onresume_fix.md` — frontmatter updated; "Pending decisions" section replaced with "Outcome — all 7 test steps passed 2026-05-14"; memory now frozen as a build-record reference.
+- `MEMORY.md` index — 3 lines rewritten to reflect SHIPPED state; stale `project_bannerhub_pending_stable_disclaimers.md` entry removed (file deleted — all v3.6.0 disclaimers already shipped, nothing carried over).
+- `gamehub_reports/GAMENATIVE_GOG_PORT_CREDITS.md` (in-repo, shipped as part of `58f270a`) — all 4 piece Status fields bumped to `🚀 Shipped in v3.7.3 (2026-05-14) — 📱 device-confirmed 2026-05-14`; the top-level "✅ PORTED" header rewritten to "🚀 SHIPPED"; the stale "Next step / Awaiting" lines removed.
+
+#### Pre-release policy resumes
+Per [[BannerHub-pre-release-policy]], all builds from this point are pre-release artifact-only (no GH Release) until user says "stable" again. The next pre-tag push will produce APK artifacts on the workflow run page only, never a GitHub Release.
+
+#### Credits surface
+Release body credits the four upstream `utkarshdalal/GameNative` contributors (Utkarsh Dalal #1220 + #1219, Bart Zaalberg #1215, Joshua Tam #1277, co-author Jeremy Bernstein #1219) and [teldommm](https://github.com/teldommm) for the FrameGen onResume fix (Bannerhub-Lite PR #5). The `gamehub_reports/GAMENATIVE_GOG_PORT_CREDITS.md` doc in the repo is the canonical attribution record.
