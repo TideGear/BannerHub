@@ -157,8 +157,10 @@ public final class GogDownloadManager {
             dbg.append("gen1_builds_response=").append(builds1Json == null ? "NULL"
                     : builds1Json.substring(0, Math.min(300, builds1Json.length()))).append("\n");
             if (builds1Json == null) {
+                String t = "No builds available for this game";
+                dbg.append("toast=").append(t).append("\n");
                 writeDebug(ctx, dbg);
-                cb.onError("No builds available for this game"); return;
+                cb.onError(t); return;
             }
             String err1 = runGen1(ctx, game, token, builds1Json, cb, dbg, cancelled, installDirRef, threadCount);
             if (err1 != null) {
@@ -170,28 +172,37 @@ public final class GogDownloadManager {
                     String installerErr = runInstaller(ctx, game, token, cb, dbg, cancelled, installDirRef);
                     if (installerErr == null) { writeDebug(ctx, dbg); return; }
                     dbg.append("installer_failed=").append(installerErr).append("\n");
+                    String t = "No downloadable builds for this game";
+                    dbg.append("toast=").append(t).append("\n");
                     writeDebug(ctx, dbg);
-                    cb.onError("No downloadable builds for this game");
+                    cb.onError(t);
                 } else {
-                    writeDebug(ctx, dbg);
                     // Diagnostic: if gen2 made it to the download stage and
                     // failed on specific files, surface THAT in the toast —
                     // gen1's "no depot array in manifest" is structurally
                     // expected for many games and hides the real cause.
+                    String toast;
                     if (gen2Err != null && gen2Err.startsWith("files-failed: ")) {
-                        cb.onError("Download failed - " + gen2Err
-                                + " (gen1 fallback also unavailable: " + err1 + ")");
+                        // gen2Err looks like "files-failed: 2/1475 (name +N)" —
+                        // strip the internal prefix so the toast reads cleanly:
+                        // "Download failed: 2/1475 files (name +N)"
+                        toast = "Download failed: " + gen2Err.substring("files-failed: ".length()) + " files";
                     } else {
-                        cb.onError("Download failed: " + err1);
+                        toast = "Download failed: " + err1;
                     }
+                    dbg.append("toast=").append(toast).append("\n");
+                    writeDebug(ctx, dbg);
+                    cb.onError(toast);
                 }
             } else {
                 writeDebug(ctx, dbg);
             }
         } catch (Exception e) {
             dbg.append("EXCEPTION=").append(e).append("\n");
+            String t = "Download error: " + e.getMessage();
+            dbg.append("toast=").append(t).append("\n");
             writeDebug(ctx, dbg);
-            cb.onError("Download error: " + e.getMessage());
+            cb.onError(t);
         }
     }
 
@@ -452,25 +463,24 @@ public final class GogDownloadManager {
             for (String line : fileLog2) dbg.append(line).append("\n");
             if (cancelled.get()) return "cancelled";
             if (anyFailed.get()) {
-                // Build a diagnostic message naming the failed files so the
-                // user-facing toast can show them when gen1 fallback also fails.
-                // Format: "files-failed: X of Y - <first>, <second> [+N more]"
+                // Build a compact diagnostic message naming the failed files
+                // so the user-facing toast can show them when gen1 fallback
+                // also fails. Kept short (~60 chars) to fit in an Android
+                // toast without truncation. Format example:
+                //   "files-failed: 2/1475 (ED_WeaponsToo.ukx +1)"
                 int failedCount = failedPaths.size();
-                StringBuilder msg = new StringBuilder();
-                msg.append("files-failed: ").append(failedCount).append(" of ").append(total);
-                int previewMax = 2;
-                int shown = 0;
-                String sep = " - ";
-                for (String fp : failedPaths) {
-                    if (shown >= previewMax) break;
-                    int slash = fp.lastIndexOf('/');
-                    String name = slash >= 0 ? fp.substring(slash + 1) : fp;
-                    msg.append(sep).append(name);
-                    sep = ", ";
-                    shown++;
+                String first = failedPaths.peek();
+                String firstName = "";
+                if (first != null) {
+                    int slash = first.lastIndexOf('/');
+                    firstName = slash >= 0 ? first.substring(slash + 1) : first;
                 }
-                if (failedCount > previewMax) {
-                    msg.append(" +").append(failedCount - previewMax).append(" more");
+                StringBuilder msg = new StringBuilder();
+                msg.append("files-failed: ").append(failedCount).append('/').append(total);
+                if (!firstName.isEmpty()) {
+                    msg.append(" (").append(firstName);
+                    if (failedCount > 1) msg.append(" +").append(failedCount - 1);
+                    msg.append(')');
                 }
                 return msg.toString();
             }
