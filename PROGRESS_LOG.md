@@ -4903,3 +4903,40 @@ Two artifacts sit on workflow run pages awaiting user device test before v3.7.3 
 - Use logcat-bridge via `getlog <pkg>` for any crash/log capture
 - Push fixes to whichever branch; rebuild via `gh workflow run`
 - Memory shortcuts: [[bannerhub-gog-download-stack-state]] for GOG; [[bannerhub-framegen-onresume-fix-branch-state]] for framegen
+
+---
+
+### [fix] — FrameGen: re-apply on resume + gear-visible-only-when-ON (2026-05-14)
+**Branch:** `fix/framegen-onresume` (off main `cb7b9cc`)  |  **Ported from:** [Bannerhub-Lite PR #5 by teldommm](https://github.com/The412Banner/Bannerhub-Lite/pull/5)
+
+#### Bugs being fixed
+1. **FrameGen settings dropped on resume.** `BhFrameGenWriter.applyFromPrefsNoContext()` was only called from `WineActivity.onCreate` (`patches/smali_classes15/com/xj/winemu/WineActivity.smali` line 6052). After app suspension, resuming the game never re-wrote `gamescope.control` bytes — sidebar switch showed "enabled" but the AI overlay was inactive.
+2. **Gear button always visible.** `patches/res/layout/winemu_sidebar_controls_fragment.xml` had no `android:visibility` on `btn_frame_gen_settings`, and `BhFrameGenWiring.bind()` unconditionally called `setVisibility(View.VISIBLE)`. Gear remained visible even with the FrameGen switch OFF — inconsistent with the RTS gesture button pattern in the same sidebar.
+
+#### Changes
+- `patches/smali_classes15/com/xj/winemu/WineActivity.smali` — added one `invoke-static` after `invoke-super` in `onResume()V` (line 8679 anchor). Uses the Context-accepting `applyFromPrefs(Landroid/content/Context;)V` variant per the PR; passes `p0`. No `.locals` change needed.
+- `patches/res/layout/winemu_sidebar_controls_fragment.xml` — added `android:visibility="gone"` on `btn_frame_gen_settings` (line 22).
+- `extension/BhFrameGenWiring.java` — `bind()` now resolves both gear + switch first, then ties gear visibility to switch state in two places: initial bind (mirrors loaded `settings.enabled`) and switch click handler (mirrors new state). Idempotent; safe to call on every onResume.
+
+#### Why we don't need a workflow change like the upstream PR
+The upstream PR adds a Python-based smali injection to `build-bhapi.yml`. BannerHub's framegen WineActivity hook is *not* applied via workflow patching — it lives as a static pre-edited file in `patches/smali_classes15/com/xj/winemu/WineActivity.smali` that `cp -r patches/. apktool_out_base/` overlays. Adding the onResume `invoke-static` line directly to that static file is the BannerHub-native equivalent — no Python step, no workflow change.
+
+#### Dialog cleanup (also ported from PR #5, with one deviation)
+After user approval, the rest of the PR's dialog cleanup was ported in a follow-up commit on the same branch. The dialog now mirrors Bannerhub-Lite's simplified surface EXCEPT for the Close button, which BannerHub keeps so users have multiple ways to dismiss the dialog (tap-outside + visible Close).
+
+- `extension/BhFrameGenDialog.java`:
+  - Window: solid black background dropped; replaced with `FLAG_DIM_BEHIND` + `dimAmount = 0.6f` + transparent background. Panel gets 16dp top/bottom margins.
+  - Removed in-dialog "Enable frame generation" Switch — sidebar switch is the single source of truth for on/off state.
+  - Removed the multiplier (2x/3x/4x) RadioGroup — multiplier hardcoded to 2x in the writer.
+  - Sections renumbered (1: Preset slider, 2: flowScale slider).
+  - Removed unused `RadioButton`/`RadioGroup`/`Switch` imports and the `clampMultiplier` helper.
+  - **KEPT (deviation from PR):** the blue "Close" button at the bottom of the panel. User explicitly requested multiple dismissal paths.
+- `extension/BhFrameGenSettings.java`: `multiplier` field removed along with its load/save lines.
+- `extension/BhFrameGenWriter.java`: byte 9 now hardcoded to `2` in `write()`; `writeMultiplier()` method removed. `clampInt` helper retained to match the upstream PR (still used by the broader writer surface if extended later).
+
+#### Test plan (device)
+1. Enable FrameGen in sidebar → gear button appears, overlay activates
+2. Exit + re-enter game → overlay remains active (was: dropped on resume)
+3. Disable FrameGen → gear button disappears immediately (was: stayed visible)
+4. Re-enable → gear reappears immediately
+5. Open the gear dialog → game stays visible behind a 60% dim layer (was: solid black). Three controls only: Preset slider, flowScale slider, Close button. Tap-outside also dismisses.
