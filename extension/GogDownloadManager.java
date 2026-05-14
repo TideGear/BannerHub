@@ -139,10 +139,11 @@ public final class GogDownloadManager {
             dbg.append("gen2_builds_response=").append(buildsJson == null ? "NULL"
                     : buildsJson.substring(0, Math.min(300, buildsJson.length()))).append("\n");
 
+            String gen2Err = null;
             if (buildsJson != null) {
-                String err = runGen2(ctx, game, token, buildsJson, cb, dbg, cancelled, installDirRef, threadCount);
-                if (err == null) { writeDebug(ctx, dbg); return; }
-                dbg.append("gen2_failed=").append(err).append("\n");
+                gen2Err = runGen2(ctx, game, token, buildsJson, cb, dbg, cancelled, installDirRef, threadCount);
+                if (gen2Err == null) { writeDebug(ctx, dbg); return; }
+                dbg.append("gen2_failed=").append(gen2Err).append("\n");
             }
 
             if (cancelled.get()) return;
@@ -173,7 +174,16 @@ public final class GogDownloadManager {
                     cb.onError("No downloadable builds for this game");
                 } else {
                     writeDebug(ctx, dbg);
-                    cb.onError("Download failed: " + err1);
+                    // Diagnostic: if gen2 made it to the download stage and
+                    // failed on specific files, surface THAT in the toast —
+                    // gen1's "no depot array in manifest" is structurally
+                    // expected for many games and hides the real cause.
+                    if (gen2Err != null && gen2Err.startsWith("files-failed: ")) {
+                        cb.onError("Download failed - " + gen2Err
+                                + " (gen1 fallback also unavailable: " + err1 + ")");
+                    } else {
+                        cb.onError("Download failed: " + err1);
+                    }
                 }
             } else {
                 writeDebug(ctx, dbg);
@@ -346,6 +356,10 @@ public final class GogDownloadManager {
             final String        fCdnBase     = cdnBase;
             final java.util.concurrent.ConcurrentLinkedQueue<String> fileLog2 =
                     new java.util.concurrent.ConcurrentLinkedQueue<>();
+            // Diagnostic: track relative paths that exhausted retries, so the
+            // user-facing error toast can name them when gen1 fallback also fails.
+            final java.util.concurrent.ConcurrentLinkedQueue<String> failedPaths =
+                    new java.util.concurrent.ConcurrentLinkedQueue<>();
             dbg.append("gen2 parallel download: ").append(total).append(" files, ").append(threadCount).append(" threads\n");
 
             ExecutorService pool = Executors.newFixedThreadPool(threadCount);
@@ -422,6 +436,7 @@ public final class GogDownloadManager {
                         Log.w(TAG, "Gen2 non-critical file skipped after 3 attempts: " + df.relativePath);
                     } else {
                         Log.e(TAG, "Gen2 file failed after 3 attempts: " + df.relativePath);
+                        failedPaths.add(df.relativePath);
                         anyFailed.set(true);
                     }
                     return null;
@@ -436,7 +451,29 @@ public final class GogDownloadManager {
             }
             for (String line : fileLog2) dbg.append(line).append("\n");
             if (cancelled.get()) return "cancelled";
-            if (anyFailed.get()) return "one or more chunks failed to download";
+            if (anyFailed.get()) {
+                // Build a diagnostic message naming the failed files so the
+                // user-facing toast can show them when gen1 fallback also fails.
+                // Format: "files-failed: X of Y - <first>, <second> [+N more]"
+                int failedCount = failedPaths.size();
+                StringBuilder msg = new StringBuilder();
+                msg.append("files-failed: ").append(failedCount).append(" of ").append(total);
+                int previewMax = 2;
+                int shown = 0;
+                String sep = " - ";
+                for (String fp : failedPaths) {
+                    if (shown >= previewMax) break;
+                    int slash = fp.lastIndexOf('/');
+                    String name = slash >= 0 ? fp.substring(slash + 1) : fp;
+                    msg.append(sep).append(name);
+                    sep = ", ";
+                    shown++;
+                }
+                if (failedCount > previewMax) {
+                    msg.append(" +").append(failedCount - previewMax).append(" more");
+                }
+                return msg.toString();
+            }
             dbg.append("gen2 download complete: ").append(doneCount.get()).append(" files OK\n");
 
             // Write manifest marker
