@@ -343,11 +343,25 @@ public final class GogDownloadManager {
             dbg.append("secure_link_url=").append(secureLinkUrl).append("\n");
             dbg.append("secure_link_response=").append(secureLinkJson == null ? "NULL"
                     : secureLinkJson.substring(0, Math.min(400, secureLinkJson.length()))).append("\n");
-            String cdnBase = parseCdnUrl(secureLinkJson);
-            dbg.append("cdnBase=").append(cdnBase).append("\n");
-            if (cdnBase == null)
+            // Parse all CDN URLs from secure_link (was: just the first). Each
+            // URL is a different edge provider — typically Fastly + Akamai +
+            // Google Cloud. Ranking by HEAD-probe latency means the fastest
+            // edge runs first, AND retries can cycle to a different edge if
+            // a specific chunk is blocked on the current one.
+            java.util.List<String> cdnBasesAll = parseCdnUrls(secureLinkJson);
+            dbg.append("cdn_bases_raw=").append(cdnBasesAll.size()).append(": ").append(cdnBasesAll).append("\n");
+            if (cdnBasesAll.isEmpty())
                 return "cdnBase null; secure_link_response=" + (secureLinkJson == null ? "NULL"
                         : secureLinkJson.substring(0, Math.min(200, secureLinkJson.length())));
+
+            // HEAD-probe + rank. 1.5s per-probe timeout — generous enough for
+            // typical mobile networks; if a CDN is THAT slow on a HEAD it's
+            // not going to serve chunks well anyway.
+            java.util.List<String> cdnBases =
+                    BhCdnHelper.rankByLatency(cdnBasesAll, 1500);
+            dbg.append("cdn_bases_ranked=").append(cdnBases.size()).append(": ").append(cdnBases).append("\n");
+            if (cdnBases.isEmpty())
+                return "cdn rank produced empty list; raw=" + cdnBasesAll;
 
             // Install dir
             File installPath = GogInstallPath.getInstallDir(ctx, installDir);
@@ -364,7 +378,11 @@ public final class GogDownloadManager {
             final AtomicLong    lastSpeedB   = new AtomicLong(0);
             final AtomicLong    speedBps     = new AtomicLong(0);
             final AtomicBoolean anyFailed    = new AtomicBoolean(false);
-            final String        fCdnBase     = cdnBase;
+            // Multi-CDN: ranked list captured for use in the per-attempt
+            // download loop below. Each retry attempt selects a different
+            // CDN via fCdnBases.get((attempt-1) % size) so a chunk blocked
+            // on one edge can succeed on another.
+            final java.util.List<String> fCdnBases = cdnBases;
             final java.util.concurrent.ConcurrentLinkedQueue<String> fileLog2 =
                     new java.util.concurrent.ConcurrentLinkedQueue<>();
             // Diagnostic: track relative paths that exhausted retries, so the
@@ -390,20 +408,28 @@ public final class GogDownloadManager {
                         return null;
                     }
 
-                    for (int attempt = 1; attempt <= 3; attempt++) {
+                    // Try up to (3 * cdn-count) attempts so each CDN gets at
+                    // least 3 chances if there's only one CDN, or each of N
+                    // CDNs gets at least one shot before we give up. Caps at
+                    // 6 attempts total — beyond that the chunk is genuinely
+                    // unreachable for this user and more retries won't help.
+                    final int cdnCount = fCdnBases.size();
+                    final int maxAttempts = Math.min(6, Math.max(3, cdnCount * 2));
+                    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
                         if (cancelled.get() || anyFailed.get()) return null;
                         tmpFile.delete();
                         long fileBytes = 0;
                         boolean ok = false;
+                        // Pick CDN for this attempt: attempt 1 → fastest,
+                        // attempt 2 → next fastest, wrap around if attempts
+                        // exceed CDN count.
+                        final String attemptCdn = fCdnBases.get((attempt - 1) % cdnCount);
                         try (FileOutputStream fos = new FileOutputStream(tmpFile)) {
                             ok = true;
                             for (DepotFile.ChunkRef chunk : df.chunks) {
                                 if (cancelled.get()) return null;
                                 String chunkPath = buildCdnPath(chunk.hash);
-                                int qIdx = fCdnBase.indexOf('?');
-                                String chunkUrl = qIdx >= 0
-                                        ? fCdnBase.substring(0, qIdx) + "/" + chunkPath + fCdnBase.substring(qIdx)
-                                        : fCdnBase + "/" + chunkPath;
+                                String chunkUrl = appendPathBeforeQuery(attemptCdn, chunkPath);
                                 byte[] chunkRaw = fetchBytes(chunkUrl, null);
                                 if (chunkRaw == null) { ok = false; break; }
                                 fileBytes += chunkRaw.length;
@@ -435,18 +461,30 @@ public final class GogDownloadManager {
                                     + (speedStr.isEmpty() ? "" : "  " + speedStr), pct);
                             return null;
                         }
-                        fileLog2.add("RETRY attempt=" + attempt + " file=" + df.relativePath);
+                        // Record which CDN this attempt used so the dbg log
+                        // can later show whether failures clustered on one
+                        // edge or spanned multiple.
+                        int hostStart = attemptCdn.indexOf("://");
+                        String cdnHost = attemptCdn;
+                        if (hostStart >= 0) {
+                            int hostEnd = attemptCdn.indexOf('/', hostStart + 3);
+                            cdnHost = attemptCdn.substring(hostStart + 3, hostEnd > 0 ? hostEnd : attemptCdn.length());
+                        }
+                        fileLog2.add("RETRY attempt=" + attempt + " cdn=" + cdnHost + " file=" + df.relativePath);
                         tmpFile.delete();
-                        if (attempt < 3) {
-                            try { Thread.sleep(1000L << (attempt - 1)); }
+                        if (attempt < maxAttempts) {
+                            // Exponential backoff capped at 8s: 1s, 2s, 4s, 8s, 8s, 8s.
+                            // Cap prevents long stalls when we've already cycled CDNs.
+                            long delayMs = Math.min(8000L, 1000L << (attempt - 1));
+                            try { Thread.sleep(delayMs); }
                             catch (InterruptedException ie) { Thread.currentThread().interrupt(); return null; }
                         }
                     }
-                    fileLog2.add("FAIL file=" + df.relativePath);
+                    fileLog2.add("FAIL file=" + df.relativePath + " after " + maxAttempts + " attempts");
                     if (isNonCriticalGogFile(df.relativePath)) {
-                        Log.w(TAG, "Gen2 non-critical file skipped after 3 attempts: " + df.relativePath);
+                        Log.w(TAG, "Gen2 non-critical file skipped after " + maxAttempts + " attempts: " + df.relativePath);
                     } else {
-                        Log.e(TAG, "Gen2 file failed after 3 attempts: " + df.relativePath);
+                        Log.e(TAG, "Gen2 file failed after " + maxAttempts + " attempts: " + df.relativePath);
                         failedPaths.add(df.relativePath);
                         anyFailed.set(true);
                     }
@@ -938,34 +976,67 @@ public final class GogDownloadManager {
         return hash.substring(0, 2) + "/" + hash.substring(2, 4) + "/" + hash;
     }
 
-    /** Parses the secure_link JSON → CDN base URL (strips trailing /{path}). */
-    private static String parseCdnUrl(String json) {
-        if (json == null) return null;
+    /**
+     * Parses secure_link JSON → ordered list of CDN base URLs (all entries
+     * from urls[], not just the first). Each entry has its {key} parameters
+     * substituted and the trailing /{path} stripped, ready for use as a
+     * chunk-URL prefix.
+     *
+     * Returns empty list on any error so callers can fall back gracefully.
+     */
+    private static java.util.List<String> parseCdnUrls(String json) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (json == null) return out;
         try {
             JSONObject obj = new JSONObject(json);
             JSONArray urls = obj.optJSONArray("urls");
-            if (urls == null || urls.length() == 0) return null;
-            JSONObject first = urls.getJSONObject(0);
-            String urlFormat = first.optString("url_format");
-            JSONObject params = first.optJSONObject("parameters");
-            if (urlFormat == null || params == null) return null;
+            if (urls == null) return out;
+            for (int i = 0; i < urls.length(); i++) {
+                JSONObject entry = urls.optJSONObject(i);
+                if (entry == null) continue;
+                String urlFormat = entry.optString("url_format", null);
+                JSONObject params = entry.optJSONObject("parameters");
+                if (urlFormat == null || params == null) continue;
 
-            // Replace {key} placeholders
-            java.util.Iterator<String> keys = params.keys();
-            while (keys.hasNext()) {
-                String k = keys.next();
-                String v = params.optString(k);
-                urlFormat = urlFormat.replace("{" + k + "}", v);
+                // Replace {key} placeholders
+                java.util.Iterator<String> keys = params.keys();
+                while (keys.hasNext()) {
+                    String k = keys.next();
+                    String v = params.optString(k);
+                    urlFormat = urlFormat.replace("{" + k + "}", v);
+                }
+                urlFormat = urlFormat.replace("\\/", "/");
+
+                // Strip trailing /{path}
+                int idx = urlFormat.indexOf("/{path}");
+                if (idx >= 0) urlFormat = urlFormat.substring(0, idx);
+                if (!urlFormat.isEmpty()) out.add(urlFormat);
             }
-            urlFormat = urlFormat.replace("\\/", "/");
-
-            // Strip trailing /{path}
-            int idx = urlFormat.indexOf("/{path}");
-            if (idx >= 0) urlFormat = urlFormat.substring(0, idx);
-            return urlFormat;
         } catch (Exception e) {
-            return null;
+            // fall through with whatever we collected
         }
+        return out;
+    }
+
+    /**
+     * Appends a chunk path to a CDN base URL, preserving any ?token=... query
+     * string. Ported from utkarshdalal/GameNative GOGManifestParser.kt
+     * appendPathBeforeQuery (PR #1215 by Bart Zaalberg). Replaces our previous
+     * inline qIdx workaround at lines 403-405 with a builder that also handles
+     * trailing slashes on the base URL and leading slashes on the path.
+     *
+     * Example:
+     *   base = "https://gog-cdn-fastly.gog.com/path/?token=abc"
+     *   path = "ab/cd/abcd1234"
+     *   →     "https://gog-cdn-fastly.gog.com/path/ab/cd/abcd1234?token=abc"
+     */
+    private static String appendPathBeforeQuery(String baseUrl, String path) {
+        int qIdx = baseUrl.indexOf('?');
+        String pathBase = qIdx >= 0 ? baseUrl.substring(0, qIdx) : baseUrl;
+        String querySuffix = qIdx >= 0 ? baseUrl.substring(qIdx) : "";
+        while (pathBase.endsWith("/")) pathBase = pathBase.substring(0, pathBase.length() - 1);
+        while (path.startsWith("/")) path = path.substring(1);
+        return pathBase + "/" + path + querySuffix;
     }
 
     /** Downloads a byte range from {@code url} and writes it to {@code out}. */
