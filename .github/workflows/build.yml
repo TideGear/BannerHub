@@ -781,6 +781,12 @@ jobs:
 
   release:
     needs: build
+    # Only auto-publish a GitHub Release on stable tag pushes (v3.7.2, etc).
+    # Skips on workflow_dispatch entirely — pre/beta/amazon tags dispatched
+    # manually produce artifacts only, matching the pre-release policy.
+    # The push trigger above already filters out v*-pre*/v*-beta*/v*-amazon*,
+    # so any push that reaches here is a stable tag.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write

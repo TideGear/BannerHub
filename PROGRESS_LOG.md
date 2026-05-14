@@ -4851,3 +4851,14 @@ Read via `getlog --cat /storage/emulated/0/Android/data/com.tencent.ig/files/bh_
 - Credits doc `gamehub_reports/GAMENATIVE_GOG_PORT_CREDITS.md` status fields bump to `🚀 Shipped in v3.7.3` + `📱 device-confirmed 2026-05-14`
 - Release notes call out the 4 upstream `utkarshdalal/GameNative` contributors per the credits doc — Utkarsh Dalal (#1220, #1219), Bart Zaalberg (#1215), Joshua Tam (#1277), co-author Jeremy Bernstein (#1219)
 - `BANNERHUB_MASTER_MAP.md` update per the master-map-on-every-release rule
+
+---
+
+### [fix+policy] — build.yml release job gated to push events only (2026-05-14)
+**Issue:** Dispatching `build.yml` via `gh workflow run --ref v3.7.3-pre1` produced an auto-created GitHub Release "Bannerhub v3.7.3-pre1" (deleted), violating the pre-release policy that says all pre-tagged builds are artifact-only until the user says "stable" again.
+
+**Root cause:** The `release:` job (line 782) had no `if:` guard. The tag-push trigger's `!v*-pre*` filter only blocks auto-firing the workflow from a pre-tag push — it doesn't prevent the release job from running when the workflow is dispatched manually.
+
+**Fix:** Added `if: github.event_name == 'push'` to the release job. Auto-publish a GitHub Release only on tag PUSH events (which are already filtered to stable tags by the top-level `push.tags` rules). `workflow_dispatch` never creates releases, regardless of which ref it targets.
+
+**Cleanup:** Deleted the v3.7.3-pre1 GitHub Release via `gh release delete`. The tag `v3.7.3-pre1` is kept as the build anchor (commit `a477165`); the build's APK artifacts remain on workflow run [25876297190](https://github.com/The412Banner/BannerHub/actions/runs/25876297190).
