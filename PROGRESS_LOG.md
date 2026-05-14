@@ -4823,3 +4823,31 @@ Read via `getlog --cat /storage/emulated/0/Android/data/com.tencent.ig/files/bh_
 - CDN picker UI on same branch (Auto default + per-CDN options with latency badges + power-user pin-a-specific-CDN)
 - POSTAL 2 user retest with the multi-CDN build to confirm `ED_WeaponsToo.ukx` / `hart.ukx` now succeed on a non-Fastly retry
 - When ready for stable: rebase + cherry-pick port commits to a clean main-targeted PR (the current branch carries the diagnostic + install-state + port commits and is debug-key-signed)
+
+---
+
+### [feat+merge+pre-release] — GOG download overhaul lands on main, v3.7.3-pre1 dispatched (2026-05-14)
+**Merge commit:** `a477165` on `main` (--no-ff, preserves 9-commit feature history `2cad8d8` → `03879dc`)  |  **Tag:** `v3.7.3-pre1`  |  **Build:** [run 25876297190](https://github.com/The412Banner/BannerHub/actions/runs/25876297190) dispatched on tag ref (workflow_dispatch — no auto-release per `!v*-pre*` filter, matches pre-release policy)
+
+#### Follow-up commits past the previous entry's range
+- `ed50688 feat(gog): CDN picker UI in install-confirm dialog` — `BhInstallConfirmDialog.java` gains a CDN selector. Default is **Auto** (rank-by-latency, current behavior); user can pin a specific CDN by hostname. Per-CDN options show latency badges from `BhCdnHelper.probeAndRank`.
+- `03879dc feat(gog): ↻ Refresh button on CDN picker` — user-triggered re-probe of CDN latency from the picker UI without re-opening the dialog. Useful when network conditions shift between the initial dialog open and the install confirm.
+
+#### Device confirmations (user-reported 2026-05-14)
+- ✅ **POSTAL 2** download now completes with multi-CDN fallback — the empirical confirmation that the port resolves the original Fastly chunk-refusal blocker
+- ✅ **CDN picker UI** works as intended
+- ✅ **↻ Refresh button** works as intended
+
+#### Merge mechanics
+- `feature/gog-toast-diagnostic` was already current with `origin/main` (merge-base = `a691194`, the main HEAD) → clean `--no-ff` merge
+- 9 files changed, +988 / −114; new `extension/BhCdnHelper.java` + `gamehub_reports/GAMENATIVE_GOG_PORT_CREDITS.md`
+- All 5 feature commits (`2cad8d8`, `20f6f96`, `974508f`, `ed50688`, `03879dc`) verified reachable from `origin/main` post-push
+
+#### Pre-release build mechanics (why tag + dispatch, not just dispatch)
+`build.yml` strips the `v` prefix from `GITHUB_REF_NAME` and uses the remainder as the injected `versionName`. Dispatching directly on `main` would bake `versionName: main` into the APK. Tagging first then dispatching on the tag ref bakes `versionName: 3.7.3-pre1` correctly. The tag-push trigger is filtered by `!v*-pre*` so the tag alone won't auto-build — explicit `workflow_dispatch --ref v3.7.3-pre1` is the artifact-only path that matches the pre-release policy.
+
+#### Outstanding before v3.7.3 stable
+- User device-tests `v3.7.3-pre1` artifact across variants
+- Credits doc `gamehub_reports/GAMENATIVE_GOG_PORT_CREDITS.md` status fields bump to `🚀 Shipped in v3.7.3` + `📱 device-confirmed 2026-05-14`
+- Release notes call out the 4 upstream `utkarshdalal/GameNative` contributors per the credits doc — Utkarsh Dalal (#1220, #1219), Bart Zaalberg (#1215), Joshua Tam (#1277), co-author Jeremy Bernstein (#1219)
+- `BANNERHUB_MASTER_MAP.md` update per the master-map-on-every-release rule
