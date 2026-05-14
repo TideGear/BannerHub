@@ -1,39 +1,50 @@
-## New since v2.1.1 (last stable)
-• Injected filename display — After a successful inject, the component list row shows `"ComponentName [-> filename.wcp]"`.
-• Label persists across app restarts via SharedPreferences.
-• AOSP testkey signing — APKs are now signed with the standard AOSP testkey (v1, v2, v3) instead of a custom debug keystore.
-• Multi-APK packaging — The build workflow now produces 5 distinct APKs, each modified with a unique Android package name to allow parallel installations and avoid conflicts:
-  • Bannerhub-Normal (gamehub.lite)
-  • Bannerhub-PuBG (com.tencent.ig)
-  • Bannerhub-AnTuTu (com.antutu.ABenchMark)
-  • Bannerhub-Ludashi (com.ludashi.aibench)
-  • Bannerhub-Genshin (com.mihoyo.genshinimpact)
+> [!WARNING]
+> **Only install official stable releases** (like this one). Do NOT install pre-releases or raw CI artifacts — pre-release builds use a different package name (`com.tencent.ig`) and cannot be upgraded to stable without uninstalling first.
 
-## Full Feature Set
+> [!IMPORTANT]
+> **Notification permission required.** BannerHub will prompt for the **Post Notifications** permission when you start your first Epic, GOG, or Amazon download. You must allow it to receive download progress and completion notifications. Without it, you will not be notified when downloads finish or fail.
 
-### Component Manager (accessed via GameHub left menu → "Components")
-• Lists all installed components from `files/usr/home/components/`
-• Inject WCP/ZIP — pick a `.wcp` or `.zip` file via Android file picker (SAF). Supports:
-  • ZIP (`50 4B` magic) — flat extraction to component root, basename only (Turnip / adrenotools drivers)
-  • zstd tar (`28 B5 2F FD` magic) — FEXCore → flat to component root; DXVK / VKD3D / Box64 → preserve `system32/` + `syswow64/` structure
-  • XZ tar (`FD 37 7A 58` magic) — same tar logic as zstd path
-• Shows last injected filename per component
-• Backup component — copies entire component folder to `Downloads/BannerHub/{name}/`
-• Component folder is cleared before every injection (no stale files)
-• Background thread for extraction with Handler-posted UI result (no ANR)
-• Catches `Throwable` — surfaces `NoClassDefFoundError`, `OutOfMemoryError`, and all other JVM errors
+> [!IMPORTANT]
+> **Files access required for SD card storage.** To save games to your SD card, BannerHub must be granted the **Files and Media** permission. Go to **Android Settings → Apps → BannerHub → Permissions → Files and media** and set it to **Allow management of all files** (or equivalent on your device). Without this permission the SD card toggle will have no effect.
 
-### BCI Launcher Button
-• Tap the banner icon in GameHub's top-right toolbar to open BannersComponentInjector (`com.banner.inject`)
-• Shows a toast if BannersComponentInjector is not installed
+## What's new in v3.7.3
 
-### UI Tweaks
-• "My" tab renamed to "My Games"
-• "Banners Component Injector" title header added to all Component Manager menus
+Two independent reliability fixes, both device-confirmed.
 
-## Installation
-1. Download the desired APK variant(s) below.
-2. Uninstall any existing GameHub installation that shares the exact same package name.
-3. Install the downloaded APK(s).
+### 1. GOG downloads — multi-CDN failover + resumable PARTIAL state
 
-Note: You can install multiple variants side-by-side (e.g. Normal alongside PuBG) because they have different package names.
+GOG ships every depot through several CDN endpoints — typically `cdn.gog.com`, `gog-cdn-fastly.gog.com`, `gog-cdn-akamai.gog.com`, and a couple of region-specific mirrors. Up until v3.7.2 BannerHub picked one and abandoned the whole download if that CDN returned 403 / 404 / 5xx on a single file. v3.7.3 fixes this top-to-bottom.
+
+- **Automatic failover.** Each file probes every CDN advertised in the depot manifest in order; the first one that succeeds wins. A single bad endpoint no longer kills the install.
+- **CDN picker on the install dialog.** A new "CDN" row sits alongside size and storage on the install-confirm dialog. Leave it on **Auto** (default) for round-robin failover, or pin a specific CDN if your network plays better with one — useful when an ISP throttles a particular hostname or when GOG's own routing sends you to a degraded edge.
+- **↻ Refresh button.** Tap the refresh icon on the picker to re-fetch the live CDN list from GOG without dismissing the dialog. Use this if you opened the dialog, walked away for a while, and CDNs have rotated.
+- **PARTIAL install state.** When a download is interrupted (cancel, kill, OOM, network drop), BannerHub now records `gog_state_<gameId>=PARTIAL` with the in-flight file index + byte offset. Re-tapping install picks up from the same point instead of starting over. All three GOG UIs (library list, library grid, game-detail dialog) now share one install-state model — the checkmark / Add Game / Resume affordances are consistent everywhere.
+- **Diagnostic toast.** When a file does fail across every CDN, the error toast now names the file, the last CDN tried, and the HTTP code. The same line is also appended to `bh_gog_debug.txt` (in your app's external files directory) so you can copy-paste an exact failure into a bug report.
+
+**Device-confirmed during pre-release testing:** POSTAL 2 (multi-CDN fallback survived a single-CDN failure mid-install), Citadel Remonstered (468/468 files clean on Auto), CDN picker UI, ↻ Refresh button.
+
+### 2. AI Frame Generation — resume reliability + cleaner gear dialog
+
+Three issues from v3.7.0 / v3.7.1 / v3.7.2 are addressed in one bundle.
+
+- **Frame-gen no longer "lies" after resume.** Previously, the `gamescope.control` bytes were only written on first launch. Pressing Home or locking the screen and resuming the game left the sidebar switch saying **ON** while the AI overlay was silently dead — your FPS would drop back to native without the switch ever changing state. The launch hook now also runs on `WineActivity.onResume`, so the overlay survives every backgrounding cycle. If the sidebar switch says ON, AI frame generation is **actually on**.
+- **Gear icon hides when the switch is OFF.** The gear button next to the sidebar switch now defaults to hidden and only appears when AI Frame Generation is enabled. Matches the existing pattern used by RTS controls in the same sidebar.
+- **Dialog cleanup — game view stays visible.** The settings dialog no longer paints a full-screen black background over your game. It now uses Android's translucent dim with the game rendering live underneath at 60% dim, the same way native system dialogs look. The dialog has three controls — Preset slider, Custom flow scale slider, and a blue **Close** button — and tap-outside also dismisses. The multiplier picker is gone (it was always 2× on tested hardware anyway; the value is now hardcoded) and the redundant in-dialog Enable switch is gone (the sidebar switch is the single source of truth). Net result: faster to operate, easier on the eyes, no behavior loss.
+
+## Upgrading
+
+- **v3.7.2 → v3.7.3:** install the matching variant directly over your existing install. No certificate change, no data loss. GOG library + install state are preserved (`bh_gog_prefs` keys are forward-compatible — old completed installs read as `INSTALLED`, no migration needed). FrameGen settings (`bh_framegen.xml`) carry over; the removed `multiplier` key is simply ignored.
+- **v3.7.1 or earlier → v3.7.3:** install normally. If the signing certificate differs, uninstall first.
+- Variants with different package names cannot replace each other in-place.
+
+## Credits
+
+- **GOG download reliability overhaul** ported from upstream [`utkarshdalal/GameNative`](https://github.com/utkarshdalal/GameNative): multi-CDN [PR #1220](https://github.com/utkarshdalal/GameNative/pull/1220) + [PR #1219](https://github.com/utkarshdalal/GameNative/pull/1219) by **Utkarsh Dalal** (with co-author **Jeremy Bernstein** on #1219), CDN picker [PR #1215](https://github.com/utkarshdalal/GameNative/pull/1215) by **Bart Zaalberg**, install-state PARTIAL [PR #1277](https://github.com/utkarshdalal/GameNative/pull/1277) by **Joshua Tam**.
+- **AI Frame Generation onResume + dialog cleanup** ported from [Bannerhub-Lite PR #5](https://github.com/The412Banner/Bannerhub-Lite/pull/5) by **[teldommm](https://github.com/teldommm)**.
+- All v3.7.0 features (AI Frame Generation engine itself by the **GameHub team**, PC-accurate Vibration / Rumble by [TideGear](https://github.com/TideGear) via [GameNative PR #1214](https://github.com/utkarshdalal/GameNative/pull/1214)) remain active.
+
+**Please go support GameNative: https://github.com/utkarshdalal/GameNative**
+
+---
+
+For details on the v3.7.0 baseline (AI Frame Generation menu, PC Vibration / Rumble), see the [v3.7.0 release notes](https://github.com/The412Banner/BannerHub/releases/tag/v3.7.0). For the v3.7.1 / v3.7.2 upgrade-prompt stubs, see the [v3.7.1](https://github.com/The412Banner/BannerHub/releases/tag/v3.7.1) and [v3.7.2](https://github.com/The412Banner/BannerHub/releases/tag/v3.7.2) release notes.

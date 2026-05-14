@@ -4940,3 +4940,35 @@ After user approval, the rest of the PR's dialog cleanup was ported in a follow-
 3. Disable FrameGen → gear button disappears immediately (was: stayed visible)
 4. Re-enable → gear reappears immediately
 5. Open the gear dialog → game stays visible behind a 60% dim layer (was: solid black). Three controls only: Preset slider, flowScale slider, Close button. Tap-outside also dismisses.
+
+---
+
+### [stable] — v3.7.3 — GOG download reliability overhaul + FrameGen resume fix (2026-05-14)
+
+Stable release bundling the two device-confirmed fixes that landed during the 2026-05-14 session.
+
+#### Merge mechanics
+- `fix/framegen-onresume@cc15e56` merged into `main` with `--no-ff` → merge commit `c884fab`. 2-commit feature history (`7d192cf` + `cc15e56`) preserved.
+- One merge conflict in `PROGRESS_LOG.md` (both branches appended different entries past line 4855) — resolved by keeping the framegen `[fix]` block alongside main's `[fix+policy]` + `[session-bookmark]` entries.
+- `feature/gog-toast-diagnostic` was already merged to main earlier in the session (`a477165`, the GOG overhaul merge commit) and shipped as the v3.7.3-pre1 artifact ([run 25876297190](https://github.com/The412Banner/BannerHub/actions/runs/25876297190)).
+
+#### Bundled into v3.7.3
+1. **GOG download reliability overhaul** (already on main since `a477165`) — multi-CDN port from `utkarshdalal/GameNative` + CDN picker UI + ↻ Refresh button + install-state PARTIAL recovery + diagnostic toast. Ports 4 upstream PRs (Utkarsh Dalal #1220 #1219, Bart Zaalberg #1215, Joshua Tam #1277, co-author Jeremy Bernstein #1219). Device-confirmed on POSTAL 2 (multi-CDN fallback) + Citadel Remonstered (468/468).
+2. **FrameGen onResume + gear visibility + dialog cleanup** (this merge) — port of Bannerhub-Lite PR #5 by teldommm. Re-apply on `WineActivity.onResume`, gear visibility tied to switch state, translucent dialog dim, multiplier picker + in-dialog Enable switch removed (Close button kept).
+
+#### Release-prep updates
+- `README.md` — latest-stable badge bumped to v3.7.3; FrameGen dialog table updated (multiplier picker + Enable toggle rows removed); persistence note now mentions both onCreate + onResume hooks; new "Multi-CDN failover (v3.7.3+)" paragraph in the GOG Download Pipeline section.
+- `BANNERHUB_MASTER_MAP.md` — added v3.7.3 patch blockquote in § AI-FrameGen (3 changes: onResume re-apply, gear visibility, dialog cleanup with byte 9 hardcoded to 2) and in §22 GOG Download System (5 changes: multi-CDN, picker, refresh, PARTIAL state, diagnostic toast).
+- `release_notes.txt` — full v3.7.3 body written matching v3.7.2 style (warnings + "What's new" + upgrading + credits), with explicit attribution to all 4 upstream GameNative contributors + teldommm.
+- `gamehub_reports/GAMENATIVE_GOG_PORT_CREDITS.md` — status bump to `🚀 Shipped in v3.7.3` + `📱 device-confirmed 2026-05-14` pending the final docs commit below.
+
+#### Tag + release
+- Single docs commit on main: README + master map + PROGRESS_LOG + release notes + credits status bump.
+- Annotated tag `v3.7.3` on the docs commit.
+- Push commit + tag → `build.yml` push trigger fires for all 9 variants; the now-guarded `release:` job (gated by `if: github.event_name == 'push'`) auto-creates the GitHub Release with the APKs attached.
+- Manual `gh release edit v3.7.3 --notes-file release_notes.txt` after the workflow completes (softprops/action-gh-release@v2 doesn't read body_path from the workflow as currently wired).
+
+#### Outstanding (post-tag)
+- After build completes: edit the GitHub Release body with `release_notes.txt` content.
+- Memory updates: bump BannerHub master state to "v3.7.3 shipped 2026-05-14"; mark the framegen-onresume + GOG memories as SHIPPED; clear the stale v3.6.0-disclaimers memory (already shipped, never carried over).
+- Pre-release policy resumes after this stable.

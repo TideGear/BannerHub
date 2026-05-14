@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/The412Banner/BannerHub/releases/latest"><strong>📥 Latest stable: v3.7.2</strong></a>
+  <a href="https://github.com/The412Banner/BannerHub/releases/latest"><strong>📥 Latest stable: v3.7.3</strong></a>
 </p>
 
 **GameHub 5.3.5 ReVanced** — extended with GOG Games, Amazon Games, and Epic Games Store library tabs, a full Component Manager, in-app component downloader, background download service with in-app cross-store download manager, SD card / external storage routing for store game downloads, Winlator HUD overlay (Normal + Extra Detailed + Konkr style with CPU/GPU/RAM/SWAP/temp/per-core metrics), in-game performance toggles, RTS touch controls, VRAM unlock, per-game CPU core affinity, root access management, offline Steam launch, community game configs browser, per-game config export/import with Frontend Export, Japanese locale, and more. Built entirely with apktool smali patching — no source code, no external library injection.
@@ -154,6 +154,8 @@ BannerHub supports both GOG's current and legacy download systems:
 1. Calls `api.gog.com/products/{id}?expand=downloads`
 2. Reads the `downlink` or `manualUrl` from the downloads object
 3. Downloads the Windows installer `.exe` directly
+
+**Multi-CDN failover (v3.7.3+):** Each file probes every CDN advertised in the depot manifest (typically 4–6 endpoints) and falls back automatically when one rejects with HTTP 403 / 404 / 5xx. A **CDN picker** in the install-confirm dialog (with a ↻ Refresh button to re-fetch the live CDN list) lets you pin a specific CDN if your network plays better with one. When a download is interrupted mid-stream, the install state is recorded as **PARTIAL** so the next tap resumes from the same per-file progress instead of restarting from scratch. Originally ported from `utkarshdalal/GameNative` upstream PRs (see release notes for credits).
 
 #### Install Flow
 
@@ -475,12 +477,14 @@ Open any PC game's in-game sidebar and tap the **Performance** tab. You'll see a
 
 #### Settings dialog
 
+The gear icon appears next to the sidebar switch only when AI Frame Generation is enabled (v3.7.3+). Tapping it opens a translucent dialog over the dimmed game view:
+
 | Setting | Range / Options | What it does |
 |---------|-----------------|--------------|
-| **Enable toggle** | On / Off | Top-level switch. Same as the sidebar toggle — kept on the dialog for convenience |
 | **Preset** | Eco / Flow / Bal / Boost / Clear / Max | 6 named profiles that bundle a quality model and flow-scale value. Map: Eco=`model 0/flow 0.2`, Flow=`0/0.4`, **Bal=`0/0.6` (default)**, Boost=`0/0.8`, Clear=`1/0.6`, Max=`1/0.8`. Mirrors GameHub 6.0.1's `AiFrameInterpolationMode` enum |
-| **Multiplier** | 2× / 3× / 4× | How many displayed frames per rendered frame. **2× is the validated path**; 3× and 4× are wired up at the IPC layer but not yet observed working on any tested device. The platform also silently coerces `1×` → `2×` at the IPC layer, so there's no "off via multiplier=1" trick — use the master toggle |
 | **Custom flow scale** | 0.20–1.00 | AI optical-flow strength. Lower = cheaper, more artifacts on fast motion. Higher = cleaner but more GPU cost. Defaults to whatever the chosen preset says; moving the slider overrides it |
+
+A blue **Close** button dismisses; tapping outside the panel also dismisses. The sidebar switch is the single source of truth for on/off — there is no in-dialog Enable toggle. The multiplier is fixed at **2×** (the only validated path on tested hardware).
 
 Every change is **applied immediately** to the running game (writes through `gamescope.control` mmap) and **saved to SharedPreferences** so the value persists.
 
@@ -502,8 +506,8 @@ On a working device, **roughly 1.8–1.9× FPS scaling at 2× multiplier** — e
 
 Settings are global (per-game scoping is a v2 candidate). They persist across game launches via two layers:
 
-1. SharedPreferences in `bh_framegen.xml` (keys: `enabled`, `preset`, `multiplier`, `flowScale`, `model`).
-2. A smali hook at `WineActivity.onCreate` re-applies all saved values to `gamescope.control` on every launch, **after** BannerHub's container regenerator runs (the regenerator zeros byte 0 every launch, which is why the toggle would otherwise reset). The Vulkan ICD JSON is also re-written at launch using your APK's actual package name, so the menu works on any installed package — including manually-renamed APKs.
+1. SharedPreferences in `bh_framegen.xml` (keys: `enabled`, `preset`, `flowScale`, `model`).
+2. Smali hooks at both `WineActivity.onCreate` and `WineActivity.onResume` re-apply all saved values to `gamescope.control`, so the AI overlay survives both fresh launches and Home/lock/resume cycles (v3.7.3 added the onResume hook — previously, resuming the game left the sidebar switch saying "ON" while the overlay was silently dead). The regenerator zeros byte 0 every launch, which is why the onCreate hook runs after it. The Vulkan ICD JSON is also re-written at launch using your APK's actual package name, so the menu works on any installed package — including manually-renamed APKs.
 
 > **Note — requires Adreno GPU.** GameHub 6.0.1's frame interpolation engine uses `VK_NV_optical_flow`, which on Android is currently only exposed by Qualcomm Adreno drivers. The menu controls work on any device but the actual frame interpolation is silently skipped on Mali, Xclipse, and other non-Adreno GPUs — you'll see the toggle move but not the FPS gain.
 

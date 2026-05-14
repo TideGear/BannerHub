@@ -1212,6 +1212,15 @@ Populated by `getOrFetchClientId(gameId)` which fetches product endpoint if not 
 
 **Debug log:** appended to `context.getExternalFilesDir(null)/bh_gog_debug.txt`
 
+> **BannerHub patch (v3.7.3 stable, 2026-05-14):** GOG download reliability overhaul, ported from upstream `utkarshdalal/GameNative` PRs (Utkarsh Dalal #1220 #1219, Bart Zaalberg #1215, Joshua Tam #1277, co-author Jeremy Bernstein #1219). Five user-visible changes:
+> 1. **Multi-CDN failover.** New `extension/BhCdnHelper.java` enumerates every CDN advertised in the depot manifest (typically 4–6 endpoints, e.g. `cdn.gog.com`, `gog-cdn-fastly.gog.com`, `gog-cdn-akamai.gog.com`). Per-file downloads probe each in order; HTTP 403 / 404 / 5xx auto-falls through to the next. Previously a single CDN failure aborted the whole install.
+> 2. **CDN picker UI.** Install-confirm dialog gains a "CDN" picker row alongside size + storage. User can pin one CDN if their network plays better with a specific endpoint, or leave on "Auto" (default) for round-robin failover.
+> 3. **↻ Refresh button** on the CDN picker re-fetches the live CDN list from GOG without dismissing the dialog — useful when CDNs rotate mid-session.
+> 4. **PARTIAL install state.** `bh_gog_prefs` now writes per-game `gog_state_<gameId>=PARTIAL` mid-install with the file index + byte offset of the in-flight file. Re-tapping the install button after an interrupted download resumes from the same point rather than restarting from scratch. Surfaced across all three GOG UIs (library list, library grid, game-detail dialog) under a unified install-state model.
+> 5. **Diagnostic toast.** File-level Gen2 failures surface in the download error toast (filename + CDN + HTTP code) instead of the previous generic "Download failed" message; toast text also appended to `bh_gog_debug.txt` so the user can copy-paste an exact failure into a bug report. Toast wrapping was shortened to fit single-line on landscape phones.
+>
+> See `PROGRESS_LOG.md` § 2026-05-14 GOG download reliability overhaul and `gamehub_reports/GAMENATIVE_GOG_PORT_CREDITS.md` for the full upstream attribution.
+
 ---
 
 ## 23. Epic Download System (`EpicDownloadManager`)
@@ -7795,6 +7804,11 @@ The control file at `<imageFs>/etc/gamescope.control` was expanded from 4 bytes 
 The dialog UI is built programmatically (no XML layout) to avoid R.id cross-module coupling — same approach as `BhFrameRating.java`.
 
 **Discovered 2026-05-08:** The byte 2 (enabled) in our v1 reverse engineering matched master map § 26.8.3. Byte 0 (FPS limit) repurposed from old 4-byte protocol — BannerHub's regenerator zeros it on every game launch, which is why our manual `0x3c` patches kept getting wiped. Our launch hook re-writes user-set values after the regenerator runs.
+
+> **BannerHub patch (v3.7.3 stable, 2026-05-14):** Port of [Bannerhub-Lite PR #5 by teldommm](https://github.com/The412Banner/Bannerhub-Lite/pull/5). Three changes:
+> 1. **Resume re-apply.** Added a second `BhFrameGenWriter.applyFromPrefs(Context)` invocation at `patches/smali_classes15/com/xj/winemu/WineActivity.smali` `onResume()V` (anchor near line 8679, right after `invoke-super`). Previously the launch hook only fired in `onCreate`, so after Home + resume the sidebar switch still said "ON" while the AI overlay was silently dead — fixed.
+> 2. **Gear-visibility tied to switch.** `patches/res/layout/winemu_sidebar_controls_fragment.xml` now defaults `btn_frame_gen_settings` to `android:visibility="gone"`; `BhFrameGenWiring.bind()` toggles it on the loaded `settings.enabled` state and on every switch click. Matches the RTS-button pattern in the same sidebar.
+> 3. **Dialog cleanup.** `BhFrameGenDialog.java` window background switched from `#cc000000` solid to `Color.TRANSPARENT` + `FLAG_DIM_BEHIND` + `dimAmount = 0.6f` (game stays visible behind a 60% dim). Removed in-dialog Enable Switch (sidebar switch = single source of truth) + multiplier RadioGroup (multiplier now hardcoded to `2` in `BhFrameGenWriter.write()` byte 9). Sections renumbered: 1 = Preset slider, 2 = flowScale slider. Blue **Close** button KEPT — explicit deviation from upstream PR, user requested multiple dismissal paths (tap-outside + visible button). `BhFrameGenSettings.multiplier` field + load/save lines removed; `clampInt` helper retained as no-op for future writer extensions. SharedPreferences keys are now `enabled`, `preset`, `flowScale`, `model` (no longer includes `multiplier`).
 
 ---
 
