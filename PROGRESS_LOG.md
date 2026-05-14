@@ -4862,3 +4862,44 @@ Read via `getlog --cat /storage/emulated/0/Android/data/com.tencent.ig/files/bh_
 **Fix:** Added `if: github.event_name == 'push'` to the release job. Auto-publish a GitHub Release only on tag PUSH events (which are already filtered to stable tags by the top-level `push.tags` rules). `workflow_dispatch` never creates releases, regardless of which ref it targets.
 
 **Cleanup:** Deleted the v3.7.3-pre1 GitHub Release via `gh release delete`. The tag `v3.7.3-pre1` is kept as the build anchor (commit `a477165`); the build's APK artifacts remain on workflow run [25876297190](https://github.com/The412Banner/BannerHub/actions/runs/25876297190).
+
+---
+
+### [session-bookmark] — 2026-05-14 EOD state — awaiting device test on two independent artifacts
+
+Two artifacts sit on workflow run pages awaiting user device test before v3.7.3 stable can ship. Both are independent and can be tested in any order.
+
+#### Artifact 1 — v3.7.3-pre1 (all 9 variants)
+- **Run:** [25876297190](https://github.com/The412Banner/BannerHub/actions/runs/25876297190) ✅
+- **From:** main `a477165` (the GOG overhaul merge commit)
+- **Tag:** `v3.7.3-pre1` (preserved as build anchor; the accidentally-auto-created Release was deleted)
+- **Contents:** GOG download reliability overhaul — multi-CDN port from upstream `utkarshdalal/GameNative` + CDN picker UI + ↻ Refresh button + install-state PARTIAL recovery + diagnostic toast
+- **Already device-confirmed (2026-05-14):** POSTAL 2 multi-CDN fallback, Citadel Remonstered 468/468 clean, CDN picker UI, ↻ Refresh button
+- **What's left to test:** broader variant validation if user wants — but the core fix is already user-validated
+
+#### Artifact 2 — fix/framegen-onresume (Normal variant only)
+- **Run:** [25877838030](https://github.com/The412Banner/BannerHub/actions/runs/25877838030) ✅
+- **From:** branch `fix/framegen-onresume@cc15e56` (NOT merged to main yet)
+- **Origin:** port of [Bannerhub-Lite PR #5 by teldommm](https://github.com/The412Banner/Bannerhub-Lite/pull/5)
+- **Contents:** Two bug fixes (FrameGen re-apply on resume + gear visibility tied to switch state) + dialog cleanup (translucent dim background replaces solid black, multiplier picker removed, in-dialog Enable switch removed, Close button KEPT per user request)
+- **7-step test plan:**
+  1. Enable FrameGen → gear appears, overlay activates
+  2. Press Home / resume → overlay still active (was: silently dead)
+  3. Open dialog → game visible behind 60% dim (was: full-screen black)
+  4. Dialog has only Preset slider + flowScale slider + Close button
+  5. Tap-outside dismisses + Close button dismisses
+  6. Toggle switch OFF → gear hides immediately
+  7. Toggle switch ON → gear reappears immediately
+
+#### If both pass → cut v3.7.3 stable
+1. Merge `fix/framegen-onresume` to main (likely `--no-ff` to preserve the 2-commit history) — bundles framegen fix into v3.7.3
+2. Bump status in `gamehub_reports/GAMENATIVE_GOG_PORT_CREDITS.md`: `🚀 Shipped in v3.7.3` + `📱 device-confirmed 2026-05-14`
+3. Update `BANNERHUB_MASTER_MAP.md` per the master-map-on-every-release rule
+4. Tag `v3.7.3` (no `-pre`) → triggers `build.yml` tag-push → auto-creates the stable Release per the now-guarded release job
+5. Release notes call out the 4 upstream `utkarshdalal/GameNative` contributors (Utkarsh Dalal #1220 #1219, Bart Zaalberg #1215, Joshua Tam #1277, co-author Jeremy Bernstein #1219) + teldommm for the framegen fix
+6. Pre-release policy resumes after the stable
+
+#### If anything fails → diagnose on-device
+- Use logcat-bridge via `getlog <pkg>` for any crash/log capture
+- Push fixes to whichever branch; rebuild via `gh workflow run`
+- Memory shortcuts: [[bannerhub-gog-download-stack-state]] for GOG; [[bannerhub-framegen-onresume-fix-branch-state]] for framegen
