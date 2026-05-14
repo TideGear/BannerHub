@@ -574,7 +574,9 @@ public class GogGamesActivity extends Activity {
     // ── LIST view: collapsible game cards (v0.3.4 style) ─────────────────────
 
     private void addGameCard(GogGame game) {
-        boolean isInstalled = prefs.getString("gog_exe_" + game.gameId, null) != null;
+        GogInstallPath.State state = GogInstallPath.checkState(prefs, game.gameId);
+        boolean isInstalled = (state == GogInstallPath.State.INSTALLED);
+        boolean isPartial   = (state == GogInstallPath.State.PARTIAL);
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -719,7 +721,7 @@ public class GogGamesActivity extends Activity {
         expandSection.addView(statusTV, stLp);
 
         Button actionBtn = new Button(this);
-        actionBtn.setText(isInstalled ? "Add to Launcher" : "Install");
+        actionBtn.setText(isInstalled ? "Add to Launcher" : (isPartial ? "Resume install" : "Install"));
         actionBtn.setTextColor(0xFFFFFFFF);
         actionBtn.setBackgroundColor(isInstalled ? 0xFF2E7D32 : 0xFF7033FF);
         actionBtn.setTextSize(13f);
@@ -742,7 +744,7 @@ public class GogGamesActivity extends Activity {
                 if (exePath != null) GogLaunchHelper.triggerLaunch(this, exePath);
                 return;
             }
-            showInstallConfirm(game, threadCount -> {
+            showInstallConfirm(game, (threadCount, cdnPref) -> {
                 cancelRef1[0] = null;
                 actionBtn.setEnabled(true);
                 actionBtn.setText("Cancel");
@@ -801,7 +803,7 @@ public class GogGamesActivity extends Activity {
                                                        java.util.function.Consumer<String> onSelected) {
                         showExePicker(candidates, onSelected);
                     }
-                }, threadCount);
+                }, threadCount, cdnPref);
             });
         });
 
@@ -880,7 +882,9 @@ public class GogGamesActivity extends Activity {
     private View makeGridTile(GogGame game) { return makeGridTile(game, 105); }
 
     private View makeGridTile(GogGame game, int artHeightDp) {
-        boolean isInstalled = prefs.getString("gog_exe_" + game.gameId, null) != null;
+        GogInstallPath.State state = GogInstallPath.checkState(prefs, game.gameId);
+        boolean isInstalled = (state == GogInstallPath.State.INSTALLED);
+        boolean isPartial   = (state == GogInstallPath.State.PARTIAL);
 
         LinearLayout tile = new LinearLayout(this);
         tile.setOrientation(LinearLayout.VERTICAL);
@@ -980,7 +984,7 @@ public class GogGamesActivity extends Activity {
         actionRow.addView(progressBar, new LinearLayout.LayoutParams(-1, dp(3)));
 
         Button actionBtn = new Button(this);
-        actionBtn.setText(isInstalled ? "Add to Launcher" : "Install");
+        actionBtn.setText(isInstalled ? "Add to Launcher" : (isPartial ? "Resume install" : "Install"));
         actionBtn.setTextColor(0xFFFFFFFF);
         actionBtn.setBackgroundColor(isInstalled ? 0xFF2E7D32 : 0xFF5533CC);
         actionBtn.setTextSize(10f);
@@ -1004,7 +1008,7 @@ public class GogGamesActivity extends Activity {
                 if (exe != null) GogLaunchHelper.triggerLaunch(this, exe);
                 return;
             }
-            showInstallConfirm(game, threadCount -> {
+            showInstallConfirm(game, (threadCount, cdnPref) -> {
                 cancelRef2[0] = null;
                 actionBtn.setEnabled(true);
                 actionBtn.setText("Cancel");
@@ -1053,7 +1057,7 @@ public class GogGamesActivity extends Activity {
                                                        java.util.function.Consumer<String> onSelected) {
                         showExePicker(candidates, onSelected);
                     }
-                }, threadCount);
+                }, threadCount, cdnPref);
             });
         });
 
@@ -1092,7 +1096,9 @@ public class GogGamesActivity extends Activity {
 
     /** Full install/launch dialog for grid tile taps. */
     private void showGridInstallDialog(GogGame game) {
-        boolean isInstalled = prefs.getString("gog_exe_" + game.gameId, null) != null;
+        GogInstallPath.State state = GogInstallPath.checkState(prefs, game.gameId);
+        boolean isInstalled = (state == GogInstallPath.State.INSTALLED);
+        boolean isPartial   = (state == GogInstallPath.State.PARTIAL);
 
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
@@ -1134,33 +1140,41 @@ public class GogGamesActivity extends Activity {
         b.setTitle(game.title);
         b.setView(content);
 
+        // Shared uninstall lambda — used by INSTALLED's neutral button AND by
+        // PARTIAL's neutral button below. Same path resolution and pref clearing
+        // for both states so the user gets identical UX.
+        android.content.DialogInterface.OnClickListener uninstallListener = (d, w) -> {
+            String dirName = GogInstallPath.getInstallOrPartialPath(prefs, game.gameId);
+            if (dirName != null) {
+                android.app.AlertDialog progress = showUninstallProgress();
+                new Thread(() -> {
+                    java.io.File dir = new java.io.File(dirName);
+                    deleteDir(dir);
+                    GogInstallPath.clearAll(prefs, game.gameId);
+                    uiHandler.post(() -> {
+                        progress.dismiss();
+                        applyFilter(searchBar != null ? searchBar.getText().toString() : "");
+                        Toast.makeText(this, game.title + " uninstalled", Toast.LENGTH_SHORT).show();
+                    });
+                }).start();
+            }
+        };
+
         if (isInstalled) {
             b.setPositiveButton("Add to Launcher", (d, w) -> {
                 String exe = prefs.getString("gog_exe_" + game.gameId, null);
                 if (exe != null) GogLaunchHelper.triggerLaunch(this, exe);
             });
-            b.setNeutralButton("Uninstall", (d, w) -> {
-                String dirName = prefs.getString("gog_dir_" + game.gameId, null);
-                if (dirName != null) {
-                    android.app.AlertDialog progress = showUninstallProgress();
-                    new Thread(() -> {
-                        java.io.File dir = new java.io.File(dirName);
-                        deleteDir(dir);
-                        prefs.edit()
-                                .remove("gog_dir_" + game.gameId)
-                                .remove("gog_exe_" + game.gameId)
-                                .remove("gog_cover_" + game.gameId)
-                                .apply();
-                        uiHandler.post(() -> {
-                            progress.dismiss();
-                            applyFilter(searchBar != null ? searchBar.getText().toString() : "");
-                            Toast.makeText(this, game.title + " uninstalled", Toast.LENGTH_SHORT).show();
-                        });
-                    }).start();
-                }
-            });
+            b.setNeutralButton("Uninstall", uninstallListener);
             b.setNegativeButton("Close", null);
         } else {
+            // PARTIAL or NONE — both use the custom in-content install button
+            // (positive button auto-dismisses on click which would kill the
+            // long-running download). PARTIAL also gets the neutral Uninstall
+            // slot so the user can wipe a failed download and start clean.
+            if (isPartial) {
+                b.setNeutralButton("Uninstall", uninstallListener);
+            }
             b.setNegativeButton("Close", null);
             AlertDialog dialog = b.create();
             dialog.show();
@@ -1169,7 +1183,7 @@ public class GogGamesActivity extends Activity {
             Button installBtn = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
             // Reuse negative slot for close; add custom Install button in content
             Button customInstall = new Button(this);
-            customInstall.setText("Install");
+            customInstall.setText(isPartial ? "Resume install" : "Install");
             customInstall.setTextColor(0xFFFFFFFF);
             customInstall.setBackgroundColor(0xFF7033FF);
             customInstall.setTextSize(13f);
@@ -1183,7 +1197,7 @@ public class GogGamesActivity extends Activity {
                     if (cancelRef3[0] != null) cancelRef3[0].run();
                     return;
                 }
-                showInstallConfirm(game, threadCount -> {
+                showInstallConfirm(game, (threadCount, cdnPref) -> {
                 cancelRef3[0] = null;
                 customInstall.setEnabled(true);
                 customInstall.setText("Cancel");
@@ -1245,7 +1259,7 @@ public class GogGamesActivity extends Activity {
                                                        java.util.function.Consumer<String> onSelected) {
                         showExePicker(candidates, onSelected);
                     }
-                }, threadCount);
+                }, threadCount, cdnPref);
                 }); // end showInstallConfirm
             });
             return; // dialog already shown above
@@ -1257,10 +1271,14 @@ public class GogGamesActivity extends Activity {
     // ── Service-backed download (routes through BhDownloadService) ───────────
 
     private Runnable startViaServiceGog(GogGame game, GogDownloadManager.Callback cb) {
-        return startViaServiceGog(game, cb, BhDownloadConfig.DEFAULT_THREADS);
+        return startViaServiceGog(game, cb, BhDownloadConfig.DEFAULT_THREADS, BhInstallConfirmDialog.CDN_PREF_AUTO);
     }
 
     private Runnable startViaServiceGog(GogGame game, GogDownloadManager.Callback cb, int threadCount) {
+        return startViaServiceGog(game, cb, threadCount, BhInstallConfirmDialog.CDN_PREF_AUTO);
+    }
+
+    private Runnable startViaServiceGog(GogGame game, GogDownloadManager.Callback cb, int threadCount, String cdnPref) {
         String dlKey = "gog_" + game.gameId;
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
                 checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -1273,6 +1291,7 @@ public class GogGamesActivity extends Activity {
         svc.putExtra(BhDownloadService.EXTRA_GAME_ID, dlKey);
         svc.putExtra(BhDownloadService.EXTRA_GAME_NAME, game.title);
         svc.putExtra(BhDownloadService.EXTRA_THREADS, threadCount);
+        svc.putExtra(BhDownloadService.EXTRA_GOG_CDN_PREF, cdnPref);
         svc.putExtra(BhDownloadService.EXTRA_GOG_GAME_ID, game.gameId);
         svc.putExtra(BhDownloadService.EXTRA_GOG_TITLE, game.title);
         svc.putExtra(BhDownloadService.EXTRA_GOG_IMAGE_URL, game.imageUrl);
@@ -1403,17 +1422,16 @@ public class GogGamesActivity extends Activity {
     }
 
     private void uninstall(GogGame game, Runnable onUninstalled) {
-        String dirName = prefs.getString("gog_dir_" + game.gameId, null);
+        // Use the shared helper so PARTIAL state (failed download) cleans up
+        // identically to INSTALLED — matches GogGameDetailActivity.doUninstall
+        // and the inline uninstall in showGridInstallDialog.
+        String dirName = GogInstallPath.getInstallOrPartialPath(prefs, game.gameId);
         if (dirName != null) {
             android.app.AlertDialog progress = showUninstallProgress();
             new Thread(() -> {
                 java.io.File installPath = new java.io.File(dirName);
                 deleteDir(installPath);
-                prefs.edit()
-                        .remove("gog_dir_" + game.gameId)
-                        .remove("gog_exe_" + game.gameId)
-                        .remove("gog_cover_" + game.gameId)
-                        .apply();
+                GogInstallPath.clearAll(prefs, game.gameId);
                 uiHandler.post(() -> {
                     progress.dismiss();
                     onUninstalled.run();
@@ -1495,12 +1513,30 @@ public class GogGamesActivity extends Activity {
     }
 
     /** Shows a pre-install confirmation dialog with game size (async-fetched), available storage, and a per-download thread-count picker. */
-    private void showInstallConfirm(GogGame game, BhInstallConfirmDialog.Callback callback) {
-        BhInstallConfirmDialog.showAsync(this, game.title, "gog_games", callback,
+    /**
+     * GOG install-confirm helper. The callback receives the user's chosen
+     * thread count AND CDN preference ("AUTO" or a specific CDN base URL
+     * from the picker). Caller passes both into startViaServiceGog so the
+     * download service can honor the CDN choice.
+     */
+    private void showInstallConfirm(GogGame game, java.util.function.BiConsumer<Integer, String> onConfirm) {
+        BhInstallConfirmDialog.Callback cb = new BhInstallConfirmDialog.Callback() {
+            @Override public void onConfirm(int threadCount) {
+                onConfirm.accept(threadCount, BhInstallConfirmDialog.CDN_PREF_AUTO);
+            }
+            @Override public void onConfirmWithCdn(int threadCount, String cdnPref) {
+                onConfirm.accept(threadCount, cdnPref);
+            }
+        };
+        BhInstallConfirmDialog.showAsync(this, game.title, "gog_games", cb,
                 /* initialSizeBytes = */ 0L,
                 sizeCallback -> new Thread(() -> {
                     long size = GogDownloadManager.fetchGameSize(this, game);
                     runOnUiThread(() -> sizeCallback.onSize(size));
+                }).start(),
+                cdnListCallback -> new Thread(() -> {
+                    java.util.List<String> urls = GogDownloadManager.fetchCdnUrls(this, game.gameId);
+                    runOnUiThread(() -> cdnListCallback.onCdnList(urls));
                 }).start());
     }
 
