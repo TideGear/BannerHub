@@ -411,34 +411,6 @@ jobs:
           print("Settings Import/Export + Vibration patches applied.")
           PYEOF
 
-      - name: Build libevshim.so (guest-side SDL keepalive)
-        run: |
-          set -e
-          NDK_HOME="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}"
-          if [ -z "$NDK_HOME" ] || [ ! -d "$NDK_HOME" ]; then
-            NDK_HOME=$(ls -d "${ANDROID_SDK_ROOT}"/ndk/* 2>/dev/null | sort -V | tail -1)
-          fi
-          if [ -z "$NDK_HOME" ] || [ ! -d "$NDK_HOME" ]; then
-            NDK_HOME="${ANDROID_SDK_ROOT}/ndk-bundle"
-          fi
-          echo "Using NDK: $NDK_HOME"
-          if ! command -v ninja >/dev/null 2>&1; then
-            sudo apt-get update -qq
-            sudo apt-get install -y ninja-build
-          fi
-          cmake -S native/evshim -B build/evshim \
-            -DCMAKE_TOOLCHAIN_FILE="$NDK_HOME/build/cmake/android.toolchain.cmake" \
-            -DANDROID_ABI=arm64-v8a \
-            -DANDROID_PLATFORM=android-29 \
-            -DCMAKE_BUILD_TYPE=Release \
-            -G Ninja
-          ninja -C build/evshim
-          mkdir -p apktool_out_base/lib/arm64-v8a
-          cp build/evshim/libevshim.so apktool_out_base/lib/arm64-v8a/libevshim.so
-          chmod 0755 apktool_out_base/lib/arm64-v8a/libevshim.so
-          file apktool_out_base/lib/arm64-v8a/libevshim.so
-          ls -la apktool_out_base/lib/arm64-v8a/libevshim.so
-
       - name: Apply BhVibration smali patches
         run: |
           python3 << 'PYEOF'
@@ -527,13 +499,34 @@ jobs:
           # and imports as part of the per-game config bundle. No new sidebar
           # contentType needed; the launch path goes through BhVibrationLambda.
 
-          # Patch 3: EnvironmentController.b(Wine, String) — prepend libevshim.so to LD_PRELOAD.
-          # The shim is preloaded into Wine processes so it can interpose SDL_JoystickRumble
-          # in libSDL2-2.0.so, keeping SDL's internal ~1 s rumble timer perpetually reset.
-          # Without this, sustained rumble cuts out at exactly 1000 ms (SDL auto-expiry sends
-          # OnRumble(0,0) to libvfs.so's VirtualJoystickDesc.Rumble callback, which IPCs
-          # "stop" to the host).
-          # Anchor: just before `EnvVars.f("LD_PRELOAD", v1)`, after both branches join.
+          # Patch 3: EnvironmentController.b(Wine, String) — pre-launch trigger
+          # for the BhVibrationController disk patcher.
+          #
+          # Fires once per Wine launch, immediately before the env builder
+          # writes LD_PRELOAD. The Java method scans the app's files tree for
+          # every winebus.so and rewrites the two non-zero SDL_JoystickRumble
+          # call sites to pass 0xffffffff as the duration, so SDL2's ~1 s
+          # rumble_expiration never fires. Both aarch64-unix and x86_64-unix
+          # winebus.so variants are patched, which is what makes x86_64 Wine
+          # containers get the same sustained-rumble fix as aarch64 (the
+          # previous libevshim LD_PRELOAD path was aarch64-only — x86_64
+          # Wine processes silently rejected the arm64 .so at load time, so
+          # SDL's 1 s expiry fired and rumble cut out on x86_64 containers).
+          #
+          # The same Java entry also schedules a delayed write of the
+          # .bh_winedevice_ready marker file (~5 s after this fires) so the
+          # multi-controller auto-wake fires regardless of container arch.
+          # That replaces libevshim's "write marker from inside winedevice
+          # after runtime GOT patch" signal — we now patch winebus.so on
+          # disk pre-launch, so there's no in-process signal to ride.
+          #
+          # No LD_PRELOAD modification — Wine's preloader is sensitive to
+          # address-space layout (Shotgun King is the canonical case that
+          # silently exits when any extra .so is mapped into its Wine
+          # subprocess), so preload-free is the safer architecture.
+          #
+          # Anchor: just before `EnvVars.f("LD_PRELOAD", v1)`, after both
+          # branches join.
           patch(
               'apktool_out_base/smali_classes6/com/winemu/core/controller/EnvironmentController.smali',
               '    :cond_2\n'
@@ -542,29 +535,16 @@ jobs:
               '    :cond_2\n'
               '    :goto_1\n'
               '\n'
-              '    # BH: prepend libevshim.so to LD_PRELOAD list (guest-side SDL keepalive)\n'
+              '    # BH: preload-free SDL rumble keepalive — patch every\n'
+              '    # winebus.so on disk once per app process + schedule a\n'
+              '    # delayed readiness-marker write for multi-controller\n'
+              '    # auto-wake. AtomicBoolean inside the Java method gates\n'
+              '    # against repeat scans. No LD_PRELOAD changes.\n'
               '    iget-object v2, p0, Lcom/winemu/core/controller/EnvironmentController;->a:Landroid/content/Context;\n'
-              '    invoke-virtual {v2}, Landroid/content/Context;->getApplicationInfo()Landroid/content/pm/ApplicationInfo;\n'
-              '    move-result-object v2\n'
-              '    iget-object v2, v2, Landroid/content/pm/ApplicationInfo;->nativeLibraryDir:Ljava/lang/String;\n'
-              '    new-instance v3, Ljava/lang/StringBuilder;\n'
-              '    invoke-direct {v3}, Ljava/lang/StringBuilder;-><init>()V\n'
-              '    invoke-virtual {v3, v2}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
-              '    const-string v2, "/libevshim.so"\n'
-              '    invoke-virtual {v3, v2}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
-              '    invoke-virtual {v3}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;\n'
-              '    move-result-object v2\n'
-              '    new-instance v3, Ljava/io/File;\n'
-              '    invoke-direct {v3, v2}, Ljava/io/File;-><init>(Ljava/lang/String;)V\n'
-              '    invoke-virtual {v3}, Ljava/io/File;->exists()Z\n'
-              '    move-result v3\n'
-              '    if-eqz v3, :bh_skip_evshim_preload\n'
-              '    const/4 v3, 0x0\n'
-              '    invoke-interface {v1, v3, v2}, Ljava/util/List;->add(ILjava/lang/Object;)V\n'
-              '    :bh_skip_evshim_preload\n'
+              '    invoke-static {v2}, Lcom/xj/winemu/vibration/BhVibrationController;->ensureWinebusDurationPatchOnce(Landroid/content/Context;)V\n'
               '\n'
               '    const-string v2, "LD_PRELOAD"\n',
-              'EnvironmentController.b(Wine, String): prepend libevshim.so to LD_PRELOAD'
+              'EnvironmentController.b(Wine, String): pre-launch winebus disk-patch trigger (preload-free, both arches)'
           )
 
           # Patch 4: GamepadDevice$Physical.g()V — stop hook.
@@ -602,8 +582,9 @@ jobs:
           # We extract slot via GamepadSlotManager.m(GamepadDevice)I (field e on
           # GamepadManager) and pass the GamepadServerManager (field c) plus slot
           # to BhVibrationController.scheduleWakeup, which queues a button-14
-          # flicker on the slot's GamepadState gated on libevshim's winedevice
-          # ready marker. drainPendingWakeups() then fires staggered (200 ms per
+          # flicker on the slot's GamepadState gated on the winedevice ready
+          # marker (written by the env-builder hook's delayed Java write — see
+          # Patch 3). drainPendingWakeups() then fires staggered (200 ms per
           # slot, ascending) so libvfs registers each slot before the next.
           #
           # Inject BEFORE stock body so registers v0..v3 (declared by .locals 4)
