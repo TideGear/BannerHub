@@ -37,22 +37,6 @@ import java.util.concurrent.atomic.AtomicLongArray;
  *
  * Ported from GameNative PR #1214 (Fix-Vibration, TideGear).
  *
- * Hybrid keepalive architecture:
- *   - aarch64 Wine containers: libevshim.so is LD_PRELOAD'd. The shim
- *     interposes SDL_JoystickRumble, patches winebus.so's pSDL_JoystickRumble
- *     pointer in .bss at runtime, and writes the .bh_winedevice_ready marker
- *     once its GOT patch lands inside winedevice.exe. Proven path from
- *     v3.6.1+.
- *   - x86_64 Wine containers: libevshim is arm64-only and the dynamic linker
- *     rejects it in x86_64 processes — so ensureWinebusDurationPatchOnce
- *     below rewrites winebus.so on disk to make SDL2's expiry never fire,
- *     and scheduleDelayedReadinessMarker writes the marker from Java after
- *     a fixed delay so multi-controller auto-wake fires too.
- *   - aarch64 containers ALSO get the disk patch as belt-and-suspenders.
- *     Both mechanisms target the same SDL_JoystickRumble call sites; the
- *     disk patch makes them pass 0xffffffff regardless of whether
- *     libevshim's runtime GOT patch lands.
- *
  * Pipeline entry points (called from smali patches):
  *   - onRumble(slot, low, high): rumble callback from the native gamepad server,
  *     invoked by GamepadServerManager$onRumble(III)V.
@@ -71,21 +55,22 @@ import java.util.concurrent.atomic.AtomicLongArray;
  *     (otherwise rumble silently no-ops on freshly-connected controllers in
  *     multi-controller setups until each is "activated" by an input event).
  *     Wake-ups are gated on the winedevice readiness marker (written by
- *     either libevshim from inside winedevice.exe on aarch64, or
- *     scheduleDelayedReadinessMarker from Java on x86_64) and staggered
- *     200 ms per slot ascending so libvfs has time to register each before
- *     the next stimulus arrives.
+ *     ensureWinebusDurationPatchOnce after a short post-launch delay) and
+ *     staggered 200 ms per slot ascending so libvfs has time to register each
+ *     before the next stimulus arrives.
  *   - ensureWinebusDurationPatchOnce(ctx): pre-launch disk-patch trigger,
  *     invoked from the env builder (EnvironmentController.b) immediately
  *     before the LD_PRELOAD env var is set. Scans the app's files tree for
  *     every winebus.so and rewrites the two non-zero SDL_JoystickRumble call
  *     sites to pass 0xffffffff as the duration so SDL2's ~1 s rumble_expiration
  *     never fires. Both aarch64-unix and x86_64-unix winebus.so variants are
- *     patched, so x86_64 Wine containers get sustained-rumble support without
- *     needing a (non-existent) x86_64 libevshim. An AtomicBoolean gates
- *     against repeat scans. This entry also schedules the readiness marker
- *     write (5 s later, matching libvfs init budget) so multi-controller
- *     auto-wake fires regardless of container arch.
+ *     patched, so x86_64 Wine containers get the same sustained-rumble fix as
+ *     aarch64. An AtomicBoolean gates against repeat scans. This entry also
+ *     schedules the readiness marker write (5 s later, matching libvfs init
+ *     budget) so multi-controller auto-wake fires regardless of container arch.
+ *     Preload-free: no LD_PRELOAD modification, no extra .so mapped into Wine
+ *     subprocess address spaces (which silently exits a small set of games
+ *     like Shotgun King under any extra preload).
  *
  * Modes:
  *   0 = Off         — no rumble anywhere
@@ -523,27 +508,30 @@ public final class BhVibrationController {
     // ─────────────────────────────────────────────────────────────────────────
     // Smali entry 4: env builder (EnvironmentController.b) pre-launch trigger.
     //
-    // Fires once per Wine launch, alongside the LD_PRELOAD-prepend of
-    // libevshim.so done by the same smali patch. Two things happen here:
+    // Fires once per Wine launch, immediately before the env builder writes
+    // LD_PRELOAD and hands off to the Wine launcher. We do two things here:
     //
     //   (a) Scan every winebus.so in app storage and rewrite the two non-zero
     //       SDL_JoystickRumble call sites to pass 0xffffffff as the duration
     //       so SDL2's ~1 s rumble_expiration never fires. Zero-duration stop
     //       calls are separate sites and stay untouched. Both aarch64-unix
-    //       and x86_64-unix winebus.so variants are patched. On x86_64
-    //       containers this is the sole keepalive (libevshim is arm64-only
-    //       and the loader rejects it there); on aarch64 it's belt-and-
-    //       suspenders behind libevshim's runtime GOT patch.
+    //       and x86_64-unix winebus.so variants are patched, so x86_64 Wine
+    //       containers get the same sustained-rumble fix as aarch64.
     //
     //   (b) Schedule a delayed write of the winedevice ready marker file.
-    //       libevshim already writes this marker from inside winedevice.exe
-    //       after its GOT patch lands — but only on aarch64. Our Java-side
-    //       delayed write (READINESS_MARKER_DELAY_MS after env-builder fires,
-    //       matching libevshim's own pre-patch sleep) covers x86_64 where
-    //       libevshim isn't loaded, AND acts as a safety net on aarch64 if
-    //       libevshim's marker write ever fails. FileObserver fires on each
-    //       CREATE event; drainPendingWakeups is idempotent when the queue
-    //       is empty, so concurrent firing is harmless.
+    //       This replaces the marker libevshim used to write from inside
+    //       winedevice.exe. We can't observe winedevice directly from Java,
+    //       so we wait READINESS_MARKER_DELAY_MS (matching libevshim's own
+    //       pre-patch sleep) and assume libvfs-client has finished init by
+    //       then. The FileObserver in handleScheduleWakeup picks up the
+    //       marker write and fires the queued button-14 wake-ups so multi-
+    //       controller auto-attach works regardless of container arch.
+    //
+    // No LD_PRELOAD modification — Wine's preloader is famously sensitive to
+    // address-space layout, and a small set of games (Shotgun King is the
+    // canonical case) silently exit at launch when any extra .so is mapped
+    // into their Wine subprocess address space. Patching winebus.so on disk
+    // gives us the keepalive without introducing a new mapping.
     //
     // Smali patches 1-3 (dual-motor dispatch + instant release) are
     // independent of this and work whether the disk patch lands or not.
